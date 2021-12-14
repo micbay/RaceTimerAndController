@@ -75,7 +75,7 @@ enum lanes {
 enum races {
   Standard,
   Timed,
-  Poles
+  Pole
 };
 
 // race time will be kept as an integer array of [minutes, seconds]
@@ -91,7 +91,7 @@ String Racers[racerCount] = {
 };
 races raceType = Standard;
 int raceTime[2] = {2, 0};
-int raceLaps = 5;
+int raceLaps = 500;
 // racer#'s value is the index of Racers[] identifying the racer
 int racer1 = 0;
 int racer2 = 1;
@@ -141,8 +141,8 @@ const char* SelectRacersText[4] = {
   " "
 };
 const char* SelectRaceText[4] = {
-  "A Start     Lap Race",
-  "B Start Timed Race",
+  "A First to     Laps",
+  "B Most Laps in   :",
   "C Start Pol Trials",
   "D Countdown:"
 };
@@ -170,8 +170,8 @@ void UpdateMenu(char *curMenu[]){
 
 // Prints input value to specifiec location on screen
 // with leading zeros to fill any gap in the width
-void PrintWithLeadingZeros(byte integerIN, byte width, byte cursorPos, byte line){
-  byte leadingZCount = 0;
+void PrintWithLeadingZeros(int integerIN, int width, int cursorPos, int line){
+  int leadingZCount = 0;
   if (integerIN == 0){
     // we subtract 1 because we still print the input integer
     leadingZCount = width - 1;
@@ -180,7 +180,7 @@ void PrintWithLeadingZeros(byte integerIN, byte width, byte cursorPos, byte line
   }
   if (leadingZCount < 0) leadingZCount = 0;
   lcd.setCursor(cursorPos, line);
-  for (byte i=0; i < leadingZCount; i++) {
+  for (int i=0; i < leadingZCount; i++) {
     lcd.print('0');
   }
   lcd.print(integerIN);
@@ -224,13 +224,12 @@ void setup(){
 
 
 void loop(){
-  // delay(2);
   // Serial.println("MAIN LOOP START");
   // Serial.println(state);
   switch (state) {
     // Serial.println("Entered Stat Switch");
     // In the 'Menu' state the program is focused on looking for keypad input
-    // then using that keypad input to navigate the menu tree
+    // and using that keypad input to navigate the menu tree
     case Menu:{
       // Serial.println("entering Menu STATE");
       char key = keypad.getKey();
@@ -353,8 +352,8 @@ void loop(){
             }              
             break;
 
-          // "A Start     Lap Race",
-          // "B Start Timed Race",
+          // "A First to     Laps",
+          // "B Most Laps in",
           // "C Start Pol Trials",
           // "D Countdown:"
           case SelectRaceMenu:
@@ -362,8 +361,14 @@ void loop(){
               //draw non-editable text
               UpdateMenu(SelectRaceText);
               // add current race lap setting to lap race selection text
-              lcd.setCursor(8,0);
-              lcd.print(raceLaps);
+              lcd.setCursor(11,0);
+              PrintWithLeadingZeros(raceLaps, 3, 11, 0);
+              // add current race minutes setting to timed race screen
+              lcd.setCursor(15,1);
+              PrintWithLeadingZeros(raceTime[0], 2, 15, 1);
+              // add current race seconds setting to timed race screen
+              lcd.setCursor(18,1);
+              PrintWithLeadingZeros(raceTime[1], 2, 18, 1);
               // add the curent countdown setting to screen
               lcd.setCursor(13,3);
               PrintWithLeadingZeros(countdown, 2, 13, 3);
@@ -371,22 +376,27 @@ void loop(){
             }
             switch (key) {
               case 'A':
-                // set the global raceType to a Standard race, first to X laps
+                // set the global raceType to a Standard race
+                // Typical to car racing, first to X laps
                 state = Race;
                 raceType = Standard;
                 entryFlag = true;
-                Serial.println("leaving Menu state");
-                // lcd.print(raceType);
-                // lcd.cursor();
                 break;
               case 'B':
-
+                // set the global raceType to a timed race
+                // most laps before time runs out
+                state = Race;
+                raceType = Timed;
+                entryFlag = true;
                 break;
               case 'C':
-
+                // set the global raceType to Pole position trials
+                state = Race;
+                raceType = Pole;
+                entryFlag = true;
                 break;
               case 'D':
-                // change lap count
+                // change how long the countdown before the race start lasts
                 countdown = enterNumber(2, 30, 3, 13);
                 break;
               case '*':
@@ -427,7 +437,7 @@ void loop(){
         case Timed:
 
           break;
-        case Poles:
+        case Pole:
 
           break;
         default:
@@ -458,36 +468,55 @@ void clearLine(int lineNumber) {
   }
 }
 
+// Integer power function as pow() is only good with floats
+int ipow(int base, int exp) {
+    int result = 1;
+    for (;;) {
+        if (exp & 1)
+            result *= base;
+        exp >>= 1;
+        if (!exp)
+            break;
+        base *= base;
+    }
+    return result;
+}
+
+
 // this function is used to monitor user input
 // it takes in the current state, number of characters and returns the reulstin int
 int enterNumber(int digits, int maxValue, int line, int cursorPos){
-
-  char inputNumber[digits];
+  byte digitsOG = digits;
+  // char inputNumber[digits];
+  int inputNumber[digits];
   bool done = false;
   char keyIN;
-  int returnNumber = 0;
   const int startCursorPos = cursorPos;
-
+  // turn on the cursor at point of data entry
   lcd.setCursor(cursorPos, line);
   lcd.cursor();
   // clear number entry space then reset cursor to beginning of entry.
   for (int i=0; i<digits; i++){
     lcd.print(' ');
   };
+  // need to reset cursor back to start of number before switch which waits for key
   lcd.setCursor(cursorPos, line);
 
   while (!done){
     keyIN = keypad.getKey();
     switch (keyIN) {
-      case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '0':
-        // if number is entered then append it to screen
+      case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '0': {
+        // set cursor to current position for next digit
         lcd.setCursor(cursorPos, line);
         lcd.cursor();
         lcd.print(keyIN);
         cursorPos++;
         digits--;
-        inputNumber[digits] = keyIN;
+        inputNumber[digits] = keyIN - '0';
+        Serial.println("inputNumber digit");
+        Serial.println(inputNumber[digits]);
         break;
+      }
       default:
         break;
     }
@@ -497,20 +526,20 @@ int enterNumber(int digits, int maxValue, int line, int cursorPos){
     }
   }
 
-  returnNumber = 0;
-  for (int i = 0; i < sizeof(inputNumber); i++) {
-   // subtracting a '0' character from another character converts it into an int
-    returnNumber = (inputNumber[i]-'0') * pow(10, i) + returnNumber;
+  int returnNumber = 0;
+  // rebuild integer from array. The array index matches it's power of 10
+  for (int i = 0; i < digitsOG; i++) {
+    // can't use the built in pow() because it is only accurate with floats.
+    // instead we need to use our own custom integer power funtion, ipow().
+    returnNumber = (inputNumber[i]) * ipow(10, i) + returnNumber;
   }
-
   if (returnNumber > maxValue) {
     returnNumber = maxValue;
     lcd.setCursor(startCursorPos, line);
     if (maxValue < 10) lcd.print("0");
     lcd.print(maxValue);
   }
-  // lcd.setCursor(0,3);
-  // clearLine(3);
-  // lcd.print(returnNumber);
+  // Serial.println("returnNumber");
+  // Serial.println(returnNumber);
   return returnNumber;
 }
