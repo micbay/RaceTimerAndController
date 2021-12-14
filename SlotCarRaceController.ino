@@ -168,17 +168,26 @@ void UpdateMenu(char *curMenu[]){
   }
 }
 
-// function to add leading zeros to number output
-int zeroCount(int integerIN, int width){
-  int leadingZeroCount = 0;
+// Prints input value to specifiec location on screen
+// with leading zeros to fill any gap in the width
+void PrintWithLeadingZeros(byte integerIN, byte width, byte cursorPos, byte line){
+  byte leadingZCount = 0;
   if (integerIN == 0){
-    leadingZeroCount = width - 1;
+    // we subtract 1 because we still print the input integer
+    leadingZCount = width - 1;
   } else {
-    leadingZeroCount = width - calcDigits(integerIN);
+    leadingZCount = width - calcDigits(integerIN);
   }
-  if (leadingZeroCount < 0) leadingZeroCount = 0;
-  return leadingZeroCount;
+  if (leadingZCount < 0) leadingZCount = 0;
+  lcd.setCursor(cursorPos, line);
+  for (byte i=0; i < leadingZCount; i++) {
+    lcd.print('0');
+  }
+  lcd.print(integerIN);
+  // Serial.println("leading zero count ");
+  // Serial.println(leadingZCount);
 }
+
 
 int calcDigits(int number){
   int digitCount = 0;
@@ -241,7 +250,6 @@ void loop(){
               case 'A':
                 currentMenu = SelectRacersMenu;
                 entryFlag = true;
-                // UpdateMenu(SelectRacersText);
                 break;
               case 'B':
                 currentMenu = SettingsMenu;
@@ -250,12 +258,10 @@ void loop(){
               case 'C':
                 currentMenu = SelectRaceMenu;
                 entryFlag = true;
-                // UpdateMenu(SelectRaceText);
                 break;
               case 'D':
                 currentMenu = ResultsMenu;
                 entryFlag = true;
-                // UpdateMenu(ResultsText);
               default:
                 break;
             }
@@ -266,24 +272,15 @@ void loop(){
               //draw non-editable text
               UpdateMenu(SettingsText);
               // draw current minute setting
-              lcd.setCursor(10,2);
-              for (int i=0; i < zeroCount(raceTime[0], 2); i++) {
-                lcd.print('0');
-              };
-              lcd.print(raceTime[0]);
+              lcd.setCursor(10, 2);
+              PrintWithLeadingZeros(raceTime[0], 2, 10, 2);
               // draw current seconds setting
-              lcd.setCursor(13,2);
-              for (int i=0; i < zeroCount(raceTime[1], 2); i++) {
-                lcd.print('0');
-              };
-              lcd.print(raceTime[1]);
+              lcd.setCursor(13, 2);
+              PrintWithLeadingZeros(raceTime[1], 2, 13, 2);
               // draw current lap count
-              lcd.setCursor(10,1);
-              for (int i=0; i < zeroCount(raceLaps, 3); i++) {
-                lcd.print('0');
-              };
-              lcd.print(raceLaps);
-              //dray durrent lane settings
+              lcd.setCursor(10, 1);
+              PrintWithLeadingZeros(raceLaps, 3, 10, 1);
+              //draw current lane settings
               lcd.setCursor(10,3);
               lcd.print(laneText[activeLane]);
               entryFlag = false;
@@ -364,14 +361,12 @@ void loop(){
             if (entryFlag) {
               //draw non-editable text
               UpdateMenu(SelectRaceText);
-              // add current race lap setting
+              // add current race lap setting to lap race selection text
               lcd.setCursor(8,0);
               lcd.print(raceLaps);
+              // add the curent countdown setting to screen
               lcd.setCursor(13,3);
-              for (int i=0; i < zeroCount(raceLaps, 2); i++) {
-                lcd.print('0');
-              };
-              lcd.print(countdown);
+              PrintWithLeadingZeros(countdown, 2, 13, 3);
               entryFlag = false;
             }
             switch (key) {
