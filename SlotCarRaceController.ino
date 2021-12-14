@@ -37,41 +37,78 @@ byte pin_column[KP_COLS] = {9,10,11,12};
 Keypad keypad = Keypad( makeKeymap(keys), pin_rows, pin_column, KP_ROWS, KP_COLS );
 
 
-// **** Global Variables ****
+// **** Race Variables ****
+// Racer list
+String Racers[] = {
+  "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle BadAss", "Remy", 
+};
 // create enum to hold possible state values
 enum states {
   Menu,
   Race,
   Paused
 };
+// start lanes enum to match value and lane number, All = 0
+enum lanes {
+  All,
+  Lane1,
+  Lane2
+};
+// race time will be kept as an integer array of [minutes, seconds]
+// race time's default is the starting time of a timed race
+int raceTime[2] = {2, 0};
+int raceLaps = 5;
+int lane1Time = 0;
+int lane2Time = 0;
+String racer1 = "Racer 1";
+String racer2 = "Racer 2";
+int currentCursorPos;
+int activeLane = All;
+byte const laneCount = 2;
+String laneText[laneCount + 1] = {"All   ", "1 Only", "2 Only"};
 
-char MenuKeys[] = {'A', 'B', 'C', 'D'};
+enum Menus {
+  MainMenu,
+    SettingsMenu,
+      SetRaceTimeMenu,
+      SetRaceLapsMenu,
+      SetLanesMenu,
+    SelectRacersMenu,
+    SelectRaceMenu,
+    ResultsMenu,
 
-
+};
 //****** Menu String Arrays **********
-const char* MainMenuText[4] = {
+const char* MainText[4] = {
   "A Change Settings",
-  "B Select a Race",
-  "C See Results",
-  ""
+  "B Select Racers",
+  "C Select a Race",
+  "D See Results"
 };
-const char* SettingsMenuText[4] = {
-  "A Set Race Time",
-  "B Set Lap Number",
-  "C Set Lanes",
-  "D   <-- Return"
+// Main Menu's sub-Menus
+const char* SettingsText[4] = {
+  " A-Min  B-Sec  C-Lap",
+  "Racetime: 00:00",
+  "Num Laps: 025",
+  " D-Lanes: All"
 };
-const char* RaceSelectMenuText[4] = {
+const char* SelectRacersText[4] = {
+  "R1: A Prev, B Next",
+  " ",
+  "R2: C Prev, D Next",
+  " "
+};
+const char* SelectRaceText[4] = {
   "A Start Timed Race",
   "B Start Lap Race",
   "C Start Pol Trials",
-  "D   <-- Return"
+  "*   <-- Return"
 };
-const char* ResultMenuText[4] = {
-  "A Set Race Time",
-  "B Set Lap Number",
-  "C Set Lanes",
-  "D   <-- Return"
+const char* ResultsText[4] = {
+  "     RACE RESULTS",
+  "",
+  "",
+  "*   <-- Return"
 };
 
 // create variale to hold current 'state'
@@ -84,20 +121,11 @@ void UpdateMenu(char *curMenu[]){
   // clear screen in case new text doesn't cover all old text
   lcd.clear();
   for (int i=0; i<4; i++){
-    lcd.setCursor(1,i);
+    lcd.setCursor(0,i);
     lcd.print(curMenu[i]);
   }
 }
 
-enum Menus {
-  MainMenu,
-  SettingsMenu,
-  RaceSelectMenu,
-  ResultMenu,
-  SetRaceTime,
-  SetRaceLaps,
-  SetLanes
-};
 
 Menus currentMenu;
 
@@ -120,7 +148,7 @@ void setup(){
   // open connection on serial port
   Serial.begin(9600);
   currentMenu = MainMenu;
-  UpdateMenu(MainMenuText);
+  UpdateMenu(MainText);
   
           Serial.println(currentMenu);
           Serial.println(SettingsMenu);
@@ -130,27 +158,35 @@ void setup(){
 void loop(){
 
   switch (state) {
+    // In the 'Menu' state the program is focused on looking for keypad input
+    // then using that keypad input to navigate the menu tree
     case Menu:
-      // monitor keypad for user inputs
+
       char key = keypad.getKey();
-      // if a press is detected then updated the menu
+      // only if a press is detected do we bother to evaluate anything
       if (key) {
+        // All of the menus and sub-menus have been flattened to a single switch
         switch (currentMenu) {
+          // The 'MainMenu' is the default and top level menu in the menu tree
+          // Within each menu case is another switch for keys with a response in that menu
           case MainMenu:
             switch (key) {
               case 'A':
                 currentMenu = SettingsMenu;
-                Serial.println("set" + SettingsMenu);
-                UpdateMenu(SettingsMenuText);
+                // Serial.println("set" + SettingsMenu);
+                UpdateMenu(SettingsText);
                 break;
               case 'B':
-                currentMenu = RaceSelectMenu;
-                UpdateMenu(RaceSelectMenuText);
+                currentMenu = SelectRacersMenu;
+                UpdateMenu(SelectRacersText);
                 break;
               case 'C':
-                currentMenu = ResultMenu;
-                UpdateMenu(ResultMenuText);
+                currentMenu = SelectRaceMenu;
+                UpdateMenu(SelectRaceText);
                 break;
+              case 'D':
+                currentMenu = ResultsMenu;
+                UpdateMenu(ResultsText);
               default:
                 break;
             }
@@ -158,28 +194,80 @@ void loop(){
           case SettingsMenu:
             switch (key) {
               case 'A':
-                currentMenu = SetRaceTime;
-                UpdateMenu(MainMenuText);
+                // Change minutes
+                raceTime[0] = enterNumber(2, 60, 1, 10);
                 break;
               case 'B':
-                currentMenu = SetRaceLaps;
-                UpdateMenu(MainMenuText);
+                // change seconds
+                raceTime[1] = enterNumber(2, 59, 1, 13);
                 break;
               case 'C':
-                currentMenu = SetLanes;
-                UpdateMenu(MainMenuText);
+                // change seconds
+                raceLaps = enterNumber(3, 999, 2, 10);
                 break;
               case 'D':
+                // cycles through active lane options
+                if (activeLane == laneCount){
+                  activeLane = 0;
+                } else {
+                  activeLane++;
+                }
+                lcd.setCursor(10, 3);
+                lcd.print(laneText[activeLane]);
+                // lcd.print(activeLane);
+                break;
+              case '*':
+                // return to previous screen; SettingsMenu
                 currentMenu = MainMenu;
-                UpdateMenu(MainMenuText);
+                UpdateMenu(MainText);
+                break;
               default:
                 break;
             }
             break;
-          case RaceSelectMenu:
+          case SelectRaceMenu:
             break;
-          case ResultMenu:
+          case ResultsMenu:
             break;
+          case SetRaceTimeMenu:
+            switch (key) {
+              case 'A':
+                // Change minutes
+                raceTime[0] = enterNumber(2, 60, 1, 10);
+                break;
+              case 'B':
+                // change seconds
+                raceTime[1] = enterNumber(2, 59, 1, 13);
+                break;
+              case 'C':
+                // change seconds
+                raceLaps = enterNumber(3, 999, 2, 10);
+                break;
+              case 'D':
+                // cycles through active lane options
+                if (activeLane == laneCount){
+                  activeLane = 0;
+                } else {
+                  activeLane++;
+                }
+                lcd.setCursor(10, 3);
+                lcd.print(laneText[activeLane]);
+                // lcd.print(activeLane);
+                break;
+              case '*':
+                // return to previous screen; SettingsMenu
+                currentMenu = SettingsMenu;
+                UpdateMenu(SettingsText);
+                break;
+              default:
+                break;
+            }
+            break;
+          case SetRaceLapsMenu:
+            break;
+          case SetLanesMenu:
+            break;
+
           default:
             break;
         }; // end of Menu switch
@@ -207,11 +295,69 @@ void loop(){
 
 }
 
-// void loadMainMenu(){
-//   lcd.setCursor(1,0);
-//   lcd.print(MainMenu[0]);
-//   lcd.setCursor(1,1);
-//   lcd.print(MainMenu[1]);
-//   lcd.setCursor(1,2);
-//   lcd.print(MainMenu[2]);
-// }
+// clear line on display by writing a space for each row
+void clearLine(int lineNumber) {
+  lcd.setCursor(0,lineNumber);
+  for(int n = 0; n < LCD_ROWS; n++){
+    lcd.print(" ");
+  }
+}
+
+// this function is used to monitor user input
+// it takes in the current state, number of characters and returns the reulstin int
+int enterNumber(int digits, int maxValue, int line, int cursorPos){
+
+  char inputNumber[digits];
+  bool done = false;
+  char keyIN;
+  int returnNumber = 0;
+  const int startCursorPos = cursorPos;
+
+  lcd.setCursor(cursorPos, line);
+  lcd.cursor();
+  // clear number entry space then reset cursor to beginning of entry.
+  for (int i=0; i<digits; i++){
+    lcd.print(' ');
+  };
+  lcd.setCursor(cursorPos, line);
+
+  while (!done){
+    keyIN = keypad.getKey();
+    switch (keyIN) {
+      case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '0':
+        // if number is entered then append it to screen
+        lcd.setCursor(cursorPos, line);
+        lcd.cursor();
+        lcd.print(keyIN);
+        cursorPos++;
+        digits--;
+        inputNumber[digits] = keyIN;
+        break;
+      default:
+        break;
+    }
+    if (digits == 0){
+      done = true;
+      lcd.noCursor();
+    }
+  }
+  // because we use digits as a counter it is in the reverse order of it's written value
+  // returnNumber = (inputNumber[0]-'0') + (inputNumber[1]-'0') * 10 ;
+  returnNumber = 0;
+  for (int i = 0; i < sizeof(inputNumber); i++) {
+    returnNumber = (inputNumber[i]-'0') * pow(10, i) + returnNumber;
+  }
+
+  if (returnNumber > maxValue) {
+    returnNumber = maxValue;
+    lcd.setCursor(startCursorPos, line);
+    if (maxValue < 10) lcd.print("0");
+    // subtracting a '0' zero character from another character converts it into an int
+    lcd.print(maxValue);
+    // lcd.print(printf("%02d", maxValue));
+  }
+  // lcd.setCursor(0,3);
+  // clearLine(3);
+  // lcd.print(returnNumber);
+  return returnNumber;
+}
