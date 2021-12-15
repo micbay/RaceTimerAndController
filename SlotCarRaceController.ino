@@ -6,6 +6,8 @@
 #include <hd44780ioClass/hd44780_I2Cexp.h>	// i2c expander i/o class header
 // libraries to support 4 x 4 keypad
 #include <Keypad.h>
+// library for 7-seg LED Bars
+#include <LedControl.h>
 
 
 
@@ -28,7 +30,7 @@ int IndexRacer(int curIdx, int listCount, bool cycleUp = true) {
   return newIndex;
 }
 
-//***** Declare Display variables *****
+//***** Variables for LCD 4x20 Display *****
 // declare lcd object: auto locate & config exapander chip
 hd44780_I2Cexp lcd;
 // Set display size
@@ -36,6 +38,14 @@ hd44780_I2Cexp lcd;
 // const int LCD_ROWS = 2;
 const int LCD_COLS = 20;
 const int LCD_ROWS = 4;
+
+// ***** 7-Seg 8-digit LED Bars *****
+//  pin 2 is connected to the DataIn
+//  pin 4 is connected to the CLK
+//  pin 3 is connected to LOAD
+// LedControl(DataIn, CLK, CS/LOAD, Number of Max chips (ie 8-digit bars))
+LedControl lc = LedControl(2, 4, 3, 2);
+
 
 
 //***** Declare KeyPad Variables *****
@@ -99,7 +109,8 @@ int currentCursorPos;
 int activeLane = All;
 // this is # of physical lanes that will have a counter sensor
 byte const laneCount = 2;
-byte countdown = 5;
+// pre-race countdown length in seconds
+byte preStartCountDown = 5;
 // we add one to the lane count to account for 'All'
 String laneText[laneCount + 1] = {"All   ", "1 Only", "2 Only"};
 
@@ -122,35 +133,35 @@ enum Menus {
 };
 //****** Menu String Arrays **********
 const char* MainText[4] = {
-  "A Select Racers",
-  "B Change Settings",
-  "C Select a Race",
-  "D See Results"
+  "A| Select Racers",
+  "B| Change Settings",
+  "C| Select a Race",
+  "D| See Results"
 };
 // Main Menu's sub-Menus
 const char* SettingsText[4] = {
-  " A-Lap  B-Min  C-Sec",
+  " A|Lap  B|Min  C|Sec",
   "Num Laps:",
   "Racetime:   :",
-  " D-Lanes:"
+  " D|Lanes:"
 };
 const char* SelectRacersText[4] = {
-  "R1: A Prev, B Next",
-  " ",
-  "R2: C Prev, D Next",
-  " "
+  "<--A            B-->",
+  "Racer1:",
+  "<--C            D-->",
+  "Racer2:"
 };
 const char* SelectRaceText[4] = {
-  "A First to     Laps",
-  "B Most Laps in   :",
-  "C Start Pol Trials",
-  "D Countdown:"
+  "A|First to     Laps",
+  "B|Most Laps in   :",
+  "C|Start Pol Trials",
+  "D|Countdown:"
 };
 const char* ResultsText[4] = {
   "     RACE RESULTS",
   "",
   "",
-  "*   <-- Return"
+  ""
 };
 
 // create variale to hold current 'state'
@@ -188,7 +199,6 @@ void PrintWithLeadingZeros(int integerIN, int width, int cursorPos, int line){
   // Serial.println(leadingZCount);
 }
 
-
 int calcDigits(int number){
   int digitCount = 0;
   while (number != 0) {
@@ -198,6 +208,46 @@ int calcDigits(int number){
   }
   return digitCount;
 }
+
+// clear screen on given line from start to end position, inclusive
+// the defalut is to clear the whole line
+void clearLine(byte lineNumber, byte posStart = 0, byte posEnd = LCD_COLS) {
+  lcd.setCursor(posStart, lineNumber);
+  for(byte n = posStart; n < posEnd; n++){
+    lcd.print(" ");
+  }
+}
+
+/* Display a (hexadecimal) digit on a 7-Segment Display
+ * Params:
+ *  addr   address of the display
+ *  digit  the position of the digit on the display (0..7)
+ *  value  the value to be displayed. (0x00..0x0F)
+ *  dp     sets the decimal point.  
+*/ 
+int delaytime = 1000;
+void scrollDigits() {
+  for(int i=0;i<13;i++) {
+    lc.setDigit(0, 3, i, false);
+    lc.setDigit(0, 2, i + 1, false);
+    lc.setDigit(0, 1, i + 2, false);
+    lc.setDigit(0, 0, i + 3, false);
+    delay(delaytime);
+
+    lc.setChar(0, 0, 'a', false);
+    delay(delaytime);
+
+  lc.setRow(0, 0, 0x05);
+  }
+  lc.clearDisplay(0);
+  delay(delaytime);
+}
+
+byte secTillStart;
+bool preStart;
+long raceStartMillis;
+long raceCurMillis;
+int raceCurTime[3];
 
 
 // Initialize hardware and establish software initial state
@@ -213,6 +263,21 @@ void setup(){
 	if(status) hd44780::fatalError(status);
   // clear the display of any existing content
   lcd.clear();
+
+  // Setup Max chip 8 digit LED bars
+  //we have already set the number of devices when we created the LedControl
+  int devices = lc.getDeviceCount();
+  //we have to init all devices in a loop
+  for(int deviceID = 0; deviceID < devices; deviceID++) {
+    /*The MAX72XX is in power-saving mode on startup*/
+    lc.shutdown(deviceID, false);
+    /* Set the brightness to a medium values */
+    lc.setIntensity(deviceID, 8);
+    /* and clear the display */
+    lc.clearDisplay(deviceID);
+  }
+
+  // Setup initial program variables
   currentMenu = MainMenu;
   entryFlag = true;
   
@@ -317,46 +382,55 @@ void loop(){
             }
             break;
 
-          case SelectRacersMenu:
+          case SelectRacersMenu: {
+            byte nameCursorPos = 8;
             if (entryFlag) {
+              // write screen base text to screen
               UpdateMenu(SelectRacersText);
-              clearLine(1);
-              lcd.setCursor(1,1);
+              // write current racer1's name to screen
+              lcd.setCursor(nameCursorPos,1);
               lcd.print(Racers[racer1]);
-              clearLine(3);
-              lcd.setCursor(1,3);
+              // write current racer2's name to screen
+              lcd.setCursor(nameCursorPos,3);
               lcd.print(Racers[racer2]);
               entryFlag = false;
             }
             switch (key) {
-              case 'A': case 'B':
-                clearLine(1);
-                lcd.setCursor(1,1);
+              // cycle up or down racer list and update Racer1 name
+              case 'A': case 'B':{
+                // clear line to remove extra ch from long names replace by short ones
+                clearLine(1, nameCursorPos);
+                lcd.setCursor(nameCursorPos,1);
                 racer1 = IndexRacer(racer1, racerCount, key == 'A');
                 lcd.print(Racers[racer1]);
                 break;
-              case 'C': case 'D':
-                clearLine(3);
-                lcd.setCursor(1,3);
+              }
+              // cycle up or down racer list and update Racer2 name
+              case 'C': case 'D':{
+                // clear line to remove extra ch from long names replace by short ones
+                clearLine(3, nameCursorPos);
+                lcd.setCursor(nameCursorPos,3);
                 racer2 = IndexRacer(racer2, racerCount, key == 'D');
                 lcd.print(Racers[racer2]);
                 break;
-              case '*':
+              }
+              case '*':{
                 // return to previous screen; MainMenu
                 currentMenu = MainMenu;
                 entryFlag = true;
                 // UpdateMenu(MainText);
                 break;
+              }
               default:
                 break;
-            }              
+            }          
             break;
-
+          } // END SelectRacer Menu Case
           // "A First to     Laps",
           // "B Most Laps in",
           // "C Start Pol Trials",
           // "D Countdown:"
-          case SelectRaceMenu:
+          case SelectRaceMenu: {
             if (entryFlag) {
               //draw non-editable text
               UpdateMenu(SelectRaceText);
@@ -369,9 +443,9 @@ void loop(){
               // add current race seconds setting to timed race screen
               lcd.setCursor(18,1);
               PrintWithLeadingZeros(raceTime[1], 2, 18, 1);
-              // add the curent countdown setting to screen
+              // add the curent preStartCountDown setting to screen
               lcd.setCursor(13,3);
-              PrintWithLeadingZeros(countdown, 2, 13, 3);
+              PrintWithLeadingZeros(preStartCountDown, 2, 13, 3);
               entryFlag = false;
             }
             switch (key) {
@@ -380,6 +454,7 @@ void loop(){
                 // Typical to car racing, first to X laps
                 state = Race;
                 raceType = Standard;
+                preStart = true;
                 entryFlag = true;
                 break;
               case 'B':
@@ -387,17 +462,19 @@ void loop(){
                 // most laps before time runs out
                 state = Race;
                 raceType = Timed;
+                preStart = true;
                 entryFlag = true;
                 break;
               case 'C':
                 // set the global raceType to Pole position trials
                 state = Race;
                 raceType = Pole;
+                preStart = true;
                 entryFlag = true;
                 break;
               case 'D':
-                // change how long the countdown before the race start lasts
-                countdown = enterNumber(2, 30, 3, 13);
+                // change how long the preStartCountDown before the race start lasts
+                preStartCountDown = enterNumber(2, 30, 3, 13);
                 break;
               case '*':
                 // return to main menu
@@ -406,50 +483,69 @@ void loop(){
                 break;
               default:
                 break;
-            }
+            } // END of key switch
             break;
-
-          case ResultsMenu:
+          } // END of SelectRace Menu Case
+          case ResultsMenu:{
             break;
-
+          } // END of ResultsMenu Case
           default:
             break;
         }; // end of Menu switch
-
         // Serial.println(key);
         // Serial.println(currentMenu);
-
       }; // end of if key pressed wrap
-      break; // case of state = Menu 
+      break; // END of Menu State 
     }
+// byte secTillStart;
+// bool preStart;
+// long raceStartMillis;
+// long raceCurTime;
+// long raceLiveTime;
     case Race:{
-      // Serial.println("Entered Race state");
-      // racetypes
-      lcd.clear();
-      lcd.setCursor(1,1);
-      lcd.print(raceType);
-      lcd.cursor();
-      switch (raceType) {
-        case Standard:
-          lcd.setCursor(5,2);
-          lcd.print("Standard Race");
-          break;
-        case Timed:
-
-          break;
-        case Pole:
-
-          break;
-        default:
-          break;
+      // run pre-race preStartCountDown
+      if (entryFlag) {
+        secTillStart = preStartCountDown;
+        lcd.clear();
+        lcd.setCursor(0,1);
+        lcd.print("Your Race Starts in:");
+        lcd.setCursor(8,2);
+        lcd.print(secTillStart);
+        preStart = true;
       }
+
+      if (preStart) {
+        lcd.setCursor(8,2);
+        lcd.print("Your Race Starts in:");
+
+        // in preStartCountDown period before race start
+        // PrintTime();
+
+      } else {
+        switch (raceType) {
+          case Standard:
+            scrollDigits();
+            break;
+          case Timed:
+
+            break;
+          case Pole:
+
+            break;
+          default:
+            break;
+        } // END RaceType Switch
+
+      }
+
+
       break;
-    }
+    } // END of Race state
     case Paused:{
       // Serial.println("Entered Paused state");
 
       break;
-    }
+    } // END of Paused state
     default:{
       // if the state becomes unknown then default back to 'Menu'
       Serial.println("Entered default state");
@@ -460,13 +556,7 @@ void loop(){
 
 } // END of MAIN LOOP
 
-// clear line on display by writing a space for each row
-void clearLine(int lineNumber) {
-  lcd.setCursor(0,lineNumber);
-  for(int n = 0; n < LCD_COLS; n++){
-    lcd.print(" ");
-  }
-}
+
 
 // Integer power function as pow() is only good with floats
 int ipow(int base, int exp) {
