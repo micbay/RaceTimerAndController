@@ -1,4 +1,3 @@
-
 // Wire library is for I2C communication
 #include <Wire.h>
 // LCD driver libraries
@@ -8,29 +7,48 @@
 #include <Keypad.h>
 // library for 7-seg LED Bars
 #include <LedControl.h>
+// for creating debounce object for button press detection
+#include <Bounce2.h>
 
 
+//***** Setting Up Lap Triggers and Pause-Stop button *********
+const byte lane1Pin = PIN_A1;
+const byte lane2Pin = PIN_A3;
+const byte pauseStopPin = PIN_A2;
+const byte ledPIN = 13;
+int ledState = HIGH;
+bool statusPauseStop = false;
+Bounce lane1 = Bounce();   // Define Bounce to read StartStop switch
+Bounce lane2 = Bounce();   // Define Bounce to read Lapse switch
+Bounce pauseStop = Bounce();   // Define Bounce to read Lapse switch
 
-// indexing function to provide loop back to start for cycling
-int IndexRacer(int curIdx, int listCount, bool cycleUp = true) {
-  int newIndex = curIdx;
-  if (cycleUp) {
-    if (curIdx == listCount - 1){
-      newIndex = 0;
-    } else {
-      newIndex++;
-    }
-  } else {
-    if (curIdx == 0){
-      newIndex = listCount - 1;
-    } else {
-      newIndex--;
-    }
+// use this function to set change interrupt for pins among A0-A6
+void pciSetup(byte pin) {
+  *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));  // enable pin
+  PCIFR  |= bit (digitalPinToPCICRbit(pin)); // clear any outstanding interrupt
+  PCICR  |= bit (digitalPinToPCICRbit(pin)); // enable interrupt for the group
+}
+// handle pin change interrupt for A0 to A5 here
+ISR (PCINT1_vect) {
+  Serial.println("LED Interrupt");
+  Serial.println(PINC);
+  if (!IsBitSet(PINC, 1)) {
+    digitalWrite(ledPIN, HIGH);
+    Serial.println("LED A2");
   }
-  return newIndex;
+  else if (!IsBitSet(PINC, 3)) {
+    digitalWrite(ledPIN, LOW);
+    Serial.println("A3");
+  }
+ }  
+
+// left shift the number 1 by the position to check than & with original byte
+bool IsBitSet(byte b, int pos) {
+   return (b & (1 << pos)) != 0;
 }
 
-//***** Variables for LCD 4x20 Display *****
+
+//***** Variables for LCD 4x20 Display **********
 // declare lcd object: auto locate & config exapander chip
 hd44780_I2Cexp lcd;
 // Set display size
@@ -155,10 +173,10 @@ const char* SelectRaceText[4] = {
   "A|First to     Laps",
   "B|Most Laps in   :",
   "C|Start Pol Trials",
-  "D|Countdown:"
+  "D|Countdown:    Sec"
 };
 const char* ResultsText[4] = {
-  "     RACE RESULTS",
+  "   RACE RESULTS   ",
   "",
   "",
   ""
@@ -167,6 +185,7 @@ const char* ResultsText[4] = {
 // create variale to hold current 'state'
 states state = Menu;
 Menus currentMenu;
+
 
 void UpdateMenu(char *curMenu[]){
   // depending on the current menu map key press to next menu
@@ -178,6 +197,27 @@ void UpdateMenu(char *curMenu[]){
     lcd.print(curMenu[i]);
   }
 }
+
+
+// indexing function to provide loop back to start for cycling
+int IndexRacer(int curIdx, int listCount, bool cycleUp = true) {
+  int newIndex = curIdx;
+  if (cycleUp) {
+    if (curIdx == listCount - 1){
+      newIndex = 0;
+    } else {
+      newIndex++;
+    }
+  } else {
+    if (curIdx == 0){
+      newIndex = listCount - 1;
+    } else {
+      newIndex--;
+    }
+  }
+  return newIndex;
+}
+
 
 // Prints input value to specifiec location on screen
 // with leading zeros to fill any gap in the width
@@ -199,6 +239,49 @@ void PrintWithLeadingZeros(int integerIN, int width, int cursorPos, int line){
   // Serial.println(leadingZCount);
 }
 
+// passing in by Ref (using &) so we can update the input variables directly
+void SplitTime(unsigned long curr, unsigned long &ulHour,
+               unsigned long &ulMin, unsigned long &ulSec, unsigned long &ulhunds) {
+  // Calculate HH:MM:SS from millisecond count
+  ulhunds = curr % 1000;
+  ulSec = curr / 1000;
+  ulMin = ulSec / 60;
+  ulHour = ulMin / 60;
+  ulMin -= ulHour * 60;
+  ulSec = ulSec - ulMin * 60 - ulHour * 3600;
+}
+
+// converts clock time into milliseconds
+unsigned long SetTime(unsigned long ulHour, unsigned long ulMin,
+                      unsigned long ulSec) {
+  // Sets the number of milliseconds from midnight to current time
+  return (ulHour * 60 * 60 * 1000) +
+         (ulMin * 60 * 1000) +
+         (ulSec * 1000);
+}
+
+
+void PrintClockTime(ulong timeMillis, byte cursorPos, byte line){
+  unsigned long ulHour;
+  unsigned long ulMin;
+  unsigned long ulSec;
+  unsigned long ulhunds;
+  SplitTime(timeMillis, ulHour, ulMin, ulSec, ulhunds);
+  lcd.setCursor(cursorPos, line);
+  lcd.print(ulMin);
+  lcd.print(":");
+  lcd.print(ulSec);
+  lcd.print(":");
+  lcd.print(ulhunds);
+    Serial.println("ulMin");
+    Serial.println(ulMin);
+    Serial.println("ulSec");
+    Serial.println(ulSec);
+    Serial.println("ulhunds");
+    Serial.println(ulhunds);
+}
+
+
 int calcDigits(int number){
   int digitCount = 0;
   while (number != 0) {
@@ -208,6 +291,7 @@ int calcDigits(int number){
   }
   return digitCount;
 }
+
 
 // clear screen on given line from start to end position, inclusive
 // the defalut is to clear the whole line
@@ -243,15 +327,25 @@ void scrollDigits() {
   delay(delaytime);
 }
 
-byte secTillStart;
+
+unsigned long curMillis;  // the snapshot of the millis() at entry cycle
+unsigned long millisTillStart;
 bool preStart;
-long raceStartMillis;
-long raceCurMillis;
+unsigned long preStartMillis;
+unsigned long raceStartMillis;
+unsigned long raceCurMillis;
 int raceCurTime[3];
+
+void ledInterrupt() {
+  ledState = !ledState;
+  digitalWrite(ledPIN, ledState);
+  Serial.println("LED Interrupt");
+}
 
 
 // Initialize hardware and establish software initial state
 void setup(){
+  // SETUP LCD DIPSLAY
   int status;
 	// initialize (begin) LCD with number of columns and rows: 
 	// hd44780 returns a status from begin() that can be used
@@ -264,7 +358,7 @@ void setup(){
   // clear the display of any existing content
   lcd.clear();
 
-  // Setup Max chip 8 digit LED bars
+  // SETUP 7-SEG, 8-DIGIT MAX7219 LED BARS
   //we have already set the number of devices when we created the LedControl
   int devices = lc.getDeviceCount();
   //we have to init all devices in a loop
@@ -277,6 +371,28 @@ void setup(){
     lc.clearDisplay(deviceID);
   }
 
+  // SETUP LAP TRIGGERS AND BUTTONS
+  // // Attach the debouncer to a pin with INPUT_PULLUP mode
+  // lane1.attach(lane1Pin, INPUT_PULLUP);
+  // lane2.attach(lane2Pin, INPUT_PULLUP);
+  // pauseStop.attach(pauseStopPin, INPUT_PULLUP);
+  // // Use a debounce interval of 25 milliseconds 
+  // lane1.interval(25);
+  // lane2.interval(25);
+  // pauseStop.interval(25);
+
+  pinMode(lane1Pin, INPUT_PULLUP); // roughly equivalent to digitalWrite(lane1Pin, HIGH)
+  pinMode(lane2Pin, INPUT_PULLUP);
+  pinMode(pauseStopPin, INPUT_PULLUP);
+  // test LED on pin13
+  pinMode(ledPIN, OUTPUT); // Setup the LED
+  digitalWrite(ledPIN, ledState); // Turn on the LED
+  attachInterrupt(digitalPinToInterrupt(lane1Pin), ledInterrupt, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(lane2Pin), ledInterrupt, CHANGE);
+
+  pciSetup(A1);
+  pciSetup(A2);
+  pciSetup(A3);
   // Setup initial program variables
   currentMenu = MainMenu;
   entryFlag = true;
@@ -383,9 +499,10 @@ void loop(){
             break;
 
           case SelectRacersMenu: {
+            // cursor position that the racer names start
             byte nameCursorPos = 8;
             if (entryFlag) {
-              // write screen base text to screen
+              // write base, static text to screen
               UpdateMenu(SelectRacersText);
               // write current racer1's name to screen
               lcd.setCursor(nameCursorPos,1);
@@ -415,10 +532,9 @@ void loop(){
                 break;
               }
               case '*':{
-                // return to previous screen; MainMenu
+                // return to MainMenu
                 currentMenu = MainMenu;
                 entryFlag = true;
-                // UpdateMenu(MainText);
                 break;
               }
               default:
@@ -426,10 +542,10 @@ void loop(){
             }          
             break;
           } // END SelectRacer Menu Case
-          // "A First to     Laps",
-          // "B Most Laps in",
-          // "C Start Pol Trials",
-          // "D Countdown:"
+          // "A|First to     Laps",
+          // "B|Most Laps in",
+          // "C|Start Pol Trials",
+          // "D|Countdown:"
           case SelectRaceMenu: {
             if (entryFlag) {
               //draw non-editable text
@@ -497,29 +613,42 @@ void loop(){
       }; // end of if key pressed wrap
       break; // END of Menu State 
     }
-// byte secTillStart;
+// unsigned long millisTillStart;
 // bool preStart;
 // long raceStartMillis;
 // long raceCurTime;
 // long raceLiveTime;
     case Race:{
-      // run pre-race preStartCountDown
+      curMillis = millis();
       if (entryFlag) {
-        secTillStart = preStartCountDown;
+        millisTillStart = preStartCountDown * 1000;
+        preStartMillis = curMillis;
         lcd.clear();
         lcd.setCursor(0,1);
         lcd.print("Your Race Starts in:");
-        lcd.setCursor(8,2);
-        lcd.print(secTillStart);
+        // lcd.setCursor(8,2);
+        PrintClockTime(millisTillStart, 8, 2);
+        // PrintWithLeadingZeros(millisTillStart, 2, 8, 2);
         preStart = true;
+        entryFlag = false;
       }
-
+      // if before race start, run preStart countdown
       if (preStart) {
-        lcd.setCursor(8,2);
-        lcd.print("Your Race Starts in:");
-
-        // in preStartCountDown period before race start
-        // PrintTime();
+        if (curMillis - preStartMillis > 0){
+          if (curMillis - preStartMillis > 10){
+            PrintClockTime(millisTillStart, 8, 2);
+            preStartMillis = curMillis;
+              Serial.println("curMillis");
+              Serial.println(curMillis);
+              Serial.println("millistillstart");
+              Serial.println(millisTillStart);
+              Serial.println("preStartMillis");
+              Serial.println(preStartMillis);
+          }
+        } else {
+          // Start race, the next lap count start that racers lap.
+          preStart = false;
+        }
 
       } else {
         switch (raceType) {
@@ -536,7 +665,7 @@ void loop(){
             break;
         } // END RaceType Switch
 
-      }
+      } // END PreStart if-then-else
 
 
       break;
