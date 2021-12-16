@@ -22,31 +22,6 @@ Bounce lane1 = Bounce();   // Define Bounce to read StartStop switch
 Bounce lane2 = Bounce();   // Define Bounce to read Lapse switch
 Bounce pauseStop = Bounce();   // Define Bounce to read Lapse switch
 
-// use this function to set change interrupt for pins among A0-A6
-void pciSetup(byte pin) {
-  *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));  // enable pin
-  PCIFR  |= bit (digitalPinToPCICRbit(pin)); // clear any outstanding interrupt
-  PCICR  |= bit (digitalPinToPCICRbit(pin)); // enable interrupt for the group
-}
-// handle pin change interrupt for A0 to A5 here
-ISR (PCINT1_vect) {
-  Serial.println("LED Interrupt");
-  Serial.println(PINC);
-  if (!IsBitSet(PINC, 1)) {
-    digitalWrite(ledPIN, HIGH);
-    Serial.println("LED A2");
-  }
-  else if (!IsBitSet(PINC, 3)) {
-    digitalWrite(ledPIN, LOW);
-    Serial.println("A3");
-  }
- }  
-
-// left shift the number 1 by the position to check than & with original byte
-bool IsBitSet(byte b, int pos) {
-   return (b & (1 << pos)) != 0;
-}
-
 
 //***** Variables for LCD 4x20 Display **********
 // declare lcd object: auto locate & config exapander chip
@@ -57,6 +32,7 @@ hd44780_I2Cexp lcd;
 const int LCD_COLS = 20;
 const int LCD_ROWS = 4;
 
+
 // ***** 7-Seg 8-digit LED Bars *****
 //  pin 2 is connected to the DataIn
 //  pin 4 is connected to the CLK
@@ -65,7 +41,6 @@ const int LCD_ROWS = 4;
 const byte LED_BAR_COUNT = 2; // # of attached max7219 controlled LED bars
 const byte LED_DIGITS = 8; // # of digits on each LED bar
 LedControl lc = LedControl(2, 4, 3, LED_BAR_COUNT);
-
 
 
 //***** Declare KeyPad Variables *****
@@ -107,6 +82,13 @@ enum races {
   Timed,
   Pole
 };
+// used to set clock time width; C=.00, S=00.00, M=00:00.00, H=00:00:00.00
+enum clockWidth {
+  C,
+  S,
+  M,
+  H
+};
 
 // race time will be kept as an integer array of [minutes, seconds]
 // race time's default is the starting time of a timed race
@@ -122,10 +104,13 @@ String Racers[racerCount] = {
 races raceType = Standard;
 int raceTime[2] = {2, 0};
 int raceLaps = 500;
-// racer#'s value is the index of Racers[] identifying the racer
+// racer#'s value is the index of Racers[] identifying the racer name
 int racer1 = 0;
 int racer2 = 1;
-int currentCursorPos;
+// create array to hold laps
+unsigned long R1LapLog[1000];
+unsigned long R2LapLog[1000];
+// int currentCursorPos;
 int activeLane = All;
 // this is # of physical lanes that will have a counter sensor
 byte const laneCount = 2;
@@ -187,6 +172,33 @@ const char* ResultsText[4] = {
 // create variale to hold current 'state'
 states state = Menu;
 Menus currentMenu;
+
+
+
+// use this function to set change interrupt for pins among A0-A6
+void pciSetup(byte pin) {
+  *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));  // enable pin
+  PCIFR  |= bit (digitalPinToPCICRbit(pin)); // clear any outstanding interrupt
+  PCICR  |= bit (digitalPinToPCICRbit(pin)); // enable interrupt for the group
+}
+// handle pin change interrupt for A0 to A5 here
+ISR (PCINT1_vect) {
+  Serial.println("LED Interrupt");
+  Serial.println(PINC);
+  if (!IsBitSet(PINC, 1)) {
+    digitalWrite(ledPIN, HIGH);
+    Serial.println("LED A2");
+  }
+  else if (!IsBitSet(PINC, 3)) {
+    digitalWrite(ledPIN, LOW);
+    Serial.println("A3");
+  }
+ }  
+
+// left shift the number 1 by the position to check than & with original byte
+bool IsBitSet(byte b, int pos) {
+   return (b & (1 << pos)) != 0;
+}
 
 
 void UpdateMenu(char *curMenu[]){
@@ -262,22 +274,35 @@ unsigned long SetTime(unsigned long ulHour, unsigned long ulMin,
          (ulSec * 1000);
 }
 
-
-void PrintClockTime(ulong timeMillis, byte cursorPos, byte line){
+// input time in millis, pos of end of clock placement, and digits to show
+void lcdPrintClock(ulong timeMillis, byte cursorEndPos, byte line, clockWidth printWidth) {
   unsigned long ulHour;
   unsigned long ulMin;
   unsigned long ulSec;
-  unsigned long ulcent;
-  SplitTime(timeMillis, ulHour, ulMin, ulSec, ulcent);
-  lcd.setCursor(cursorPos, line);
-  // lcd.print(ulMin);
-  PrintWithLeadingZeros(ulMin, 2, cursorPos, line);
-  lcd.print(":");
-  // lcd.print(ulSec);
-  PrintWithLeadingZeros(ulSec, 2, cursorPos + 3, line);
-  lcd.print(":");
-  // lcd.print(ulcent);
-  PrintWithLeadingZeros(ulcent, 2, cursorPos + 6, line);
+  unsigned long ulCent;
+  SplitTime(timeMillis, ulHour, ulMin, ulSec, ulCent);
+  if (printWidth == H) {
+    // H 00:00:00.00
+    PrintWithLeadingZeros(ulHour, 2, cursorEndPos - 11, line);
+    lcd.print(":");
+    printWidth = M;
+  }
+  if (printWidth == M) {
+    // M 00:00.00
+    PrintWithLeadingZeros(ulMin, 2, cursorEndPos - 8, line);
+    lcd.print(":");
+    printWidth = S;
+  }
+  if (printWidth == S) {
+    // M 00.00
+    PrintWithLeadingZeros(ulSec, 2, cursorEndPos - 5, line);
+    lcd.print(".");
+    printWidth = C;
+  }
+  if (printWidth == C) {
+    // M 00.00
+    PrintWithLeadingZeros(ulCent, 2, cursorEndPos - 2, line);
+  }
     // Serial.println("ulMin");
     // Serial.println(ulMin);
     // Serial.println("ulSec");
@@ -615,41 +640,54 @@ void loop(){
         // Serial.println(key);
         // Serial.println(currentMenu);
       }; // end of if key pressed wrap
-      break; // END of Menu State 
-    }
-// unsigned long millisTillStart;
-// bool preStart;
-// long raceStartMillis;
-// long raceCurTime;
-// long raceLiveTime;
+      break; 
+    } // END of Menu State 
+  // switch (laneCount) {
+  //   case All:
+    
+  //     break;
+  //   case Lane1:
+  //     break;
+  //   case Lane2:
+  //     break;
+  //   default:
+  //     break;
+  // } // END laneCount switch
     case Race:{
       curMillis = millis();
-      if (entryFlag) {
+      // setup variables for preStart timing loop
+      if (entryFlag & preStart) {
         millisTillStart = preStartCountDown * 1000;
         preStartMillis = curMillis;
-          Serial.println("millisTillStart");
-          Serial.println(millisTillStart);
+          // Serial.println("millisTillStart");
+          // Serial.println(millisTillStart);
         lcd.clear();
         lcd.setCursor(0,1);
         lcd.print("Your Race Starts in:");
-        // lcd.setCursor(8,2);
-        PrintClockTime(millisTillStart, 6, 2);
-        // PrintWithLeadingZeros(millisTillStart, 2, 8, 2);
+        lcdPrintClock(millisTillStart, 12, 2, S);
+        // lcdPrintClock(5600000, 12, 2, H);
         preStart = true;
         entryFlag = false;
       }
-      // if before race start, run preStart countdown
+
+      // setup variables for preStart timing loop
+      if (entryFlag & preStart) {
+      
+      }
+
       if (preStart) {
         if (millisTillStart > 0){
           // update countdown on LCD every 10 millis
           if (curMillis - lastTickMillis > 10){
             millisTillStart = millisTillStart - 10;
-            PrintClockTime(millisTillStart, 6, 2);
+            lcdPrintClock(millisTillStart, 12, 2, S);
+            // lcdPrintClock(5600000, 12, 2, H);
             lastTickMillis = curMillis;
           }
           // if under 10sec left then send countdown to LEDs
-          if (millisTillStart < 10000 & millisTillStart/1000 != ledDigit) {
-            ledDigit = millisTillStart/1000;
+          if (millisTillStart < 90000 & (millisTillStart/1000 + 1) != ledDigit) {
+            // we add 1 because it should change on start of the digit not end
+            ledDigit = millisTillStart/1000 + 1;
             writeDigitsLED(ledDigit);
           }
         } else {
@@ -658,6 +696,7 @@ void loop(){
           lcd.print("START!");
           preStart = false;
           ledDigit = 0;
+          entryFlag = true;
         }
 
       } else {
