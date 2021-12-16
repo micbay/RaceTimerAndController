@@ -62,7 +62,9 @@ const int LCD_ROWS = 4;
 //  pin 4 is connected to the CLK
 //  pin 3 is connected to LOAD
 // LedControl(DataIn, CLK, CS/LOAD, Number of Max chips (ie 8-digit bars))
-LedControl lc = LedControl(2, 4, 3, 2);
+const byte LED_BAR_COUNT = 2; // # of attached max7219 controlled LED bars
+const byte LED_DIGITS = 8; // # of digits on each LED bar
+LedControl lc = LedControl(2, 4, 3, LED_BAR_COUNT);
 
 
 
@@ -128,7 +130,7 @@ int activeLane = All;
 // this is # of physical lanes that will have a counter sensor
 byte const laneCount = 2;
 // pre-race countdown length in seconds
-byte preStartCountDown = 5;
+byte preStartCountDown = 10;
 // we add one to the lane count to account for 'All'
 String laneText[laneCount + 1] = {"All   ", "1 Only", "2 Only"};
 
@@ -241,9 +243,9 @@ void PrintWithLeadingZeros(int integerIN, int width, int cursorPos, int line){
 
 // passing in by Ref (using &) so we can update the input variables directly
 void SplitTime(unsigned long curr, unsigned long &ulHour,
-               unsigned long &ulMin, unsigned long &ulSec, unsigned long &ulhunds) {
+               unsigned long &ulMin, unsigned long &ulSec, unsigned long &ulcent) {
   // Calculate HH:MM:SS from millisecond count
-  ulhunds = curr % 1000;
+  ulcent = curr % 1000 / 10;
   ulSec = curr / 1000;
   ulMin = ulSec / 60;
   ulHour = ulMin / 60;
@@ -265,20 +267,23 @@ void PrintClockTime(ulong timeMillis, byte cursorPos, byte line){
   unsigned long ulHour;
   unsigned long ulMin;
   unsigned long ulSec;
-  unsigned long ulhunds;
-  SplitTime(timeMillis, ulHour, ulMin, ulSec, ulhunds);
+  unsigned long ulcent;
+  SplitTime(timeMillis, ulHour, ulMin, ulSec, ulcent);
   lcd.setCursor(cursorPos, line);
-  lcd.print(ulMin);
+  // lcd.print(ulMin);
+  PrintWithLeadingZeros(ulMin, 2, cursorPos, line);
   lcd.print(":");
-  lcd.print(ulSec);
+  // lcd.print(ulSec);
+  PrintWithLeadingZeros(ulSec, 2, cursorPos + 3, line);
   lcd.print(":");
-  lcd.print(ulhunds);
-    Serial.println("ulMin");
-    Serial.println(ulMin);
-    Serial.println("ulSec");
-    Serial.println(ulSec);
-    Serial.println("ulhunds");
-    Serial.println(ulhunds);
+  // lcd.print(ulcent);
+  PrintWithLeadingZeros(ulcent, 2, cursorPos + 6, line);
+    // Serial.println("ulMin");
+    // Serial.println(ulMin);
+    // Serial.println("ulSec");
+    // Serial.println(ulSec);
+    // Serial.println("ulcent");
+    // Serial.println(ulcent);
 }
 
 
@@ -327,6 +332,14 @@ void scrollDigits() {
   delay(delaytime);
 }
 
+int ledDigit = 0;
+void writeDigitsLED(byte digit) {
+  for (int j=0; j < LED_BAR_COUNT; j++){
+    for (int i=0; i < LED_DIGITS; i++){
+      lc.setDigit(j, i, digit, false);
+    }
+  }
+}
 
 unsigned long curMillis;  // the snapshot of the millis() at entry cycle
 unsigned long millisTillStart;
@@ -334,6 +347,7 @@ bool preStart;
 unsigned long preStartMillis;
 unsigned long raceStartMillis;
 unsigned long raceCurMillis;
+unsigned long lastTickMillis;
 int raceCurTime[3];
 
 void ledInterrupt() {
@@ -372,24 +386,14 @@ void setup(){
   }
 
   // SETUP LAP TRIGGERS AND BUTTONS
-  // // Attach the debouncer to a pin with INPUT_PULLUP mode
-  // lane1.attach(lane1Pin, INPUT_PULLUP);
-  // lane2.attach(lane2Pin, INPUT_PULLUP);
-  // pauseStop.attach(pauseStopPin, INPUT_PULLUP);
-  // // Use a debounce interval of 25 milliseconds 
-  // lane1.interval(25);
-  // lane2.interval(25);
-  // pauseStop.interval(25);
-
-  pinMode(lane1Pin, INPUT_PULLUP); // roughly equivalent to digitalWrite(lane1Pin, HIGH)
+  // roughly equivalent to digitalWrite(lane1Pin, HIGH)
+  pinMode(lane1Pin, INPUT_PULLUP);
   pinMode(lane2Pin, INPUT_PULLUP);
   pinMode(pauseStopPin, INPUT_PULLUP);
-  // test LED on pin13
-  pinMode(ledPIN, OUTPUT); // Setup the LED
-  digitalWrite(ledPIN, ledState); // Turn on the LED
-  attachInterrupt(digitalPinToInterrupt(lane1Pin), ledInterrupt, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(lane2Pin), ledInterrupt, CHANGE);
-
+  // Setup the LED
+  pinMode(ledPIN, OUTPUT); 
+  digitalWrite(ledPIN, ledState);
+  // attach 
   pciSetup(A1);
   pciSetup(A2);
   pciSetup(A3);
@@ -623,31 +627,37 @@ void loop(){
       if (entryFlag) {
         millisTillStart = preStartCountDown * 1000;
         preStartMillis = curMillis;
+          Serial.println("millisTillStart");
+          Serial.println(millisTillStart);
         lcd.clear();
         lcd.setCursor(0,1);
         lcd.print("Your Race Starts in:");
         // lcd.setCursor(8,2);
-        PrintClockTime(millisTillStart, 8, 2);
+        PrintClockTime(millisTillStart, 6, 2);
         // PrintWithLeadingZeros(millisTillStart, 2, 8, 2);
         preStart = true;
         entryFlag = false;
       }
       // if before race start, run preStart countdown
       if (preStart) {
-        if (curMillis - preStartMillis > 0){
-          if (curMillis - preStartMillis > 10){
-            PrintClockTime(millisTillStart, 8, 2);
-            preStartMillis = curMillis;
-              Serial.println("curMillis");
-              Serial.println(curMillis);
-              Serial.println("millistillstart");
-              Serial.println(millisTillStart);
-              Serial.println("preStartMillis");
-              Serial.println(preStartMillis);
+        if (millisTillStart > 0){
+          // update countdown on LCD every 10 millis
+          if (curMillis - lastTickMillis > 10){
+            millisTillStart = millisTillStart - 10;
+            PrintClockTime(millisTillStart, 6, 2);
+            lastTickMillis = curMillis;
+          }
+          // if under 10sec left then send countdown to LEDs
+          if (millisTillStart < 10000 & millisTillStart/1000 != ledDigit) {
+            ledDigit = millisTillStart/1000;
+            writeDigitsLED(ledDigit);
           }
         } else {
           // Start race, the next lap count start that racers lap.
+          lcd.setCursor(7, 3);
+          lcd.print("START!");
           preStart = false;
+          ledDigit = 0;
         }
 
       } else {
