@@ -3,5 +3,6 @@
     "configuration": "cpu=atmega328old",
     "board": "arduino:avr:nano",
     "programmer": "arduino:avrispmkii",
-    "sketch": "SlotCarRaceController.ino"
+    "sketch": "SlotCarRaceController.ino",
+    "output": "build"
 }

@@ -61,9 +61,6 @@ byte pin_column[KP_COLS] = {9,10,11,12};
 // declare keypad object
 Keypad keypad = Keypad( makeKeymap(keys), pin_rows, pin_column, KP_ROWS, KP_COLS );
 
-
-// **** Race Variables ****
-
 // create enum to hold possible state values
 enum states {
   Menu,
@@ -90,17 +87,14 @@ enum clockWidth {
   H
 };
 
-// race time will be kept as an integer array of [minutes, seconds]
-// race time's default is the starting time of a timed race
-// Variables that hold the set values (and default for startup)
 //*** STORED DEFAULTS and Variables for USER SET GAME PROPERTIES
 // Racer list
 // need to keep a count of the number of names in list becauase
 // Strings[] type doesn't have an ability to give an element count.
 byte const racerCount = 8;
-String Racers[racerCount] = {
-  "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle BadAss", "Remy", "5318008"
-};
+// String Racers[racerCount] = {
+//   "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle BadAss", "Remy", "5318008"
+// };
 races raceType = Standard;
 int raceTime[2] = {2, 0};
 int raceLaps = 500;
@@ -137,6 +131,12 @@ enum Menus {
 
 };
 //****** Menu String Arrays **********
+// String Racers[racerCount] = {
+//   "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle BadAss", "Remy", "5318008"
+// };
+const char* Racers[racerCount] = {
+  "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle BadAss", "Remy", "5318008"
+};
 const char* MainText[4] = {
   "A| Select Racers",
   "B| Change Settings",
@@ -347,10 +347,8 @@ void scrollDigits() {
     lc.setDigit(0, 1, i + 2, false);
     lc.setDigit(0, 0, i + 3, false);
     delay(delaytime);
-
     lc.setChar(0, 0, 'a', false);
     delay(delaytime);
-
   lc.setRow(0, 0, 0x05);
   }
   lc.clearDisplay(0);
@@ -358,13 +356,20 @@ void scrollDigits() {
 }
 
 int ledDigit = 0;
-void writeDigitsLED(byte digit) {
+void ledWriteDigits(byte digit) {
   for (int j=0; j < LED_BAR_COUNT; j++){
     for (int i=0; i < LED_DIGITS; i++){
       lc.setDigit(j, i, digit, false);
     }
   }
 }
+
+void ledWriteName(byte ledBarID, char name[]) {
+  for (int i=0; i < sizeof(name); i++){
+    lc.setDigit(ledBarID, i, name[i], false);
+  }
+}
+
 
 unsigned long curMillis;  // the snapshot of the millis() at entry cycle
 unsigned long millisTillStart;
@@ -657,22 +662,19 @@ void loop(){
       curMillis = millis();
       // setup variables for preStart timing loop
       if (entryFlag & preStart) {
+        // preStartCountDown is in seconds so we convert to millis
         millisTillStart = preStartCountDown * 1000;
         preStartMillis = curMillis;
-          // Serial.println("millisTillStart");
-          // Serial.println(millisTillStart);
         lcd.clear();
         lcd.setCursor(0,1);
         lcd.print("Your Race Starts in:");
         lcdPrintClock(millisTillStart, 12, 2, S);
-        // lcdPrintClock(5600000, 12, 2, H);
-        preStart = true;
         entryFlag = false;
       }
 
-      // setup variables for preStart timing loop
-      if (entryFlag & preStart) {
-      
+      // setup variables for race timing loop
+      if (entryFlag & !preStart) {
+        
       }
 
       if (preStart) {
@@ -681,28 +683,30 @@ void loop(){
           if (curMillis - lastTickMillis > 10){
             millisTillStart = millisTillStart - 10;
             lcdPrintClock(millisTillStart, 12, 2, S);
-            // lcdPrintClock(5600000, 12, 2, H);
             lastTickMillis = curMillis;
           }
-          // if under 10sec left then send countdown to LEDs
-          if (millisTillStart < 90000 & (millisTillStart/1000 + 1) != ledDigit) {
+          // 9 and under sec left then send countdown to LEDs
+          if (millisTillStart < 8999 & (millisTillStart/1000 + 1) != ledDigit) {
             // we add 1 because it should change on start of the digit not end
             ledDigit = millisTillStart/1000 + 1;
-            writeDigitsLED(ledDigit);
+            ledWriteDigits(ledDigit);
           }
         } else {
           // Start race, the next lap count start that racers lap.
           lcd.setCursor(7, 3);
           lcd.print("START!");
           preStart = false;
+          // reset ledDigit to default for next race
           ledDigit = 0;
+          // reset entry flag to true so race timing variables can be initialized
           entryFlag = true;
         }
 
       } else {
         switch (raceType) {
           case Standard:
-            scrollDigits();
+            // scrollDigits();
+            ledWriteName(0, "Lucien");
             break;
           case Timed:
 
