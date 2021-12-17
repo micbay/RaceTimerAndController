@@ -73,28 +73,28 @@ enum lanes {
   Lane1,
   Lane2
 };
+// state that a lane can be in during a race
+// enum defaults to these values, but they are written in to avoid editing order error
+enum laneState {
+  Off = 0,      // lane is not being used
+  Active = 1,   // lane is being used and live in a race
+  Standby = 2    // lane is being used in a race, but currently not active
+};
 // racetypes (standard is 1st to reach lap count)
 enum races {
-  Standard,
-  Timed,
-  Pole
+  Standard,  // First to finish the set number of laps
+  Timed,     // Finish the most laps before time runs out
+  Pole       // 1-10 lap practice time trials
 };
-// used to set clock time width; C=.00, S=00.00, M=00:00.00, H=00:00:00.00
+// used to set clock time width;
 enum clockWidth {
-  C,
-  S,
-  M,
-  H
+  C,  // .0,
+  S,  // 00.0
+  M,  // 00:00.0
+  H   // 00:00:00.0
 };
 
 //*** STORED DEFAULTS and Variables for USER SET GAME PROPERTIES
-// Racer list
-// need to keep a count of the number of names in list becauase
-// Strings[] type doesn't have an ability to give an element count.
-byte const racerCount = 8;
-// String Racers[racerCount] = {
-//   "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle BadAss", "Remy", "5318008"
-// };
 races raceType = Standard;
 int raceTime[2] = {2, 0};
 int raceLaps = 500;
@@ -106,10 +106,12 @@ unsigned long R1LapLog[1000];
 unsigned long R2LapLog[1000];
 // int currentCursorPos;
 int activeLane = All;
+laneState lane1Active;
+laneState lane2Active;
 // this is # of physical lanes that will have a counter sensor
 byte const laneCount = 2;
 // pre-race countdown length in seconds
-byte preStartCountDown = 10;
+byte preStartCountDown = 3;
 // we add one to the lane count to account for 'All'
 String laneText[laneCount + 1] = {"All   ", "1 Only", "2 Only"};
 
@@ -134,8 +136,13 @@ enum Menus {
 // String Racers[racerCount] = {
 //   "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle BadAss", "Remy", "5318008"
 // };
+// Racer list
+// need to keep a count of the number of names in list becauase
+// Strings[] type doesn't have an ability to give an element count.
+byte const racerCount = 8;
+// For 7-seg, there are no W's, M's, X's, K's, or V's
 const char* Racers[racerCount] = {
-  "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle BadAss", "Remy", "5318008"
+  "Lucien", "ZOE", "Elise", "John", "Angie", "Uncle BadAss", "Queen", "5318008"
 };
 const char* MainText[4] = {
   "A| Select Racers",
@@ -257,7 +264,7 @@ void PrintWithLeadingZeros(int integerIN, int width, int cursorPos, int line){
 void SplitTime(unsigned long curr, unsigned long &ulHour,
                unsigned long &ulMin, unsigned long &ulSec, unsigned long &ulcent) {
   // Calculate HH:MM:SS from millisecond count
-  ulcent = curr % 1000 / 10;
+  ulcent = curr % 1000 / 100;
   ulSec = curr / 1000;
   ulMin = ulSec / 60;
   ulHour = ulMin / 60;
@@ -282,26 +289,28 @@ void lcdPrintClock(ulong timeMillis, byte cursorEndPos, byte line, clockWidth pr
   unsigned long ulCent;
   SplitTime(timeMillis, ulHour, ulMin, ulSec, ulCent);
   if (printWidth == H) {
-    // H 00:00:00.00
-    PrintWithLeadingZeros(ulHour, 2, cursorEndPos - 11, line);
+    // H 00:00:00.0
+    PrintWithLeadingZeros(ulHour, 2, cursorEndPos - 10, line);
     lcd.print(":");
     printWidth = M;
   }
   if (printWidth == M) {
-    // M 00:00.00
-    PrintWithLeadingZeros(ulMin, 2, cursorEndPos - 8, line);
+    // M 00:00.0
+    PrintWithLeadingZeros(ulMin, 2, cursorEndPos - 7, line);
     lcd.print(":");
     printWidth = S;
   }
   if (printWidth == S) {
-    // M 00.00
-    PrintWithLeadingZeros(ulSec, 2, cursorEndPos - 5, line);
+    // S 00.0
+    PrintWithLeadingZeros(ulSec, 2, cursorEndPos - 4, line);
     lcd.print(".");
     printWidth = C;
   }
   if (printWidth == C) {
-    // M 00.00
-    PrintWithLeadingZeros(ulCent, 2, cursorEndPos - 2, line);
+    // C .0
+    // PrintWithLeadingZeros(ulCent, 1, cursorEndPos - 2, line);
+    lcd.setCursor(cursorEndPos-1, line);
+    lcd.print(ulCent);
   }
     // Serial.println("ulMin");
     // Serial.println(ulMin);
@@ -364,9 +373,14 @@ void ledWriteDigits(byte digit) {
   }
 }
 
-void ledWriteName(byte ledBarID, char name[]) {
-  for (int i=0; i < sizeof(name); i++){
-    lc.setDigit(ledBarID, i, name[i], false);
+void ledWriteName(byte ledBarID, byte racer, bool clear = true) {
+  // Serial.println("ledWriteName");
+  // if flag true, clear all digits of existing characters
+  if (clear) lc.clearDisplay(ledBarID);
+  byte digitPos = strlen(Racers[racer])-1;
+  for (int i = 0; i < strlen(Racers[racer]); i++){
+    lc.setChar(ledBarID, i, Racers[racer][digitPos], false);
+    digitPos--;
   }
 }
 
@@ -378,7 +392,11 @@ unsigned long preStartMillis;
 unsigned long raceStartMillis;
 unsigned long raceCurMillis;
 unsigned long lastTickMillis;
-int raceCurTime[3];
+unsigned long r1LapMillis;
+unsigned long r2LapMillis;
+// this is the interval in milliseconds that the clock displays are updated.
+// this value does not affect lap record accuracy, it's on for display updating
+byte displayTick = 100;
 
 void ledInterrupt() {
   ledState = !ledState;
@@ -660,11 +678,12 @@ void loop(){
   // } // END laneCount switch
     case Race:{
       curMillis = millis();
-      // setup variables for preStart timing loop
+      // initialize variables for preStart timing loop first cycle only
       if (entryFlag & preStart) {
         // preStartCountDown is in seconds so we convert to millis
         millisTillStart = preStartCountDown * 1000;
         preStartMillis = curMillis;
+        lastTickMillis = curMillis;
         lcd.clear();
         lcd.setCursor(0,1);
         lcd.print("Your Race Starts in:");
@@ -672,9 +691,14 @@ void loop(){
         entryFlag = false;
       }
 
-      // setup variables for race timing loop
+      // initialize variables for race timing loop first cycle only
       if (entryFlag & !preStart) {
-        
+        raceCurMillis = 0;
+        lastTickMillis = curMillis;
+        ledWriteName(0, racer1);
+        ledWriteName(1, racer2);
+        entryFlag = false;
+        clearLine(2);
       }
 
       if (preStart) {
@@ -704,16 +728,25 @@ void loop(){
 
       } else {
         switch (raceType) {
-          case Standard:
-            // scrollDigits();
-            ledWriteName(0, "Lucien");
-            break;
-          case Timed:
+          case Standard: {   
+            if (curMillis - lastTickMillis > displayTick){
+              raceCurMillis = raceCurMillis + displayTick;
+              lcdPrintClock(raceCurMillis, 13, 2, M);
+              if (lane1Active) r1LapMillis = r1LapMillis + displayTick;
+              if (lane2Active) r2LapMillis = r2LapMillis + displayTick; 
+              lastTickMillis = curMillis;
+            }
 
             break;
-          case Pole:
+          } // END standard case
+          case Timed:{
 
             break;
+          }
+          case Pole:{
+
+            break;
+          }
           default:
             break;
         } // END RaceType Switch
