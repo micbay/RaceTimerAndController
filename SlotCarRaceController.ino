@@ -10,6 +10,7 @@
 // library of sounds
 #include "pitches.h"
 
+#define DTICK 100
 
 // ********* AUDIO HARDWARE *********
 const byte buzzPin = A3;
@@ -22,14 +23,12 @@ int noteDurations[] = {
 };
 
 
-
 //***** Setting Up Lap Triggers and Pause-Stop button *********
 const byte lane1Pin = PIN_A0;
 const byte lane2Pin = PIN_A1;
 const byte pauseStopPin = PIN_A2;
 const byte ledPIN = 13;
 int ledState = HIGH;
-
 
 //***** Variables for LCD 4x20 Display **********
 // declare lcd object: auto locate & config exapander chip
@@ -69,6 +68,12 @@ byte pin_column[KP_COLS] = {9,10,11,12};
 // declare keypad object
 Keypad keypad = Keypad( makeKeymap(keys), pin_rows, pin_column, KP_ROWS, KP_COLS );
 
+// using an enum to make it easier to pass display to write to.
+enum displays {
+  lcdDisp,
+  led1Disp,
+  led2Disp
+};
 // create enum to hold possible state values
 enum states {
   Menu,
@@ -131,6 +136,9 @@ int lane2Time = 0;
 // that the state can do one time only prep for its first loop
 bool entryFlag = true;
 
+// variable to hold the last digit displayed so it does not rewrite every program loop
+int ledDigit = 0;
+
 enum Menus {
   MainMenu,
     SettingsMenu,
@@ -185,11 +193,21 @@ const char* ResultsText[4] = {
   "",
   ""
 };
+// const char* LiveRaceText[4] = {
+//   "",
+//   "Racer Fastest Lap",
+//   "",
+//   ""
+// };
 
 // create variale to hold current 'state'
 states state = Menu;
 Menus currentMenu;
 
+
+void Beep() {
+  tone(buzzPin, 4000, 200);
+}
 
 
 // use this function to set change interrupt for pins among A0-A6
@@ -198,26 +216,38 @@ void pciSetup(byte pin) {
   PCIFR  |= bit (digitalPinToPCICRbit(pin)); // clear any outstanding interrupt
   PCICR  |= bit (digitalPinToPCICRbit(pin)); // enable interrupt for the group
 }
-// handle pin change interrupt for A0-A5 bit0-bit5
+void clearPCI(byte pin) {
+    PCIFR  |= bit (digitalPinToPCICRbit(pin)); // clear any outstanding interrupt
+}
+
+// don't log lap trigger if within debounceTime (ms)
+const int debounceTime = 1000;
+// ISR is a special Arduino Macro or routine that handles interrupts ISR(vector, attributes)
+// PCINT1_vect handles pin change interrupt for the pin block A0-A5, represented in bit0-bit5
 ISR (PCINT1_vect) {
   unsigned long logMillis = millis();
   Serial.println("LED Interrupt");
   Serial.println(PINC);
   // Lane 1 is on pin A0 is on bit 0
   if (!IsBitSet(PINC, 0)) {
-    R1LapLog[R1LapIdx] = logMillis;
-    R1LapIdx++;
-    // digitalWrite(ledPIN, HIGH);
-    Serial.println("A0");
-    // LogLapLane1(logMillis);
+    if ((logMillis - R1LapLog[R1LapIdx - 1]  > debounceTime) || R1LapIdx == 0){
+      R1LapLog[R1LapIdx] = logMillis;
+      R1LapIdx++;
+      Beep();
+
+      // digitalWrite(ledPIN, HIGH);
+      // Serial.println("A0");
+    }
   }
   // Lane 2 is on pin A1 is on bit 1
   if (!IsBitSet(PINC, 1)) {
-    R2LapLog[R2LapIdx] = logMillis;
-    R2LapIdx++;
-    // digitalWrite(ledPIN, LOW);
-    Serial.println("A1");
-    // LogLapLane2(logMillis);
+    if ((logMillis - R2LapLog[R1LapIdx - 1]  > debounceTime) || R2LapIdx == 0){
+      R2LapLog[R2LapIdx] = logMillis;
+      R2LapIdx++;
+      Beep();
+      // digitalWrite(ledPIN, LOW);
+      // Serial.println("A1");
+    }
   }
  }  
 
@@ -226,17 +256,8 @@ bool IsBitSet(byte b, int pos) {
    return (b & (1 << pos)) != 0;
 }
 
-void LogLapLane1() {
-
-}
-
-void LogLapLane2() {
-
-}
-
-
-
-void UpdateMenu(char *curMenu[]){
+// update menu with static base text for given menu screen
+void UpdateMenu(const char *curMenu[]){
   // depending on the current menu map key press to next menu
   // for each string in the menu array, print it to the screen
   // clear screen in case new text doesn't cover all old text
@@ -248,18 +269,19 @@ void UpdateMenu(char *curMenu[]){
 }
 
 
-// indexing function to provide loop back to start for cycling
-int IndexRacer(int curIdx, int listCount, bool cycleUp = true) {
+// Provides, looping, up or down indexing of items in list looping
+// This function assumes the start of the list is zero index
+int IndexList(int curIdx, int listLength, bool cycleUp = true) {
   int newIndex = curIdx;
   if (cycleUp) {
-    if (curIdx == listCount - 1){
-      newIndex = 0;
-    } else {
-      newIndex++;
-    }
+    // cycling up we need to reset to zero if we reach end of list
+    // Modulo (%) of a numerator smaller than the denominator is itself
+    // while the modulo of a number with itself is 0
+    newIndex = (newIndex + 1) % (listLength);
   } else {
+    // if cycling down list we need to reset to end if we reach the beginning
     if (curIdx == 0){
-      newIndex = listCount - 1;
+      newIndex = listLength - 1;
     } else {
       newIndex--;
     }
@@ -270,7 +292,7 @@ int IndexRacer(int curIdx, int listCount, bool cycleUp = true) {
 
 // Prints input value to specifiec location on screen
 // with leading zeros to fill any gap in the width
-void PrintWithLeadingZeros(int integerIN, int width, int cursorPos, int line){
+void PrintWithLeadingZeros(int integerIN, int width, int cursorPos, displays display, int line){
   int leadingZCount = 0;
   if (integerIN == 0){
     // we subtract 1 because we still print the input integer
@@ -289,8 +311,8 @@ void PrintWithLeadingZeros(int integerIN, int width, int cursorPos, int line){
 }
 
 // passing in by Ref (using &) so we can update the input variables directly
-void SplitTime(unsigned long curr, unsigned long &ulHour,
-               unsigned long &ulMin, unsigned long &ulSec, unsigned long &ulcent) {
+void SplitTime(unsigned long curr, unsigned long &ulHour, unsigned long &ulMin,
+              unsigned long &ulSec, unsigned long &ulcent) {
   // Calculate HH:MM:SS from millisecond count
   ulcent = curr % 1000 / 100;
   ulSec = curr / 1000;
@@ -309,8 +331,8 @@ void SplitTime(unsigned long curr, unsigned long &ulHour,
 //          (ulSec * 1000);
 // }
 
-// input time in millis, pos of end of clock placement, and digits to show
-void lcdPrintClock(ulong timeMillis, byte cursorEndPos, byte line, clockWidth printWidth) {
+// input time in ms, with pos of end of clock placement, and  max clock segment to show
+void lcdPrintClock(ulong timeMillis, byte cursorEndPos, clockWidth printWidth, displays display, byte line = 0) {
   unsigned long ulHour;
   unsigned long ulMin;
   unsigned long ulSec;
@@ -318,35 +340,46 @@ void lcdPrintClock(ulong timeMillis, byte cursorEndPos, byte line, clockWidth pr
   SplitTime(timeMillis, ulHour, ulMin, ulSec, ulCent);
   if (printWidth == H) {
     // H 00:00:00.0
-    PrintWithLeadingZeros(ulHour, 2, cursorEndPos - 10, line);
-    lcd.print(":");
+    switch (display){
+      case lcdDisp: {
+        PrintWithLeadingZeros(ulMin, 2, cursorEndPos - 10, display, line);
+        lcd.print(":");
+        break;
+      } // END lcdDisp case
+      case led1Disp: led2Disp: {
+
+        break;
+      } // END of ledDips cases
+      default:
+        break;
+    } // END of display switch
     printWidth = M;
-  }
+    } // END printWidth H
   if (printWidth == M) {
     // M 00:00.0
-    PrintWithLeadingZeros(ulMin, 2, cursorEndPos - 7, line);
+    PrintWithLeadingZeros(ulMin, 2, cursorEndPos - 7, lcdDisp, line);
     lcd.print(":");
     printWidth = S;
   }
   if (printWidth == S) {
     // S 00.0
-    PrintWithLeadingZeros(ulSec, 2, cursorEndPos - 4, line);
+    PrintWithLeadingZeros(ulSec, 2, cursorEndPos - 4, lcdDisp, line);
     lcd.print(".");
     printWidth = C;
   }
   if (printWidth == C) {
     // C .0
-    // PrintWithLeadingZeros(ulCent, 1, cursorEndPos - 2, line);
     lcd.setCursor(cursorEndPos-1, line);
     lcd.print(ulCent);
   }
+  
     // Serial.println("ulMin");
     // Serial.println(ulMin);
     // Serial.println("ulSec");
     // Serial.println(ulSec);
     // Serial.println("ulcent");
     // Serial.println(ulcent);
-}
+} // END lcdPrintClock()
 
 
 int calcDigits(int number){
@@ -369,30 +402,6 @@ void lcdClearLine(byte lineNumber, byte posStart = 0, byte posEnd = LCD_COLS) {
   }
 }
 
-/* Display a (hexadecimal) digit on a 7-Segment Display
- * Params:
- *  addr   address of the display
- *  digit  the position of the digit on the display (0..7)
- *  value  the value to be displayed. (0x00..0x0F)
- *  dp     sets the decimal point.  
-*/ 
-// int delaytime = 1000;
-// void scrollDigits() {
-//   for(int i=0;i<13;i++) {
-//     lc.setDigit(0, 3, i, false);
-//     lc.setDigit(0, 2, i + 1, false);
-//     lc.setDigit(0, 1, i + 2, false);
-//     lc.setDigit(0, 0, i + 3, false);
-//     delay(delaytime);
-//     lc.setChar(0, 0, 'a', false);
-//     delay(delaytime);
-//   lc.setRow(0, 0, 0x05);
-//   }
-//   lc.clearDisplay(0);
-//   delay(delaytime);
-// }
-
-int ledDigit = 0;
 void ledWriteDigits(byte digit) {
   for (int j=0; j < LED_BAR_COUNT; j++){
     for (int i=0; i < LED_DIGITS; i++){
@@ -412,17 +421,25 @@ void ledWriteName(byte ledBarID, byte racer, bool clear = true) {
   }
 }
 
+void ledWriteClockTime(const unsigned long millisTime, const byte ledBarID, const byte endDigitPos = 0) {
 
-unsigned long curMillis;  // the snapshot of the millis() at entry cycle
-unsigned long millisTillStart;
-bool preStart;
-unsigned long raceCurMillis;
+}
+
+
+// The millis() timestamp at start of each timed loop
+unsigned long curMillis;
+// Live race time in ms, or remaining time in preStart or timed race
+unsigned long raceCurTime;
+// The millis() timestamp of last displayed timepoint
 unsigned long lastTickMillis;
-unsigned long r1LapMillis;
-unsigned long r2LapMillis;
-// this is the interval in milliseconds that the clock displays are updated.
-// this value does not affect lap record accuracy, it's on for display updating
-byte displayTick = 100;
+// Live lap time in ms of current lap for each racer
+unsigned long r1CurLapTime;
+unsigned long r2CurLapTime;
+// Interval in milliseconds that the clock displays are updated.
+// this value does not affect lap time precision, it's only for display updating
+int displayTick = DTICK;
+// flag indicating if race state is in preStart countdown or active race
+bool preStart = false;
 
 void ledInterrupt() {
   ledState = !ledState;
@@ -431,6 +448,8 @@ void ledInterrupt() {
 }
 
 bool melodyPlaying = false;
+// Holds the time of last tone played so timing of next note in melody can be determined
+unsigned long lastNoteMillis;
 
 // Initialize hardware and establish software initial state
 void setup(){
@@ -468,14 +487,12 @@ void setup(){
   // Setup the LED
   pinMode(ledPIN, OUTPUT); 
   digitalWrite(ledPIN, ledState);
-  // attach 
-  pciSetup(A0);
-  pciSetup(A1);
-  pciSetup(A2);
+
   // Setup initial program variables
   currentMenu = MainMenu;
   entryFlag = true;
   
+  R1LapLog[0] = 0;
   // open connection on serial port
   Serial.begin(9600);
   Serial.println(currentMenu);
@@ -496,7 +513,10 @@ void loop(){
       // only if a press is detected or it is the first loop of a new state
       // do we bother to evaluate anything
       if (key || entryFlag) {
-        tone(buzzPin, 4000, 200);
+        Beep();
+        // clear the lap log interrupts
+        clearPCI(lane1Pin);
+        clearPCI(lane2Pin);
         // All of the menus and sub-menus have been flattened to a single switch
         switch (currentMenu) {
           // The 'MainMenu' is the default and top level menu in the menu tree
@@ -533,19 +553,23 @@ void loop(){
               UpdateMenu(SettingsText);
               // draw current minute setting
               lcd.setCursor(10, 2);
-              PrintWithLeadingZeros(raceTime[0], 2, 10, 2);
+              PrintWithLeadingZeros(raceTime[0], 2, 10, lcdDisp, 2);
               // draw current seconds setting
               lcd.setCursor(13, 2);
-              PrintWithLeadingZeros(raceTime[1], 2, 13, 2);
+              PrintWithLeadingZeros(raceTime[1], 2, 13, lcdDisp, 2);
               // draw current lap count
               lcd.setCursor(10, 1);
-              PrintWithLeadingZeros(raceLaps, 3, 10, 1);
+              PrintWithLeadingZeros(raceLaps, 3, 10, lcdDisp, 1);
               //draw current lane settings
               lcd.setCursor(10,3);
               lcd.print(laneText[enabledLanes]);
               entryFlag = false;
             }
             switch (key) {
+              case 'A':
+                // change lap count
+                raceLaps = enterNumber(3, 999, 1, 10);
+                break;
               case 'B':
                 // Change minutes
                 raceTime[0] = enterNumber(2, 60, 2, 10);
@@ -553,10 +577,6 @@ void loop(){
               case 'C':
                 // change seconds
                 raceTime[1] = enterNumber(2, 59, 2, 13);
-                break;
-              case 'A':
-                // change lap count
-                raceLaps = enterNumber(3, 999, 1, 10);
                 break;
               case 'D':
                 // cycles through active lane options
@@ -594,12 +614,7 @@ void loop(){
                 // clear line to remove extra ch from long names replace by short ones
                 lcdClearLine(1, nameCursorPos);
                 lcd.setCursor(nameCursorPos,1);
-                racer1 = IndexRacer(racer1, racerCount, key == 'A');
-                
-                // // cycles through active lane options
-                // if(key == 'A') Racers[(racer1 + 1) % (racerCount + 1)];
-                // if(key == 'B') Racers[(racer1 - 1) % (racerCount - 1)];
-
+                racer1 = IndexList(racer1, racerCount, key == 'A');
                 lcd.print(Racers[racer1]);
                 break;
               }
@@ -608,7 +623,7 @@ void loop(){
                 // clear line to remove extra ch from long names replace by short ones
                 lcdClearLine(3, nameCursorPos);
                 lcd.setCursor(nameCursorPos,3);
-                racer2 = IndexRacer(racer2, racerCount, key == 'D');
+                racer2 = IndexList(racer2, racerCount, key == 'D');
                 lcd.print(Racers[racer2]);
                 break;
               }
@@ -623,40 +638,35 @@ void loop(){
             } // END of keypad switch   
             break;
           } // END SelectRacer Menu Case
-          // "A|First to     Laps",
-          // "B|Most Laps in",
-          // "C|Start Pol Trials",
-          // "D|Countdown:"
+
           case SelectRaceMenu: {
             if (entryFlag) {
               //draw non-editable text
               UpdateMenu(SelectRaceText);
               // add current race lap setting to lap race selection text
               lcd.setCursor(11,0);
-              PrintWithLeadingZeros(raceLaps, 3, 11, 0);
+              PrintWithLeadingZeros(raceLaps, 3, 11, lcdDisp, 0);
               // add current race minutes setting to timed race screen
               lcd.setCursor(15,1);
-              PrintWithLeadingZeros(raceTime[0], 2, 15, 1);
+              PrintWithLeadingZeros(raceTime[0], 2, 15, lcdDisp, 1);
               // add current race seconds setting to timed race screen
               lcd.setCursor(18,1);
-              PrintWithLeadingZeros(raceTime[1], 2, 18, 1);
+              PrintWithLeadingZeros(raceTime[1], 2, 18, lcdDisp, 1);
               // add the curent preStartCountDown setting to screen
               lcd.setCursor(13,3);
-              PrintWithLeadingZeros(preStartCountDown, 2, 13, 3);
+              PrintWithLeadingZeros(preStartCountDown, 2, 13, lcdDisp, 3);
               entryFlag = false;
             }
             switch (key) {
               case 'A': case 'B': case 'C':
-                // set the global raceType to a Standard race
-                // Typical to car racing, first to X laps
                 state = Race;
                 preStart = true;
                 entryFlag = true;
                 if ((enabledLanes == All) || (enabledLanes == Lane1)) lane1Active = StandBy;
                 if ((enabledLanes == All) || (enabledLanes == Lane2)) lane2Active = StandBy;
-                if (key == 'A') raceType = Standard;
-                else if (key == 'B') raceType = Timed;
-                else raceType = Pole;
+                if (key == 'A') {raceType = Standard; displayTick = DTICK;}
+                else if (key == 'B') {raceType = Timed; displayTick = -DTICK;}
+                else {raceType = Pole; displayTick = DTICK;};
                 break;
               case 'D':
                 // change how long the preStartCountDown before the race start lasts
@@ -731,45 +741,49 @@ void loop(){
       // initialize variables for preStart timing loop first cycle only
       if (entryFlag & preStart) {
         // preStartCountDown is in seconds so we convert to millis
-        millisTillStart = preStartCountDown * 1000;
+        raceCurTime = preStartCountDown * 1000;
         lastTickMillis = curMillis;
         lcd.clear();
         lcd.setCursor(0,1);
         lcd.print("Your Race Starts in:");
-        lcdPrintClock(millisTillStart, 12, 2, S);
+        lcdPrintClock(raceCurTime, 12, S, lcdDisp, 2);
+        ledWriteName(0, racer1);
+        ledWriteName(1, racer2);
         entryFlag = false;
         R1LapIdx = 0;
         R2LapIdx = 0;
       }
-
       // initialize variables for race timing loop first cycle only
       if (entryFlag & !preStart) {
-        raceCurMillis = 0;
+        raceCurTime = 0;
         lastTickMillis = curMillis;
-        ledWriteName(0, racer1);
-        ledWriteName(1, racer2);
+        displayTick = 
         entryFlag = false;
         lcdClearLine(2);
+        // enable interrupts on lap sensor pins
+        // this act enables the racer to trigger first lap
+        pciSetup(A0);
+        pciSetup(A1);
+        // enable race pause button interrupt
+        pciSetup(A2);
       }
 
       if (preStart) {
-        if (millisTillStart > 0){
+        if (raceCurTime > 0){
           // update countdown on LCD every 10 millis
-          if (curMillis - lastTickMillis > 10){
-            millisTillStart = millisTillStart - 10;
-            lcdPrintClock(millisTillStart, 12, 2, S);
+          if (curMillis - lastTickMillis > DTICK){
+            raceCurTime = raceCurTime - DTICK;
+            lcdPrintClock(raceCurTime, 12, S, lcdDisp, 2);
             lastTickMillis = curMillis;
           }
           // 9 and under sec left then send countdown to LEDs
-          if (millisTillStart < 8999 & (millisTillStart/1000 + 1) != ledDigit) {
+          if (raceCurTime < 8999 & (raceCurTime/1000 + 1) != ledDigit) {
             // we add 1 because it should change on start of the digit not end
-            ledDigit = millisTillStart/1000 + 1;
+            ledDigit = raceCurTime/1000 + 1;
             ledWriteDigits(ledDigit);
           }
         } else {
-          // Start race, the next lap count start that racers lap.
-          lcd.setCursor(7, 3);
-          lcd.print("START!");
+          // ++++ START RACE +++++++
           preStart = false;
           // reset ledDigit to default for next race
           ledDigit = 0;
@@ -777,16 +791,27 @@ void loop(){
           entryFlag = true;
         }
 
-      } else {
+      } else { // ********* LIVE RACE **********
+        // Regardless of race type, we do these things
+        if (curMillis - lastTickMillis > DTICK){
+          // if racetype is timed then displayTick will have been set to negative
+          raceCurTime = raceCurTime + displayTick;
+          // Update the lap times for active lanes
+          if (lane1Active) r1CurLapTime = r1CurLapTime + displayTick;
+          if (lane2Active) r2CurLapTime = r2CurLapTime + displayTick;
+          // Update LCD with absolute race time and racer lap logs
+          lcdPrintClock(raceCurTime, 13, M, lcdDisp, 0);
+          // if racer just logged a new lap then display the previous lap time to LEDs
+          // update display with current race clock time
+          // if (lane1LapFlash) {
+          //   ledWriteClockTime();
+          // } else {
+            
+          // }
+          lastTickMillis = curMillis;
+        }
         switch (raceType) {
-          case Standard: {   
-            if (curMillis - lastTickMillis > displayTick){
-              raceCurMillis = raceCurMillis + displayTick;
-              lcdPrintClock(raceCurMillis, 13, 2, M);
-              if (lane1Active) r1LapMillis = r1LapMillis + displayTick;
-              if (lane2Active) r2LapMillis = r2LapMillis + displayTick; 
-              lastTickMillis = curMillis;
-            }
+          case Standard: {
             if (R1LapIdx >= raceLaps) {
               state = Menu;
               currentMenu = ResultsMenu;
@@ -866,6 +891,7 @@ int enterNumber(int digits, int maxValue, int line, int cursorPos){
     keyIN = keypad.getKey();
     switch (keyIN) {
       case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '0': {
+        Beep();
         // set cursor to current position for next digit
         lcd.setCursor(cursorPos, line);
         lcd.cursor();
