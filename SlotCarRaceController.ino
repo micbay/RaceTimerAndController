@@ -442,10 +442,10 @@ void ledWriteDigits(byte digit) {
   }
 }
 
-void WriteName(const byte racer, const displays display, const byte writeSpaceEndPos, const byte width = NAME_DISPLAY_MAX, bool rightJust = false, const byte line = 0, bool clear = true) {
+void WriteName(const char textToWrite[], const displays display, const byte writeSpaceEndPos, const byte width = NAME_DISPLAY_MAX, bool rightJust = false, const byte line = 0, bool clear = true) {
   // Even though we say right justified we still truncate the name from the left.
   // need to track the character index seperately from display digit position
-  byte const strLength = strlen(Racers[racer]);
+  byte const strLength = strlen(textToWrite);
   // we take 1 away from width because the endposition is inclusive in the width count
   byte cursorStartPos = writeSpaceEndPos - (width - 1);
   byte cursorEndPos = writeSpaceEndPos;
@@ -460,7 +460,7 @@ void WriteName(const byte racer, const displays display, const byte writeSpaceEn
       if (clear) lcdClearLine(line, writeSpaceEndPos - width, writeSpaceEndPos);
       for (byte i = cursorStartPos; i <= cursorEndPos; i++){
         lcd.setCursor(i, line);
-        lcd.print(Racers[racer][nameIndex]);
+        lcd.print(textToWrite[nameIndex]);
         nameIndex++;
       }
       break;
@@ -469,7 +469,7 @@ void WriteName(const byte racer, const displays display, const byte writeSpaceEn
       if (clear) lc.clearDisplay(display - 1);
       for (byte i = cursorStartPos; i <= cursorEndPos; i++){
         // The digit position of the LED bars is right to left so we convert
-        lc.setChar(display - 1, (LED_DIGITS-1) - i, Racers[racer][nameIndex], false);
+        lc.setChar(display - 1, (LED_DIGITS-1) - i, textToWrite[nameIndex], false);
         nameIndex++;
       }
       break;
@@ -806,8 +806,8 @@ void loop(){
         lcd.setCursor(0,1);
         lcd.print("Your Race Starts in:");
         PrintClock(raceCurTime, 12, S, lcdDisp, 2);
-        WriteName(racer1, led1Disp, 7, 8, true);
-        WriteName(racer2, led2Disp, 7, 8, false);
+        WriteName(Racers[racer1], led1Disp, 7, 8, true);
+        WriteName(Racers[racer2], led2Disp, 7, 8, false);
         // WriteName(racer2, led2Disp, 7, 8);
         entryFlag = false;
         R1LapIdx = 0;
@@ -821,12 +821,12 @@ void loop(){
         lcd.clear();
         lcd.setCursor(8,1);
         lcd.print("Lap  |  Best");
-        WriteName(racer1, lcdDisp, 7, 8, false, 2);
+        WriteName(Racers[racer1], lcdDisp, 7, 8, false, 2);
         lcd.print(":");
-        WriteName(racer2, lcdDisp, 7, 8, false, 3);
+        WriteName(Racers[racer2], lcdDisp, 7, 8, false, 3);
         lcd.print(":");
-        WriteName(racer1, led1Disp, 7, 8, true);
-        WriteName(racer2, led2Disp, 7, 8, false);
+        WriteName(Start, led1Disp, 7, 8, true);
+        WriteName(Start, led2Disp, 7, 8, false);
         // enable interrupts on lap sensor pins
         // this act enables the racer to trigger first lap
         pciSetup(A0);
