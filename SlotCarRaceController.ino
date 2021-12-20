@@ -332,99 +332,43 @@ int IndexList(int curIdx, int listLength, bool cycleUp = true) {
 }
 
 
-// Prints input value to specifiec location on screen
-// with leading zeros to fill any gap in the width
-void PrintWithLeadingZeros(const int integerIN, const int width, int const cursorPos, displays display, const int line = 0){
-  int leadingZCount = 0;
-  if (integerIN == 0){
-    // we subtract 1 because we still print the input integer
-    leadingZCount = width - 1;
-  } else {
-    leadingZCount = width - calcDigits(integerIN);
-  }
-  if (leadingZCount < 0) leadingZCount = 0;
-  Serial.println("Result leading zero count");
-  Serial.println(leadingZCount);
-  Serial.println("Display");
-  Serial.println(display);
-  switch (display) {
-    case lcdDisp: {
-      Serial.println("Case LCD");
-      lcd.setCursor(cursorPos, line);
-      for (int i=0; i < leadingZCount; i++) {
-        lcd.print('0');
-      }
-      lcd.print(integerIN);
-    }
-    break;
-    case led1Disp: case led2Disp: {
-      Serial.println("Case LEEED");
-      // print leading zeros
-      int j;
-      for (j=0; j < leadingZCount; j++) {
-        lc.setDigit(display - 1, (LED_DIGITS-1) - cursorPos + j, 0, false);
-      }
-      // then value digit
-      Serial.println("caseLED set digit, cursor calced");
-      Serial.println((LED_DIGITS-1) - cursorPos + j + 1);
-      lc.setDigit(display - 1, (LED_DIGITS-1) - cursorPos + j++, integerIN, false);
-    }
-    break;
-    default:
-    break;
-  }
-  // Serial.println("leading zero count ");
-  // Serial.println(leadingZCount);
-}
-
-
 // for LED bar, 'line' is not used but must be included in header if using decimal flag
-void PrintNumbers(const unsigned long numberIN, const int width, int const endPosIdx, displays display, bool leadingZs = true, const int line = 0, bool endWithDecimal = false){
-
-  // lc.setDigit(3, numberIN / 1 % 10);   
-  // lc.setDigit(2, numberIN / 10 % 10);   
-  // lc.setDigit(1, numberIN / 100 % 10);   
-  // lc.setDigit(0, numberIN / 1000 % 10);
-
+void PrintNumbers(const unsigned long numberIN, const byte width, const byte endPosIdx, displays display, bool leadingZs = true, const byte line = 0, bool endWithDecimal = false){
   // lc.setDigit(3, numberIN / 10^0 % 10);   
   // lc.setDigit(2, numberIN / 10^1 % 10);   
   // lc.setDigit(1, numberIN / 10^2 % 10);   
   // lc.setDigit(0, numberIN / 10^3 % 10);
-
   // we take 1 away from width because the endposition is inclusive in the width count
   byte cursorStartPos = endPosIdx - (width - 1);
   byte cursorEndPos = endPosIdx;
   // variable to hold the number digit index which is always 0 - (width - 1)
-  byte digitIdx= 0;
-
-  switch (display)
-  {
-  case lcdDisp: {
-    // 1 subtracted from width because end position is included in width size
-    for (byte displayIdx = cursorStartPos; displayIdx <= cursorEndPos; displayIdx++) {
-      lcd.setCursor(displayIdx, line);
-      lcd.print(numberIN / ipow(10, digitIdx) % 10);
-      digitIdx++;
+  byte placeValue = width - 1;
+  switch (display) {
+    case lcdDisp: {
+      // written to screen from max place value to min defined by width and end position
+      for (byte displayIdx = cursorStartPos; displayIdx <= cursorEndPos; displayIdx++) {
+        lcd.setCursor(displayIdx, line);
+        // print current place value's digit
+        lcd.print(numberIN / ipow(10, placeValue) % 10);
+        placeValue--;
+      }
+      if (endWithDecimal) lcd.print(".");
     }
-    if (endWithDecimal) lcd.print(".");
-  }
-  break;
-  case led1Disp: case led2Disp: {
-    // 1 subtracted from width because end position is included in width size
-    for (byte displayIdx = cursorStartPos; displayIdx <= cursorEndPos; displayIdx++) {
-      // lc.setCursor(displayIdx, line);
-      lc.setDigit(
-        display - 1, 
-        (LED_DIGITS - 1) - displayIdx, 
-        numberIN / ipow(10, digitIdx) % 10,
-        endWithDecimal && displayIdx == cursorEndPos);
-      digitIdx++;
+    break;
+    case led1Disp: case led2Disp: {
+      for (byte displayIdx = cursorStartPos; displayIdx <= cursorEndPos; displayIdx++) {
+        // print current place value's digit
+        lc.setDigit(
+          display - 1, 
+          (LED_DIGITS - 1) - displayIdx, 
+          numberIN / ipow(10, placeValue) % 10,
+          endWithDecimal && displayIdx == cursorEndPos);
+        placeValue--;
+      }
     }
+    default:
+    break;
   }
-  default:
-  break;
-  }
-
 }
 
 
@@ -450,7 +394,7 @@ unsigned long SetTime(unsigned long ulHour, unsigned long ulMin,
 }
 
 // input time in ms, with pos of end of clock placement, and  max clock segment to show
-void PrintClock(ulong timeMillis, byte cursorEndPos, clockWidth printWidth, displays display, byte line = 0) {
+void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displays display, byte line = 0) {
   unsigned long ulHour;
   unsigned long ulMin;
   unsigned long ulSec;
@@ -460,13 +404,13 @@ void PrintClock(ulong timeMillis, byte cursorEndPos, clockWidth printWidth, disp
     // H 00:00:00.0
     switch (display){
       case lcdDisp: {
-        PrintWithLeadingZeros(ulHour, 2, cursorEndPos - 10, display, line);
+        PrintNumbers(ulHour, 2, clockEndPos - 8, lcdDisp, true, line);
         lcd.print(":");
       } // END lcdDisp case
       break;
       case led1Disp: led2Disp: {
-        PrintWithLeadingZeros(ulHour, 2, cursorEndPos - 7, led1Disp);
-        Serial.println("print leading ZEROS CASE");
+        PrintNumbers(ulHour, 2, clockEndPos - 5, led1Disp, true);
+        // Serial.println("print leading ZEROS CASE");
       } // END of ledDips cases
       break;
       default:
@@ -478,12 +422,12 @@ void PrintClock(ulong timeMillis, byte cursorEndPos, clockWidth printWidth, disp
     // M 00:00.0
     switch (display){
       case lcdDisp: {
-        PrintWithLeadingZeros(ulMin, 2, cursorEndPos - 7, lcdDisp, line);
+        PrintNumbers(ulMin, 2, clockEndPos - 5, lcdDisp, true, line);
         lcd.print(":");
       } // END lcdDisp case
       break;
       case led1Disp: case led2Disp: {
-        PrintWithLeadingZeros(ulMin, 2, cursorEndPos - 5, led1Disp);
+        PrintNumbers(ulMin, 2, clockEndPos - 3, led1Disp, true);
         // Serial.println("print leading ZEROS CASE");
       } // END of ledDips cases
       break;
@@ -496,12 +440,12 @@ void PrintClock(ulong timeMillis, byte cursorEndPos, clockWidth printWidth, disp
     // S 00.0
     switch (display){
       case lcdDisp: {
-        PrintWithLeadingZeros(ulSec, 2, cursorEndPos - 4, lcdDisp, line);
-        lcd.print(".");
+        PrintNumbers(ulSec, 2, clockEndPos - 2, lcdDisp, true, line, true);
+        // lcd.print(".");
       } // END lcdDisp case
       break;
       case led1Disp: case led2Disp: {
-        PrintWithLeadingZeros(ulSec, 2, cursorEndPos - 3, led1Disp);
+        PrintNumbers(ulSec, 2, clockEndPos - 1, led1Disp, true, 0, true);
       } // END of ledDips cases
       break;
       default:
@@ -513,12 +457,12 @@ void PrintClock(ulong timeMillis, byte cursorEndPos, clockWidth printWidth, disp
     // C .0
     switch (display){
       case lcdDisp: {
-        lcd.setCursor(cursorEndPos - 1, line);
+        lcd.setCursor(clockEndPos, line);
         lcd.print(ulCent);
       } // END lcdDisp case
       break;
       case led1Disp: case led2Disp: {
-        lc.setDigit(display - 1, (LED_DIGITS-1) - cursorEndPos, 0, false);
+        lc.setDigit(display - 1, (LED_DIGITS-1) - clockEndPos, ulCent, false);
       } // END of ledDips cases
       break;
       default:
@@ -736,14 +680,11 @@ void loop(){
               //draw non-editable text
               UpdateMenu(SettingsText);
               // draw current minute setting
-              lcd.setCursor(10, 2);
-              PrintWithLeadingZeros(raceSetTime[0], 2, 10, lcdDisp, 2);
+              PrintNumbers(raceSetTime[0], 2, 11, lcdDisp, true, 2);
               // draw current seconds setting
-              lcd.setCursor(13, 2);
-              PrintWithLeadingZeros(raceSetTime[1], 2, 13, lcdDisp, 2);
+              PrintNumbers(raceSetTime[1], 2, 14, lcdDisp, true, 2);
               // draw current lap count
-              lcd.setCursor(10, 1);
-              PrintWithLeadingZeros(raceLaps, 3, 10, lcdDisp, 1);
+              PrintNumbers(raceLaps, 3, 12, lcdDisp, true, 1);
               //draw current lane settings
               lcd.setCursor(10,3);
               lcd.print(laneText[lanesEnabled[lanesEnabledIdx][0]]);
@@ -833,17 +774,13 @@ void loop(){
               //draw non-editable text
               UpdateMenu(SelectRaceText);
               // add current race lap setting to lap race selection text
-              lcd.setCursor(11,0);
-              PrintWithLeadingZeros(raceLaps, 3, 11, lcdDisp, 0);
+              PrintNumbers(raceLaps, 3, 13, lcdDisp, true, 0);
               // add current race minutes setting to timed race screen
-              lcd.setCursor(15,1);
-              PrintWithLeadingZeros(raceSetTime[0], 2, 15, lcdDisp, 1);
+              PrintNumbers(raceSetTime[0], 2, 16, lcdDisp, true, 1);
               // add current race seconds setting to timed race screen
-              lcd.setCursor(18,1);
-              PrintWithLeadingZeros(raceSetTime[1], 2, 18, lcdDisp, 1);
+              PrintNumbers(raceSetTime[1], 2, 19, lcdDisp, true, 1);
               // add the curent preStartCountDown setting to screen
-              lcd.setCursor(13,3);
-              PrintWithLeadingZeros(preStartCountDown, 2, 13, lcdDisp, 3);
+              PrintNumbers(preStartCountDown, 2, 14, lcdDisp, true, 3);
               entryFlag = false;
             }
             switch (key) {
@@ -935,7 +872,7 @@ void loop(){
         lcd.clear();
         lcd.setCursor(0,1);
         lcd.print("Your Race Starts in:");
-        PrintClock(raceCurTime, 12, S, lcdDisp, 2);
+        PrintClock(raceCurTime, 10, S, lcdDisp, 2);
         WriteName(Racers[racer1], led1Disp, 7, 8, true);
         WriteName(Racers[racer2], led2Disp, 7, 8, false);
         // WriteName(racer2, led2Disp, 7, 8);
@@ -983,7 +920,7 @@ void loop(){
           // update LCD on each tick
           if (curMillis - lastTickMillis > displayTick){
             raceCurTime = raceCurTime - displayTick;
-            PrintClock(raceCurTime, 12, S, lcdDisp, 2);
+            PrintClock(raceCurTime, 10, S, lcdDisp, 2);
             lastTickMillis = curMillis;
           }
           // In last 3 seconds send countdown to LEDs
@@ -1020,8 +957,8 @@ void loop(){
           if (lane1LapFlash > 0) {
             if (lane1LapFlash == 1) {
               lc.clearDisplay(led1Disp);
-              lc.setDigit(led1Disp)
-              // PrintClock(R1LapLog[R1LapIdx-1] - R1LapLog[R1LapIdx-2], 7, M, led1Disp);
+              // lc.setDigit(led1Disp);
+              PrintClock(R1LapLog[R1LapIdx-1] - R1LapLog[R1LapIdx-2], 7, M, led1Disp);
               flashStartMillis = curMillis;
               lane1LapFlash = 2;
               // Serial.println("Lane1LapFlash = 1");
