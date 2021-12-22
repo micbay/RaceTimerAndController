@@ -20,10 +20,10 @@
 
 // ********* AUDIO HARDWARE *********
 const byte buzzPin = A3;
+
 int melody[] = {
   NOTE_C4, NOTE_G3,NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
 };
-
 int noteDurations[] = {
   4, 8, 8, 4, 4, 4, 4, 4
 };
@@ -76,7 +76,7 @@ byte pin_column[KP_COLS] = {9,10,11,12};
 // declare keypad object
 Keypad keypad = Keypad( makeKeymap(keys), pin_rows, pin_column, KP_ROWS, KP_COLS );
 
-// using an enum to make it easier to pass display to write to.
+// using an enum to define reference id for attached diplays.
 enum displays {
   lcdDisp,
   led1Disp,
@@ -88,18 +88,12 @@ enum states {
   Race,
   Paused
 };
-// start lanes enum to match value and lane number, All = 0
-// enum lanes {
-//   All = 6,
-//   Lane1 = 1,
-//   Lane2 = 2
-// };
 // state that a lane can be in during a race
-// enum defaults to these values, but they are written in to avoid editing order error
+// enum defaults to these values, but they are written in order to indicate it's important to preserve
 enum laneState {
   Off = 0,      // lane is not being used
   Active = 1,   // lane is being used and live in a race
-  StandBy = 2    // lane is being used in a race, but currently not active
+  StandBy = 2   // lane is being used in a race, but currently not active
 };
 // racetypes (standard is 1st to reach lap count)
 enum races {
@@ -116,12 +110,15 @@ enum clockWidth {
   Sm    // 00.000
 };
 
-//*** STORED DEFAULTS and Variables for USER SET GAME PROPERTIES
+//*** Variables and defaults for USER SET, RACE PROPERTIES
 races raceType = Standard;
 // raceSetTime[0] holds Min, raceSetTime[1] holds Sec
+const byte defMin = 2;
+const byte defSec = 0;
 int raceSetTime[2] = {2, 0};
+// manually set to milliseconds = to raceSetTime default, must update if that changes
 unsigned long raceSetTimeMs = 120000;
-int raceLaps = 5;
+int raceLaps = 10;
 // pre-race countdown length in seconds
 byte preStartCountDown = 5;
 // flag to tell race timer if race time is going up or going down as in a time limit race.
@@ -129,22 +126,31 @@ bool countingDown = false;
 // racer#'s value is the index of Racers[] identifying the racer name
 int racer1 = 0;
 int racer2 = 1;
-// create array to hold laps
+// Variable to track current lap being timed.
+// Note this may often be 1 greater than the lap of interest
 int r1LapCount = 0;
 int r2LapCount = 0;
+// for fastest laps table col0 = lap#, col1 = laptime in ms
 byte const fastLapsLimit = 10;
-unsigned long r1LapLog[ fastLapsLimit + 1 ] = {};
-unsigned long r2LapLog[ fastLapsLimit + 1 ] = {};
-// for fastest laps table idx0 = lap#, idx1 = laptime in ms
-unsigned int r1FastestLaps[fastLapsLimit][2] = {};
-unsigned int r2FastestLaps[fastLapsLimit][2] = {};
+unsigned long r1FastestLaps[ fastLapsLimit ][2] = {};
+unsigned long r2FastestLaps[ fastLapsLimit ][2] = {};
+unsigned long topFastestLaps[ 2 * fastLapsLimit ][2] = {};
 // storing first lap start millis() timestamp and last X number of lap timeStamps
-unsigned long r1LastXLaps[5] = {};
-unsigned long r2LastXLaps[5] = {};
+// because we don't have room to store all possible laps we keep a running last 5
+// to manage the fact our array index no longer matches lap # we use pointers
+// to tell us which array index is currently first and last
+byte const lastXMillisMax = 5;
+unsigned long r1LastXMillis [ lastXMillisMax ] = {};
+byte r1LastXFront = -1;
+byte r1LastXRear = -1;
+unsigned long r2LastXMillis [ lastXMillisMax ] = {};
+byte r2LastXFront = -1;
+byte r2LastXRear = -1;
+// col1 is the idx of the text array for the display, col2 is the bit flag value
 byte lanesEnabled[3][2] = {
-  {0, 3},  // All
-  {1, 1},  // Lane 1 Only
-  {2, 2}   // Land 2 Only
+  {0, 3},  // All           0x00000011
+  {1, 1},  // Lane 1 Only   0x00000001
+  {2, 2}   // Land 2 Only   0x00000010
 };
 // The millis() timestamp at start of each timed loop and race
 unsigned long curMillis;
@@ -172,18 +178,11 @@ byte const laneCount = 2;
 const char* laneText[laneCount + 1] = {"All", "1 Only", "2 Only"};
 // lanes enabledLanes = [0, 6] is lanes 1 and 2;
 byte lanesEnabledIdx = 0;
-// 6 equals setting bit flag for lane1 and lane2 0x00000110
-// uint8_t lanesEnabled = 6;
-// 1st column is the text array index, 2nd column is the bit flag value
-// byte lanesEnabled[3][2] = {
-//   {0, 3},  // All
-//   {1, 1},  // Lane 1 Only
-//   {2, 2}   // Land 2 Only
-// };
 // initialize lane state to be off which will be 0 and evaluate as false
 // if enabled, the state will be made truthy
 laneState lane1State = Off;
 laneState lane2State = Off;
+
 // flags to indicate that the previous lap should be displayed
 // 0 = don't show lap flash, 1 = write last lap time to dispaly, 2 = show lap flash
 byte lane1LapFlash = 0;
@@ -194,8 +193,8 @@ unsigned long flash2StartMillis;
 int lane1FlashRemaining = 0;
 int lane2FlashRemaining = 0;
 
-int lane1Time = 0;
-int lane2Time = 0;
+byte resultsMenuIdx = 0;
+unsigned long lane2Time = 0;
 // this flag is used to indicate the first entry into a state so
 // that the state can do one time only prep for its first loop
 bool entryFlag = true;
@@ -253,7 +252,7 @@ const char* SelectRaceText[4] = {
   "D|Countdown:    Sec"
 };
 const char* ResultsText[4] = {
-  "   RACE RESULTS   ",
+  "RESULTS: C|Overall",
   "",
   "",
   ""
@@ -269,21 +268,80 @@ const char* ResultsText[4] = {
 states state = Menu;
 Menus currentMenu;
 
+byte newest = -1;
+byte oldest = -1;
+
+void cycleLastX(unsigned long lastXin[], const unsigned long newValue, byte &newestIdx, byte &oldestIdx) {
+  // int rear = -1;
+  // int nextRear = -1;
+  // int front = -1;
+  // move the reat to the nextRear position and update nextRear
+  if (newest == -1){
+    newest = 0;
+    oldest = 0;
+    lastXin[newest] = newValue;
+  } else {
+    newest = (newest + 1) % lastXMillisMax;
+    lastXin[newest] = newValue;
+    oldest = newest == 0 ? 1 : oldest + 1;
+  }
+
+
+  // if nextRear == front than the queue is full
+  // same as saying when rear == size queue is full
+
+
+}
+
+// passing in by Ref (using &) so we can update the input variables directly
+void SplitTime(unsigned long curr, unsigned long &ulHour, unsigned long &ulMin, unsigned long &ulSec, unsigned long &ulDec, unsigned long &ulCent, unsigned long &ulMill) {
+  // Calculate HH:MM:SS from millisecond count
+  ulMill = curr % 1000;
+  ulCent = curr % 1000 / 10;
+  ulDec = curr % 1000 / 100;
+  ulSec = curr / 1000;
+  ulMin = ulSec / 60;
+  ulHour = ulMin / 60;
+  ulMin -= ulHour * 60;
+  ulSec = ulSec - ulMin * 60 - ulHour * 3600;
+}
+
+// converts clock time into milliseconds
+unsigned long ClockToMillis(const byte ulHour, const byte ulMin, const byte ulSec) {
+  // Sets the number of milliseconds from midnight to current time
+  return (ulHour * 60 * 60 * 1000) +
+         (ulMin * 60 * 1000) +
+         (ulSec * 1000);
+}
+
 
 void Beep() {
   tone(buzzPin, 4000, 200);
 }
 
-//  used to set fastest lap array to high numbers that will be replaced
-void InitializeLapArrays(){
+// used to set fastest lap array to high numbers that will be replaced
+// a lap number of 0 indicates it is a dummy lap
+void InitializeRacerArrays(){
   for (byte i = 0; i < fastLapsLimit; i++) {
     r1FastestLaps[i][0] = 0;
-    r1FastestLaps[i][1] = 99999;
+    r1FastestLaps[i][1] = 999999;
     r2FastestLaps[i][0] = 0;
-    r2FastestLaps[i][1] = 99999;
-  } 
+    r2FastestLaps[i][1] = 999999;
+  }
+  for (byte i = 0; i < lastXMillisMax; i++) {
+    r1LastXMillis[i] = 0;
+    r2LastXMillis[i] = 0;
+  }
 }
 
+// used to set fastest lap array to high numbers that will be replaced
+// a lap number of 0 indicates it is a dummy lap
+void InitializeResultsArrays(){
+  for (byte i = 0; i < fastLapsLimit * 2; i++) {
+    topFastestLaps[i][0] = 0;
+    topFastestLaps[i][1] = 999999;
+  }
+}
 
 // use this function to set change interrupt for pins among A0-A6
 void pciSetup(byte pin) {
@@ -309,23 +367,27 @@ ISR (PCINT1_vect) {
     // if it's the first log, it's the intial cross of start line
     if (r1LapCount == 0) {
       lane1State = Active;
-      r1LastXLaps [ r1LapCount ] = logMillis;
+      r1LastXMillis [ r1LapCount ] = logMillis;
       r1LapStartMillis = logMillis;
+      Serial.println("R1 Lap Count 0");
+      Serial.println(r1LapCount);
       r1LapCount++;
       Beep();
-    } else if ((logMillis - r1LastXLaps [ r1LapCount - 1 ])  > debounceTime){
+    } else if ((logMillis - r1LastXMillis [ r1LapCount - 1 ])  > debounceTime){
       lane1LapFlash = 1;
-      r1LastXLaps [ r1LapCount ] = logMillis;
+      r1LastXMillis [ r1LapCount ] = logMillis;
       r1LapStartMillis = logMillis;
+      Serial.println("R1 Lap Count 1++");
+      Serial.println(r1LapCount);
       r1LapCount++;
       Beep();
     }
     // if not the first log or beyond debounce time then don't log the trigger
 
-    // Serial.println("R1 LapLog [0]");
-    // Serial.println(r1LastXLaps [0]); 
-    // Serial.println("R1 LapLog [1]"); 
-    // Serial.println(r1LastXLaps [1]); 
+    // Serial.println("R1 r1LastXMillis [0]");
+    // Serial.println(r1LastXMillis [0]); 
+    // Serial.println("R1 r1LastXMillis [1]"); 
+    // Serial.println(r1LastXMillis [1]); 
     // Serial.println("A0");
     // digitalWrite(ledPIN, HIGH);
   }
@@ -333,14 +395,18 @@ ISR (PCINT1_vect) {
   if (!IsBitSet(PINC, 1)) {
     if (r2LapCount == 0) {
       lane2State = Active;
-      r2LastXLaps [ r2LapCount ] = logMillis;
+      r2LastXMillis [ r2LapCount ] = logMillis;
       r2LapStartMillis = logMillis;
+      Serial.println("R2 Lap Count 0");
+      Serial.println(r2LapCount);
       r2LapCount++;
       Beep();
-    } else if ((logMillis - r2LastXLaps [ r2LapCount - 1 ])  > debounceTime){
+    } else if ((logMillis - r2LastXMillis [ r2LapCount - 1 ])  > debounceTime){
       lane2LapFlash = 1;
-      r2LastXLaps [ r2LapCount ] = logMillis;
+      r2LastXMillis [ r2LapCount ] = logMillis;
       r2LapStartMillis = logMillis;
+      Serial.println("R2 Lap Count 1++");
+      Serial.println(r2LapCount);
       r2LapCount++;
       Beep();
     }
@@ -424,28 +490,6 @@ void PrintNumbers(const unsigned long numberIN, const byte width, const byte end
   }
 }
 
-
-// passing in by Ref (using &) so we can update the input variables directly
-void SplitTime(unsigned long curr, unsigned long &ulHour, unsigned long &ulMin, unsigned long &ulSec, unsigned long &ulDec, unsigned long &ulCent, unsigned long &ulMill) {
-  // Calculate HH:MM:SS from millisecond count
-  ulMill = curr % 1000;
-  ulCent = curr % 1000 / 10;
-  ulDec = curr % 1000 / 100;
-  ulSec = curr / 1000;
-  ulMin = ulSec / 60;
-  ulHour = ulMin / 60;
-  ulMin -= ulHour * 60;
-  ulSec = ulSec - ulMin * 60 - ulHour * 3600;
-}
-
-// converts clock time into milliseconds
-unsigned long ClockToMillis(unsigned long ulHour, unsigned long ulMin,
-                      unsigned long ulSec) {
-  // Sets the number of milliseconds from midnight to current time
-  return (ulHour * 60 * 60 * 1000) +
-         (ulMin * 60 * 1000) +
-         (ulSec * 1000);
-}
 
 // input time in ms, with pos of end of clock placement, and  max clock segment to show
 void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displays display, byte line = 0) {
@@ -570,7 +614,7 @@ void ledWriteDigits(byte digit) {
   }
 }
 
-void WriteName(const char textToWrite[], const displays display, const byte writeSpaceEndPos, const byte width = LED_DIGITS, bool rightJust = false, const byte line = 0, bool clear = true) {
+void PrintText(const char textToWrite[], const displays display, const byte writeSpaceEndPos, const byte width = LED_DIGITS, bool rightJust = false, const byte line = 0, bool clear = true) {
   // Even though we say right justified we still truncate the name from the left.
   // need to track the character index seperately from display digit position
   byte const strLength = strlen(textToWrite);
@@ -608,7 +652,7 @@ void WriteName(const char textToWrite[], const displays display, const byte writ
 }
 
 
-void UpdateFastestLap(unsigned int fastestArray[fastLapsLimit][2], const int lap, const unsigned long newLapTime){
+void UpdateFastestLap(unsigned long fastestArray[fastLapsLimit][2], const int lap, const unsigned long newLapTime){
   Serial.println("ENTERED FASTEST");
   for (byte i = 0; i < fastLapsLimit; i++){
         Serial.print("Fastest For i = ");
@@ -637,6 +681,11 @@ void UpdateFastestLap(unsigned int fastestArray[fastLapsLimit][2], const int lap
     } // END if (fastestArray) block
   } // END fastest lap array for loop
 }
+
+void BuildTopFastest(unsigned long racerFastest[ fastLapsLimit * 2 ][2], const byte racer, const int lapNumber, const unsigned long lapTime) {
+
+}
+
 
 bool melodyPlaying = false;
 // Holds the time of last tone played so timing of next note in melody can be determined
@@ -678,7 +727,10 @@ void setup(){
   pinMode(ledPIN, OUTPUT); 
   digitalWrite(ledPIN, ledState);
 
-  InitializeLapArrays();
+  // we don't really need to setup lap time arrays here they but we
+  // do it here just to put everything in a usable default state at startup
+  InitializeRacerArrays();
+  InitializeResultsArrays();
 
   // Setup initial program variables
   currentMenu = MainMenu;
@@ -693,6 +745,8 @@ void setup(){
 void loop(){
   // Serial.println("MAIN LOOP START");
   // Serial.println(state);
+  // Serial.println("R2Lap count MAIN");
+  // Serial.println(r2LapCount);
   switch (state) {
     // Serial.println("Entered Stat Switch");
     // In the 'Menu' state the program is focused on looking for keypad input
@@ -878,10 +932,10 @@ void loop(){
               r2LapCount = 0;
               lcdClearLine(1);
               lcd.setCursor(5, 1);;
-              lcd.print( r1LastXLaps [ r1LapCount ] );
+              // lcd.print( r1LastXMillis [ r1LapCount ] );
               lcdClearLine(3);
               lcd.setCursor(5, 3);
-              lcd.print( r2LastXLaps [ r2LapCount ]);
+              // lcd.print( r2LastXMillis [ r2LapCount ]);
               entryFlag = false;
             }
             switch (key) {
@@ -892,7 +946,7 @@ void loop(){
                 lcd.setCursor(5, 1);
                 if (key == 'A') r1LapCount--;
                 if (key == 'B') r1LapCount++;
-                lcd.print(r1LastXLaps[r1LapCount]);
+                lcd.print(r1LastXMillis[r1LapCount]);
                 break;
               }
               // cycle up or down racer list and update Racer2 name
@@ -902,7 +956,7 @@ void loop(){
                 lcd.setCursor(5, 3);
                 if (key == 'C') r2LapCount--;
                 if (key == 'D') r2LapCount++;
-                lcd.print(r2LastXLaps[r2LapCount]);
+                lcd.print(r2LastXMillis[r2LapCount]);
               }
               break;
               case '*':{
@@ -927,6 +981,8 @@ void loop(){
       curMillis = millis();
       // initialize variables for preStart timing loop first cycle only
       if (entryFlag & preStart) {
+        // initialize race lap time arrays to [0, 999999]
+        InitializeRacerArrays();
         // preStartCountDown is in seconds so we convert to millis
         raceCurTime = preStartCountDown * 1000;
         lastTickMillis = curMillis;
@@ -934,8 +990,8 @@ void loop(){
         lcd.setCursor(0,1);
         lcd.print("Your Race Starts in:");
         PrintClock(raceCurTime, PRESTART_CLK_POS, Sd, lcdDisp, 2);
-        WriteName(Racers[racer1], led1Disp, 7, 8, true);
-        WriteName(Racers[racer2], led2Disp, 7, 8, false);
+        PrintText(Racers[racer1], led1Disp, 7, 8, true);
+        PrintText(Racers[racer2], led2Disp, 7, 8, false);
         entryFlag = false;
         r1LapCount = 0;
         r2LapCount = 0;
@@ -950,13 +1006,13 @@ void loop(){
         lcd.clear();
         lcd.setCursor(8,1);
         lcd.print("Lap  |  Best");
-        WriteName(Racers[racer1], lcdDisp, 7, 8, false, 2);
+        PrintText(Racers[racer1], lcdDisp, 7, 8, false, 2);
         lcd.print(":");
-        WriteName(Racers[racer2], lcdDisp, 7, 8, false, 3);
+        PrintText(Racers[racer2], lcdDisp, 7, 8, false, 3);
         lcd.print(":");
         // Indicate race start for each racer
-        WriteName(Start, led1Disp, 7, 8, false);
-        WriteName(Start, led2Disp, 7, 8, false);
+        PrintText(Start, led1Disp, 7, 8, false);
+        PrintText(Start, led2Disp, 7, 8, false);
         // put any enabled lanes into an active state ready to log 
         // if (lane1State) lane1State = Active;
         // if (lane2State) lane2State = Active;
@@ -1007,10 +1063,15 @@ void loop(){
           // Serial.println(lane1LapFlash);
           // Serial.println("R1 index");
           // Serial.println(r1LapCount);
-          // Update the lap times for active lanes
+          // A lap Flash is triggered by the completion of a lap, it's 'resting' value is 0
           if (lane1LapFlash > 0) {
             if (lane1LapFlash == 1) {
-              unsigned long r1LapTimeToLog =  r1LastXLaps [r1LapCount-1] - r1LastXLaps [r1LapCount-2];
+              unsigned long r1LapTimeToLog;
+              if (r2LapCount == 1) {
+                r1LapTimeToLog = r1LastXMillis [1] - r1LastXMillis [0];
+              } else {
+                r1LapTimeToLog = r1LastXMillis [(r1LapCount-1)%lastXMillisMax] - r1LastXMillis [(r1LapCount-2)%lastXMillisMax];
+              }
               // during the intro to the lap flash cycle we also update all the racer lap records
               // we do this here to keep it interruptable and out of the lap trigger intrrupt funct.
               // the current lap is the live lap so we need to subtract 1 from lapcount
@@ -1036,7 +1097,7 @@ void loop(){
             if (lane2LapFlash == 1) {
               lc.clearDisplay( led2Disp - 1 );
               PrintNumbers(r2LapCount - 1, 3, 2, led2Disp);
-              PrintClock(r2LastXLaps [r2LapCount - 1]  - r2LastXLaps [r2LapCount - 2], 7, Sc, led2Disp);
+              PrintClock(r2LastXMillis [r2LapCount - 1]  - r2LastXMillis [r2LapCount - 2], 7, Sc, led2Disp);
               flash2StartMillis = curMillis;
               lane2LapFlash = 2;
             } else { // flash status = 2 which means it's been written and still active
@@ -1058,24 +1119,50 @@ void loop(){
         // check for the race end condition and finishing places
         switch (raceType) {
           case Standard: {
-            // arrays hold the racer and display f
-            byte first;
-            byte second;
+            byte first = 255;
+            byte second = 255;
+              Serial.println("pre racer1 laps final");
+              Serial.println(r1LapCount);
+              Serial.println("pre racer2 laps final");
+              Serial.println(r2LapCount);
             // After crossing finish of last lap, lap Count is now the final lap + 1
             // So we wait until it is greater than the set raceLaps before ending 
-            if (r1LapCount > raceLaps || r2LapCount > raceLaps) {   
+            if (r1LapCount > raceLaps || r2LapCount > raceLaps) {
               // turn off lap trigger interrupts to immediately end any new
               clearPCI(lane1Pin);
               clearPCI(lane2Pin);
-              // verify winner
+              // adjust final lap count by 1 because current lap is not to be included
+              r1LapCount = r1LapCount == 0 ? r1LapCount : r1LapCount - 1;
+              r2LapCount = r2LapCount == 0 ? r2LapCount : r2LapCount - 1;
+              Serial.println("racer1 laps final");
+              Serial.println(r1LapCount);
+              Serial.println("racer2 laps final");
+              Serial.println(r2LapCount);
+              // verify winner if one lap count is higher than the other it is clear
               if (r1LapCount > r2LapCount) {first = racer1; second = racer2;}
               else if (r2LapCount > r1LapCount) {first = racer2; second = racer1;}
-              else if (r1LastXLaps[r1LapCount] < r2LastXLaps[r2LapCount]) {first = racer1; second = racer2;}
-              else if (r2LastXLaps[r2LapCount] < r1LastXLaps[r1LapCount]) {first = racer2; second = racer1;}
-              WriteName("1st", first == racer1 ? led1Disp:led2Disp, 2, 3, false);
-              WriteName(Racers[first], first == racer1 ? led1Disp:led2Disp, 7, 4, true, 0, false);
-              WriteName("2nd", second == racer1 ? led1Disp:led2Disp, 2, 3, false);
-              WriteName(Racers[second], second == racer1 ? led1Disp:led2Disp, 7, 4, true, 0, false);
+              // if timing is such that 2nd place has crossed while processing then the
+              // final lap timestamp will show who was first
+              else if (r1LastXMillis[r1LapCount] < r2LastXMillis[r2LapCount]) {first = racer1; second = racer2;}
+              else if (r2LastXMillis[r2LapCount] < r1LastXMillis[r1LapCount]) {first = racer2; second = racer1;}
+              // else if lapcount and last lap timestamps are the same it's a tie
+              // we set to max byte value which is more than the name list size will ever be
+              else if(r2LapCount == r1LapCount && r1LastXMillis[r1LapCount] == r2LastXMillis[r2LapCount]){
+                first = 254;
+                second = 254;
+              }
+              if (first == 254 && second == 254) {
+                PrintText("It's a TIE", led1Disp, 2, 3, true);
+                PrintText("It's a TIE", led2Disp, 2, 3, true);
+              } else if (first == 255) {
+                PrintText("ERROR", led1Disp, 7, 8);
+                PrintText("ERROR", led2Disp, 7, 8);
+              } else {
+                PrintText("1st", first == racer1 ? led1Disp:led2Disp, 2, 3, false);
+                PrintText(Racers[first], first == racer1 ? led1Disp:led2Disp, 7, 4, true, 0, false);
+                PrintText("2nd", second == racer1 ? led1Disp:led2Disp, 2, 3, false);
+                PrintText(Racers[second], second == racer1 ? led1Disp:led2Disp, 7, 4, true, 0, false);
+              }
               state = Menu;
               currentMenu = ResultsMenu;
               entryFlag = true;
