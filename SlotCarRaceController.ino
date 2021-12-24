@@ -67,7 +67,7 @@ char keys[KP_ROWS][KP_COLS] = {
 };
 // Establish the row pinouts, {Row1,Row2,Row3,Row4} => Arduino pins 5,6,7,8
 byte pin_rows[KP_ROWS] = {5,6,7,8};
-// Establish the column pinouts, {Col1,Col2,Col3,Col4} => Arduino pins 7,8,9,10
+// Establish the column pinouts, {Col1,Col2,Col3,Col4} => Arduino pins 9,10,11,12
 byte pin_column[KP_COLS] = {9,10,11,12}; 
 // Declare keypad object
 Keypad keypad = Keypad( makeKeymap(keys), pin_rows, pin_column, KP_ROWS, KP_COLS );
@@ -85,19 +85,20 @@ enum states {
   Paused
 };
 // state that a lane can be in during a race
-// enum defaults to these values, but they are written in order to indicate it's important to preserve
+// enum defaults to these values, but they are written in explicitly
+// in order to indicate it's important to preserve those values.
 enum laneState {
   Off = 0,      // lane is not being used
   Active = 1,   // lane is being used and live in a race
   StandBy = 2   // lane is being used in a race, but currently not active
 };
-// racetypes (standard is 1st to reach lap count)
+// Racetype options
 enum races {
   Standard,  // First to finish the set number of laps
   Timed,     // Finish the most laps before time runs out
-  Pole       // 1-10 lap practice time trials
+  Pole       // TODO - NOT IMPLEMENTED
 };
-// used to set clock time width;
+// used to define desired clock time width when written to display;
 enum clockWidth {
   H,    // 00:00:00.0
   M,    // 00:00.0
@@ -108,42 +109,45 @@ enum clockWidth {
 
 //*** Variables and defaults for USER SET, RACE PROPERTIES
 races raceType = Standard;
-// raceSetTime[0] holds Min, raceSetTime[1] holds Sec
+// Variable for the number of laps to win standard race type
+int raceLaps = 8;
+// Race time for a Timed race type, most laps before time runs out wins.
+// We create a clock time array to hold converted values for easy display update.
+// raceSetTime[1] holds Min, raceSetTime[0] holds Sec, settable from menu.
 const byte defMin = 2;
 const byte defSec = 0;
-int raceSetTime[2] = {2, 0};
-// manually set to milliseconds = to raceSetTime default, must update if that changes
-unsigned long raceSetTimeMs = 120000;
-int raceLaps = 8;
-// pre-race countdown length in seconds
+byte raceSetTime[2] = {defSec, defMin};
+// raceSetTime in milliseconds, will be initialized in setup().
+unsigned long raceSetTimeMs;
+// pre-race countdown length in seconds, settable from menu
 byte preStartCountDown = 5;
-// flag to tell race timer if race time is going up or going down as in a time limit race.
+// Flag to tell race timer if race time is going up or going down as in a time limit race.
+// Since the default race type is standard the default countingDown is false.
 bool countingDown = false;
 
-// bitwise flag mask for enabling/disabling lanes
-const byte lane1Enabled = (1 << 0);
-const byte lane2Enabled = (1 << 1);
-
 // racer#'s value is the index of Racers[] identifying the racer name
-int racer1 = 0;
-int racer2 = 1;
+byte racer1 = 0;
+byte racer2 = 1;
 // Variable to track current lap being timed.
 // Note this may often be 1 greater than the lap of interest
 int r1LapCount = 0;
 int r2LapCount = 0;
-// for fastest laps table col0 = lap#, col1 = laptime in ms
-byte const fastLapsLimit = 10;
-unsigned long r1FastestLaps[ fastLapsLimit ][2] = {};
-unsigned long r2FastestLaps[ fastLapsLimit ][2] = {};
-unsigned long topFastestLaps[ 2 * fastLapsLimit ][2] = {};
-// There is not room to store all laps, so we only track the last X lap timeStamps
-// The modulus of the lap count by the lapMillisQSize, will set the index.
-// (lapCount % lapMillisQSize) = idx will always be 0 <= idx < lapMillisQSize
+// Fastest laps table col0 = lap#, col1 = laptime in ms
+byte const fastLapsQSize = 10;
+unsigned long r1FastestLaps[ fastLapsQSize ][2] = {};
+unsigned long r2FastestLaps[ fastLapsQSize ][2] = {};
+unsigned long topFastestLaps[ 2 * fastLapsQSize ][2] = {};
+// Due to memory limits, we only track the last X lap millis() timestamps.
+// The modulus of the lap count, by the lapMillisQSize, will set the looping index.
+// (lapCount % lapMillisQSize) = idx, will always be 0 <= idx < lapMillisQSize
 // DO NOT SET lapMillisQSize < 3
 byte const lapMillisQSize = 5;
 unsigned long r1LastXMillis [ lapMillisQSize ] = {};
 unsigned long r2LastXMillis [ lapMillisQSize ] = {};
 
+// bitwise mask for enabling/disabling lanes
+const byte lane1Enabled = (1 << 0);
+const byte lane2Enabled = (1 << 1);
 // Array variable to hold lane state and property indexes
 // col1 is the idx of the text array for the display, col2 is its enabled bit flag value
 byte lanesEnabled[3][2] = {
@@ -151,21 +155,22 @@ byte lanesEnabled[3][2] = {
   {1, 1},  // Lane 1 Only   0x00000001
   {2, 2}   // Land 2 Only   0x00000010
 };
-// The millis() timestamp at start of each timed loop and race
+// The millis() timestamp of the start of current program loop.
 unsigned long curMillis;
+// The millis() timestamp of the start of active race.
 unsigned long raceStartMillis;
-// Live elapsed race time in ms, or remaining time in preStart or timed race
+// Live elapsed race time in ms, or remaining time in preStart, or timed race.
 unsigned long raceCurTime;
-// The millis() timestamp of last displayed timepoint
-unsigned long lastTickMillis;
 // Live lap elapsed time in ms of current lap for each racer
 unsigned long r1CurLapTime;
 unsigned long r2CurLapTime;
-// used to store millis() timestamp at start of current lap
+// used to store millis() timestamp at start of current lap for each racer
 unsigned long r1LapStartMillis;
 unsigned long r2LapStartMillis;
+// The millis() timestamp of last display update.
+unsigned long lastTickMillis;
 // Interval in milliseconds that the clock displays are updated.
-// this value does not affect lap time precision, it's only for display updating
+// this value does not affect lap time precision, it only sets min display update rate.
 int displayTick = 100;
 // timestamp to be used for debouncing the pause/stop button
 unsigned long pauseDebounceMillis = 0;
@@ -174,62 +179,62 @@ bool preStart = false;
 
 // The # of physical lanes that will have a counter sensor
 byte const laneCount = 2;
-// we add one to the lane count to account for 'All'
+// Variable to map lane selection to menu text
+// We add one to the lane count to account for 'All'
 const char* laneText[laneCount + 1] = {"All", "1 Only", "2 Only"};
 // lanes enabledLanes = [0, 6] is lanes 1 and 2;
 byte lanesEnabledIdx = 0;
-// initialize lane state to be off which will be 0 and evaluate as false
+// Initialize lane state to be off, which is 0, and evaluates as false.
 // if enabled, the state will be made truthy (>0).
 laneState lane1State = Off;
 laneState lane2State = Off;
 
-// flags to indicate that the previous lap should be displayed
-// 0 = don't show lap flash, 1 = write last lap time to dispaly, 2 = show lap flash
+// After a racer finishes a lap the logged time will be 'flashed' up
+// to that racer's LED. The period that this lap time stays displayed
+// before the display returns to logging current lap time is the 'flash' period.
+// The lane Lap Flash variables indicate the state of this flash period.
+// 0 = update display with racer's current lap and running time.
+// 1 = write last finished lap, and its logged time, to racer's LED.
+// 2 = hold the last finished lap info on display until flash time is up.
 byte lane1LapFlash = 0;
 byte lane2LapFlash = 0;
-const int flashDisplayTime = 1250;
+const int flashDisplayTime = 1500;
+// millis() timestamp at start of current flash period
 unsigned long flash1StartMillis;
 unsigned long flash2StartMillis;
-int lane1FlashRemaining = 0;
-int lane2FlashRemaining = 0;
 
+// index of top lap time to display in results window
 byte resultsMenuIdx = 0;
-unsigned long lane2Time = 0;
-// this flag is used to indicate the first entry into a state so
-// that the state can do one time only prep for its first loop
-bool entryFlag = true;
 
 // variable to hold the last digit displayed so it does not rewrite every program loop
 byte ledCountdownTemp = 0;
 
+// enum to name menu screens for easier reference
 enum Menus {
   MainMenu,
     SettingsMenu,
-      SetRaceTimeMenu,
-      SetRaceLapsMenu,
-      SetLanesMenu,
     SelectRacersMenu,
     SelectRaceMenu,
-    ResultsMenu,
-
+    ResultsMenu
 };
-
 // create variale to hold current 'state'
 states state = Menu;
 Menus currentMenu;
+// This flag is used to indicate first entry into a state so
+// that the state can do one time only prep for its first loop.
+bool entryFlag = true;
 
 //****** Menu String Arrays **********
 // Racer list
-// need to keep a count of the number of names in list becauase
-// because this is an array of different length character arrays
-// there is not easy way to determine the number of elements
-// So we use a constant to set the length.
+// Because this is an array of different length character arrays
+// there is not easy way to determine the number of elements,
+// so we use a constant to set the length.
+// This must be maintained manually to match Racers[] actual content below
 byte const racerCount = 7;
-// For 7-seg, there are no W's, M's, X's, K's, or V's
+// For 7-seg displays there are no W's, M's, X's, K's, or V's
 const char* Racers[racerCount] = {
   "Lucien", "ZOE", "Elise", "John", "Angie", "Uncle BadAss", "5318008"
 };
-const char* Start = {"Start"};
 const char* MainText[4] = {
   "A| Select Racers",
   "B| Change Settings",
@@ -261,21 +266,26 @@ const char* ResultsText[4] = {
   "",
   ""
 };
+// additional text strings used in multiple places
+const char* Start = {"Start"};
 
 
-
-// Passing in variables byRef (using &) so we can update the input variables directly.
-void SplitTime(unsigned long curr, unsigned long &ulHour, unsigned long &ulMin, unsigned long &ulSec, unsigned long &ulDec, unsigned long &ulCent, unsigned long &ulMill) {
+// This function accepts in a millisecond value (msIN) and converts it into clock time.
+// Because we have so many variables and want to save memory,
+// we pass the clock time variables in by reference (using &).
+// This means this function will be updating those variables from the higher scope directly.
+void SplitTime(unsigned long msIN, unsigned long &ulHour, unsigned long &ulMin, unsigned long &ulSec, unsigned long &ulDec, unsigned long &ulCent, unsigned long &ulMill) {
   // Calculate HH:MM:SS from millisecond count
-  ulMill = curr % 1000;
-  ulCent = curr % 1000 / 10;
-  ulDec = curr % 1000 / 100;
-  ulSec = curr / 1000;
+  ulMill = msIN % 1000;
+  ulCent = msIN % 1000 / 10;
+  ulDec = msIN % 1000 / 100;
+  ulSec = msIN / 1000;
   ulMin = ulSec / 60;
   ulHour = ulMin / 60;
   ulMin -= ulHour * 60;
   ulSec = ulSec - ulMin * 60 - ulHour * 3600;
 }
+
 
 // Converts clock time into milliseconds
 unsigned long ClockToMillis(const byte ulHour, const byte ulMin, const byte ulSec) {
@@ -293,7 +303,7 @@ void Beep() {
 // Used to set fastest lap array to high numbers that will be replaced
 // A lap number of 0 indicates it is a dummy lap
 void InitializeRacerArrays(){
-  for (byte i = 0; i < fastLapsLimit; i++) {
+  for (byte i = 0; i < fastLapsQSize; i++) {
     r1FastestLaps[i][0] = 0;
     r1FastestLaps[i][1] = 999999;
     r2FastestLaps[i][0] = 0;
@@ -308,7 +318,7 @@ void InitializeRacerArrays(){
 // Used to initialize fastest lap arrays to high numbers that will be replaced.
 // A lap number of 0 marks it is a dummy lap.
 void InitializeResultsArrays(){
-  for (byte i = 0; i < fastLapsLimit * 2; i++) {
+  for (byte i = 0; i < fastLapsQSize * 2; i++) {
     topFastestLaps[i][0] = 0;
     topFastestLaps[i][1] = 999999;
   }
@@ -690,9 +700,9 @@ void PrintText(const char textToWrite[], const displays display, const byte writ
 }
 
 
-void UpdateFastestLap(unsigned long fastestArray[fastLapsLimit][2], const int lap, const unsigned long newLapTime){
+void UpdateFastestLap(unsigned long fastestArray[fastLapsQSize][2], const int lap, const unsigned long newLapTime){
   Serial.println("ENTERED FASTEST");
-  for (byte i = 0; i < fastLapsLimit; i++){
+  for (byte i = 0; i < fastLapsQSize; i++){
         Serial.print("Fastest For i = ");
         Serial.println(i);
         Serial.println(fastestArray[i][1]);
@@ -701,14 +711,14 @@ void UpdateFastestLap(unsigned long fastestArray[fastLapsLimit][2], const int la
     // then replace and shift remaining rows down an index
     if (fastestArray[i][1] > newLapTime) {
       // starting from the end, replace rows with previous row until back to newly added lap
-      for (byte j = fastLapsLimit-1; j > i; j--){
+      for (byte j = fastLapsQSize-1; j > i; j--){
         fastestArray[j][0] = fastestArray[j-1][0];
         fastestArray[j][1] = fastestArray[j-1][1];
       }
       // then replace old i lap time wiht new, faster lap and time
       fastestArray[i][0] = lap;
       fastestArray[i][1] = newLapTime;
-      for (int k = 0; k < fastLapsLimit; k++){
+      for (int k = 0; k < fastLapsQSize; k++){
         Serial.println("UpdateFastest End");
         Serial.print(fastestArray[k][0]);
         Serial.print(" : ");
@@ -720,7 +730,7 @@ void UpdateFastestLap(unsigned long fastestArray[fastLapsLimit][2], const int la
   } // END fastest lap array for loop
 }
 
-void BuildTopFastest(unsigned long racerFastest[ fastLapsLimit * 2 ][2], const byte racer, const int lapNumber, const unsigned long lapTime) {
+void BuildTopFastest(unsigned long racerFastest[ fastLapsQSize * 2 ][2], const byte racer, const int lapNumber, const unsigned long lapTime) {
 
 }
 
@@ -770,6 +780,8 @@ void setup(){
   InitializeRacerArrays();
   InitializeResultsArrays();
 
+  // Initialize racetime millisecond to default raceSetTime
+  raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
   // Setup initial program variables
   currentMenu = MainMenu;
   entryFlag = true;
@@ -834,9 +846,9 @@ void loop(){
               //draw non-editable text
               lcdUpdateMenu(SettingsText);
               // draw current minute setting
-              PrintNumbers(raceSetTime[0], 2, 11, lcdDisp, true, 3);
+              PrintNumbers(raceSetTime[1], 2, 11, lcdDisp, true, 3);
               // draw current seconds setting
-              PrintNumbers(raceSetTime[1], 2, 14, lcdDisp, true, 3);
+              PrintNumbers(raceSetTime[0], 2, 14, lcdDisp, true, 3);
               // draw current lap count
               PrintNumbers(raceLaps, 3, 12, lcdDisp, true, 2);
               //draw current lane settings
@@ -851,15 +863,15 @@ void loop(){
                 break;
               case 'B':
                 // Change minutes
-                raceSetTime[0] = lcdEnterNumber(2, 60, 3, 10);
+                raceSetTime[1] = lcdEnterNumber(2, 60, 3, 10);
                 // update the race time in ms
-                raceSetTimeMs = ClockToMillis(0, raceSetTime[0], raceSetTime[1]);
+                raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
                 break;
               case 'C':
                 // change seconds
-                raceSetTime[1] = lcdEnterNumber(2, 59, 3, 13);
+                raceSetTime[0] = lcdEnterNumber(2, 59, 3, 13);
                 // update the race time in ms
-                raceSetTimeMs = ClockToMillis(0, raceSetTime[0], raceSetTime[1]);
+                raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
                 break;
               case 'D':
                 // cycles through active lane options
@@ -930,9 +942,9 @@ void loop(){
               // add current race lap setting to lap race selection text
               PrintNumbers(raceLaps, 3, 13, lcdDisp, true, 0);
               // add current race minutes setting to timed race screen
-              PrintNumbers(raceSetTime[0], 2, 16, lcdDisp, true, 1);
+              PrintNumbers(raceSetTime[1], 2, 16, lcdDisp, true, 1);
               // add current race seconds setting to timed race screen
-              PrintNumbers(raceSetTime[1], 2, 19, lcdDisp, true, 1);
+              PrintNumbers(raceSetTime[0], 2, 19, lcdDisp, true, 1);
               // add the curent preStartCountDown setting to screen
               PrintNumbers(preStartCountDown, 2, 14, lcdDisp, true, 3);
               entryFlag = false;
@@ -1099,7 +1111,7 @@ void loop(){
           // update current racetime
           raceCurTime = curMillis - raceStartMillis;
           // If racetype is timed then displayTick will be a negative number
-          if (countingDown) raceCurTime = ClockToMillis(0, raceSetTime[0], raceSetTime[1]) - raceSetTimeMs;
+          if (countingDown) raceCurTime = ClockToMillis(0, raceSetTime[1], raceSetTime[0]) - raceSetTimeMs;
           // If lanestate is non-zero (ie active or standby) then update current lap time
           if (lane1State) r1CurLapTime = curMillis - r1LapStartMillis;
           if (lane2State) r2CurLapTime = curMillis - r2LapStartMillis;
