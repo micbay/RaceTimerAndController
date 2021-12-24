@@ -65,11 +65,11 @@ char keys[KP_ROWS][KP_COLS] = {
   {'7','8','9','C'},
   {'*','0','#','D'}
 };
-// establish the row pinouts, {Row1,Row2,Row3,Row4} => Arduino pins 5,6,7,8
+// Establish the row pinouts, {Row1,Row2,Row3,Row4} => Arduino pins 5,6,7,8
 byte pin_rows[KP_ROWS] = {5,6,7,8};
-// establish the column pinouts, {Col1,Col2,Col3,Col4} => Arduino pins 7,8,9,10
+// Establish the column pinouts, {Col1,Col2,Col3,Col4} => Arduino pins 7,8,9,10
 byte pin_column[KP_COLS] = {9,10,11,12}; 
-// declare keypad object
+// Declare keypad object
 Keypad keypad = Keypad( makeKeymap(keys), pin_rows, pin_column, KP_ROWS, KP_COLS );
 
 // using an enum to define reference id for attached diplays.
@@ -136,17 +136,16 @@ byte const fastLapsLimit = 10;
 unsigned long r1FastestLaps[ fastLapsLimit ][2] = {};
 unsigned long r2FastestLaps[ fastLapsLimit ][2] = {};
 unsigned long topFastestLaps[ 2 * fastLapsLimit ][2] = {};
-// There is not room to store all laps, so we only track the last X number of lap timeStamps
-// The modulus of the lap count by the lapMillisQSize (lapCount % lapMillisQSize), will set the index
-// lapMillisQSize should always be >= 3
+// There is not room to store all laps, so we only track the last X lap timeStamps
+// The modulus of the lap count by the lapMillisQSize, will set the index.
+// (lapCount % lapMillisQSize) = idx will always be 0 <= idx < lapMillisQSize
+// DO NOT SET lapMillisQSize < 3
 byte const lapMillisQSize = 5;
 unsigned long r1LastXMillis [ lapMillisQSize ] = {};
-byte r1LastXFront = -1;
-byte r1LastXRear = -1;
 unsigned long r2LastXMillis [ lapMillisQSize ] = {};
-byte r2LastXFront = -1;
-byte r2LastXRear = -1;
-// col1 is the idx of the text array for the display, col2 is the bit flag value
+
+// Array variable to hold lane state and property indexes
+// col1 is the idx of the text array for the display, col2 is its enabled bit flag value
 byte lanesEnabled[3][2] = {
   {0, 3},  // All           0x00000011
   {1, 1},  // Lane 1 Only   0x00000001
@@ -180,7 +179,7 @@ const char* laneText[laneCount + 1] = {"All", "1 Only", "2 Only"};
 // lanes enabledLanes = [0, 6] is lanes 1 and 2;
 byte lanesEnabledIdx = 0;
 // initialize lane state to be off which will be 0 and evaluate as false
-// if enabled, the state will be made truthy
+// if enabled, the state will be made truthy (>0).
 laneState lane1State = Off;
 laneState lane2State = Off;
 
@@ -214,6 +213,11 @@ enum Menus {
     ResultsMenu,
 
 };
+
+// create variale to hold current 'state'
+states state = Menu;
+Menus currentMenu;
+
 //****** Menu String Arrays **********
 // Racer list
 // need to keep a count of the number of names in list becauase
@@ -257,19 +261,10 @@ const char* ResultsText[4] = {
   "",
   ""
 };
-// const char* LiveRaceText[4] = {
-//   "",
-//   "Racer Fastest Lap",
-//   "",
-//   ""
-// };
-
-// create variale to hold current 'state'
-states state = Menu;
-Menus currentMenu;
 
 
-// passing in by Ref (using &) so we can update the input variables directly
+
+// Passing in variables byRef (using &) so we can update the input variables directly.
 void SplitTime(unsigned long curr, unsigned long &ulHour, unsigned long &ulMin, unsigned long &ulSec, unsigned long &ulDec, unsigned long &ulCent, unsigned long &ulMill) {
   // Calculate HH:MM:SS from millisecond count
   ulMill = curr % 1000;
@@ -282,7 +277,7 @@ void SplitTime(unsigned long curr, unsigned long &ulHour, unsigned long &ulMin, 
   ulSec = ulSec - ulMin * 60 - ulHour * 3600;
 }
 
-// converts clock time into milliseconds
+// Converts clock time into milliseconds
 unsigned long ClockToMillis(const byte ulHour, const byte ulMin, const byte ulSec) {
   // Sets the number of milliseconds from midnight to current time
   return (ulHour * 60 * 60 * 1000) +
@@ -295,8 +290,8 @@ void Beep() {
   tone(buzzPin, 4000, 200);
 }
 
-// used to set fastest lap array to high numbers that will be replaced
-// a lap number of 0 indicates it is a dummy lap
+// Used to set fastest lap array to high numbers that will be replaced
+// A lap number of 0 indicates it is a dummy lap
 void InitializeRacerArrays(){
   for (byte i = 0; i < fastLapsLimit; i++) {
     r1FastestLaps[i][0] = 0;
@@ -310,8 +305,8 @@ void InitializeRacerArrays(){
   }
 }
 
-// used to set fastest lap array to high numbers that will be replaced
-// a lap number of 0 indicates it is a dummy lap
+// Used to initialize fastest lap arrays to high numbers that will be replaced.
+// A lap number of 0 marks it is a dummy lap.
 void InitializeResultsArrays(){
   for (byte i = 0; i < fastLapsLimit * 2; i++) {
     topFastestLaps[i][0] = 0;
@@ -319,26 +314,40 @@ void InitializeResultsArrays(){
   }
 }
 
-// use this function to set change interrupt for pins among A0-A6
+// This function sets up change interrupt for pins among A0-A6
 void pciSetup(byte pin) {
-  *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));  // enable pin
-  PCIFR  |= bit (digitalPinToPCICRbit(pin)); // clear any outstanding interrupt
-  PCICR  |= bit (digitalPinToPCICRbit(pin)); // enable interrupt for the group
+  // Enable interrupts on pin
+  *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));
+  // Clear any outstanding interrupt
+  PCIFR  |= bit (digitalPinToPCICRbit(pin));
+  // Enable interrupt for the group
+  PCICR  |= bit (digitalPinToPCICRbit(pin));
 }
 void clearPCI(byte pin) {
-  PCIFR  |= bit (digitalPinToPCICRbit(pin)); // clear any outstanding interrupt
-  *digitalPinToPCMSK(pin) &= bit (digitalPinToPCMSKbit(pin));  // enable pin
+  // Clear any outstanding interrupt
+  PCIFR  |= bit (digitalPinToPCICRbit(pin));
+  // Disable interrupts on pin
+  *digitalPinToPCMSK(pin) &= bit (digitalPinToPCMSKbit(pin));
 }
 
-// don't log lap trigger if within debounceTime (ms)
+// debounceTime (ms), time within which not to accept additional signal input
 const int debounceTime = 1000;
 // ISR is a special Arduino Macro or routine that handles interrupts ISR(vector, attributes)
 // PCINT1_vect handles pin change interrupt for the pin block A0-A5, represented in bit0-bit5
 ISR (PCINT1_vect) {
   unsigned long logMillis = millis();
-  // Serial.println("LED Interrupt");
+  // Serial.println("LED Interrupt log Millis");
   // Serial.println(logMillis);
-  // Lane 1 is on pin A0 is on bit 0
+  // Serial.println("PINC");
+  // Serial.println(PINC);
+
+  // We have setup the lap triggers and Pause button as inputs.
+  // This means the pins have been set to HIGH, indicated by a 1 on its register bit.
+  // When a button is pressed, or sensor triggered, it should bring the pin LOW.
+  // A LOW pin is indicated by a 0 on its port register.
+
+  // Lane 1 positive trigger PINC = 0xXXXXXXX0
+  // Lane 1 is on pin A0 which uses the first bit of the registry, idx 0, of PINC Byte
   if (!IsBitSet(PINC, 0)) {
     // if it's the first log, it's the intial cross of start line
     if (r1LapCount == 0) {
@@ -366,7 +375,8 @@ ISR (PCINT1_vect) {
     // Serial.println("A0");
     // digitalWrite(ledPIN, HIGH);
   }
-  // Lane 2 is on pin A1 is on bit 1
+  // Lane 2 positive trigger PINC = 0xXXXXXX0X
+  // Lane 2 is on pin A1 which uses the 2nd bit of the registry, idx 1, of PINC Byte
   if (!IsBitSet(PINC, 1)) {
     if (r2LapCount == 0) {
       lane2State = Active;
@@ -386,8 +396,11 @@ ISR (PCINT1_vect) {
       Beep();
     }
   } // END of PINC, 1 aka lane/racer2 pin detect
-  // PAUSE-STOP button detection
+
+  // Puase button positive trigger PINC = 0xXXXXX0XX
+  // Pause is on pin A2 which uses the 3rd bit of the registry, idx 2, of PINC Byte
   if (!IsBitSet(PINC, 2)) {
+    // If not within debounce time of previous trigger process
     if (logMillis - pauseDebounceMillis > debounceTime){
       pauseDebounceMillis = logMillis;
       switch(state){
@@ -399,10 +412,8 @@ ISR (PCINT1_vect) {
         // if already paused then return to race
         case Paused:
           state = Race;
-          // currentMenu = ResultsMenu;
           // make sure entry flag is turned back off before re-entering race state
           entryFlag = false;
-          // need to add the
         break;
         // otherwise ignore the button
         default:
@@ -410,17 +421,23 @@ ISR (PCINT1_vect) {
       } // END switch
     } // END debounce if
   } // END of Pause button PINC2 detect
- }  // END of ISR()
+} // END of ISR()
 
-// left shift the number 1 by the position to check than & with original byte
-bool IsBitSet(byte b, int pos) {
+// Function returns true if the bit at the, 'pos', postion of a byte is 1,
+// otherwise it returns false.
+// In a Byte, position is from right to left and starts with 0.
+// EX. If function parameters are pos = 3 and b = 0x11111000
+//     the bit 1 = 0x00000001, if we left shift 3 places we get 0x00001000
+//     thus 0x00001000 & (0x11111000) = 0x00001000
+// which is not zero, so this returns true, that bit of the input Byte is set.
+bool IsBitSet(byte b, byte pos) {
    return (b & (1 << pos)) != 0;
 }
 
-// update menu with static base text for given menu screen
-void UpdateMenu(const char *curMenu[]){
-  // for each string in the menu array, print it to the screen
-  // clear screen in case new text doesn't cover all old text
+// Update menu on main LCD with static base text for given menu screen
+void lcdUpdateMenu(const char *curMenu[]){
+  // For each string in the menu array, print it to the screen
+  // Clear screen first, in case new text doesn't cover all old text
   lcd.clear();
   for (int i=0; i<4; i++){
     lcd.setCursor(0,i);
@@ -429,14 +446,14 @@ void UpdateMenu(const char *curMenu[]){
 }
 
 
-// Provides, looping, up or down indexing of items in list looping
-// This function assumes the start of the list is zero index
+// Provides, looping, up or down indexing of items in list
+// This function assumes the start of the list is at zero index
 int IndexList(int curIdx, int listLength, bool cycleUp = true) {
   int newIndex = curIdx;
   if (cycleUp) {
-    // cycling up we need to reset to zero if we reach end of list
-    // Modulo (%) of a numerator smaller than its denominator is itself
-    // while the modulo of a number with itself is 0
+    // Cycling up we need to reset to zero if we reach end of list.
+    // The modulus (%) of a numerator smaller than its denominator is equal to itself,
+    // while the modulus of an integer with itself is 0.
     newIndex = (newIndex + 1) % (listLength);
   } else {
     // if cycling down list we need to reset to end of list if we reach the beginning
@@ -450,18 +467,23 @@ int IndexList(int curIdx, int listLength, bool cycleUp = true) {
 }
 
 
-// for LED bar, 'line' is not used but must be included in header if using decimal flag
+// numberIn   --Any positive number to be printed to display
+// width      --The number of places/digits to be printed
+// endPosIdx  --The index of the character position that contains the final digit
+// display    --The display enum that determines where to print number
+// leadingZs  --Flag, if = true, if number actual width is less than 'width' fill with '0'
+// line       --For display's that have more than 1 line, line on which to print number
+// endWithDecimal   --Flag, if true print decimal at end of number
+// NOTES:  this function doesn't error check, if the number is larger than the width
+// the digits outside of the width (the largest place digits) will be cut off.
 void PrintNumbers(const unsigned long numberIN, const byte width, const byte endPosIdx, displays display, bool leadingZs = true, const byte line = 0, bool endWithDecimal = false){
-  // lc.setDigit(3, numberIN / 10^0 % 10);   
-  // lc.setDigit(2, numberIN / 10^1 % 10);   
-  // lc.setDigit(1, numberIN / 10^2 % 10);   
-  // lc.setDigit(0, numberIN / 10^3 % 10);
   // we take 1 away from width because the endposition is inclusive in the width count
   byte cursorStartPos = endPosIdx - (width - 1);
   byte cursorEndPos = endPosIdx;
-  // variable to hold the number digit index which is always 0 - (width - 1)
+  // variable to track present digit by its place value
   byte placeValue = width - 1;
   switch (display) {
+    // for printing to the main LCD
     case lcdDisp: {
       // written to screen from max place value to min defined by width and end position
       for (byte displayIdx = cursorStartPos; displayIdx <= cursorEndPos; displayIdx++) {
@@ -473,6 +495,7 @@ void PrintNumbers(const unsigned long numberIN, const byte width, const byte end
       if (endWithDecimal) lcd.print(".");
     }
     break;
+    // for printing to LED bar displays
     case led1Disp: case led2Disp: {
       for (byte displayIdx = cursorStartPos; displayIdx <= cursorEndPos; displayIdx++) {
         // print current place value's digit
@@ -490,7 +513,11 @@ void PrintNumbers(const unsigned long numberIN, const byte width, const byte end
 }
 
 
-// input time in ms, with pos of end of clock placement, and  max clock segment to show
+// input time in ms; clockEndPos is the index of where the last digit of the clock should go.
+// this index is always considered left to right, and starting with 0.
+// The function will flip index internally if needed for right to left indexed display
+// The MAX7219 LED bars are such displays where, internally, digit idx 0 is the far right digit
+// Using this function with LED bar, to have clock end at far right input clockEndPos 7
 void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displays display, byte line = 0) {
   unsigned long ulHour;
   unsigned long ulMin;
@@ -499,7 +526,8 @@ void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displ
   unsigned long ulCent;
   unsigned long ulMill;
   SplitTime(timeMillis, ulHour, ulMin, ulSec, ulDec, ulCent, ulMill);
-  // setup variations in length due to number of decimal seconds digits
+  // calculate and adjust start position affected by number of decimal second digits requested
+  // the Hours position sets the start, we use the endPos of the hours as the start endPos
   unsigned long decimalSec;
   byte decimalWidth;
   byte hourEndPos;
@@ -516,12 +544,15 @@ void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displ
       hourEndPos = clockEndPos - 10;
     break;
     default:
+      // if not cent or mill, all clock prints with seconds includes .0 by default
       decimalSec = ulDec;
       decimalWidth = 1;
       hourEndPos = clockEndPos - 8;
     break;
   }
 
+  // Using a series of if statements instead of a switch because of how the
+  // the cascading width variable falls through with options it works better with ifs
   if (printWidth == H) {
     // H 00:00:00.0
     switch (display){
@@ -538,7 +569,8 @@ void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displ
       break;
     } // END of display switch
     printWidth = M;
-  } // END printWidth H
+  }
+
   if (printWidth == M) {
     // M 00:00.0
     switch (display){
@@ -557,7 +589,14 @@ void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displ
     // the default decimal is deci-seconds ie 00.0
     printWidth = Sd;
   }
-  // if printing starting with Seconds then there is the option to display .0d, .00c, or .000m
+  // This final if is probably not necessary if all clocks end in S as we already
+  // evaluate the same options at the beginning to set the value for decimalSec.
+  // Any adjustments to code that changes seconds, like adding a no decimal option
+  // should be made at that point.
+  // However, keeping the if sets up for the preferred next update which adds
+  // the option of no decimal & decimal with M & H, ie: S, Md, Mc, Mm, Hd, Hc, Hm
+  // 
+  // If width starts with Seconds then there is the option to display .0d, .00c, or .000m
   if (printWidth == Sd || printWidth == Sc || printWidth == Sm) {
     // Sd 00.0,   Sc 00.00,   Sm 00.000
     switch (display){
@@ -766,7 +805,7 @@ void loop(){
           // Within each menu case is another switch for keys with a response in that menu
           case MainMenu:
             if (entryFlag) {
-              UpdateMenu(MainText);
+              lcdUpdateMenu(MainText);
               entryFlag = false;
             }
             switch (key) {
@@ -793,7 +832,7 @@ void loop(){
           case SettingsMenu:
             if (entryFlag) {
               //draw non-editable text
-              UpdateMenu(SettingsText);
+              lcdUpdateMenu(SettingsText);
               // draw current minute setting
               PrintNumbers(raceSetTime[0], 2, 11, lcdDisp, true, 3);
               // draw current seconds setting
@@ -808,17 +847,17 @@ void loop(){
             switch (key) {
               case 'A':
                 // change lap count
-                raceLaps = enterNumber(3, 999, 2, 10);
+                raceLaps = lcdEnterNumber(3, 999, 2, 10);
                 break;
               case 'B':
                 // Change minutes
-                raceSetTime[0] = enterNumber(2, 60, 3, 10);
+                raceSetTime[0] = lcdEnterNumber(2, 60, 3, 10);
                 // update the race time in ms
                 raceSetTimeMs = ClockToMillis(0, raceSetTime[0], raceSetTime[1]);
                 break;
               case 'C':
                 // change seconds
-                raceSetTime[1] = enterNumber(2, 59, 3, 13);
+                raceSetTime[1] = lcdEnterNumber(2, 59, 3, 13);
                 // update the race time in ms
                 raceSetTimeMs = ClockToMillis(0, raceSetTime[0], raceSetTime[1]);
                 break;
@@ -844,7 +883,7 @@ void loop(){
             byte nameCursorPos = 8;
             if (entryFlag) {
               // write base, static text to screen
-              UpdateMenu(SelectRacersText);
+              lcdUpdateMenu(SelectRacersText);
               // write current racer1's name to screen
               lcd.setCursor(nameCursorPos,1);
               lcd.print(Racers[racer1]);
@@ -887,7 +926,7 @@ void loop(){
           case SelectRaceMenu: {
             if (entryFlag) {
               //draw non-editable text
-              UpdateMenu(SelectRaceText);
+              lcdUpdateMenu(SelectRaceText);
               // add current race lap setting to lap race selection text
               PrintNumbers(raceLaps, 3, 13, lcdDisp, true, 0);
               // add current race minutes setting to timed race screen
@@ -912,7 +951,7 @@ void loop(){
                 break;
               case 'D':
                 // change how long the preStartCountDown before the race start lasts
-                preStartCountDown = enterNumber(2, 30, 3, 13);
+                preStartCountDown = lcdEnterNumber(2, 30, 3, 13);
                 break;
               case '*':
                 // return to main menu
@@ -926,7 +965,7 @@ void loop(){
           } // END of SelectRace Menu Case
           case ResultsMenu:{
             if (entryFlag) {
-              UpdateMenu(ResultsText);
+              lcdUpdateMenu(ResultsText);
               r1LapCount = 0;
               r2LapCount = 0;
               lcdClearLine(1);
@@ -1003,12 +1042,20 @@ void loop(){
         entryFlag = false;
         // Write Live Race menu and racer names to displays
         lcd.clear();
-        lcd.setCursor(8,1);
-        lcd.print("Lap  |  Best");
+        lcd.setCursor(9,1);
+        lcd.print("Lap | Best");
         PrintText(Racers[racer1], lcdDisp, 7, 8, false, 2);
         lcd.print(":");
+        lcd.setCursor(10, 2);
+        lcd.print("0");
+        lcd.setCursor(14, 2);
+        lcd.print("00.000");
         PrintText(Racers[racer2], lcdDisp, 7, 8, false, 3);
         lcd.print(":");
+        lcd.setCursor(10, 3);
+        lcd.print("0");
+        lcd.setCursor(14, 3);
+        lcd.print("00.000");
         // Indicate race start for each racer
         PrintText(Start, led1Disp, 7, 8, false);
         PrintText(Start, led2Disp, 7, 8, false);
@@ -1074,15 +1121,24 @@ void loop(){
               // the current lap is the live lap so we need to subtract 1 from lapcount
               UpdateFastestLap(r1FastestLaps, r1LapCount - 1, r1LapTimeToLog);
               lc.clearDisplay( led1Disp - 1 );
+              // print the just completed lap # to left side of racer's  LED
               PrintNumbers(r1LapCount - 1, 3, 2, led1Disp);
+              // print the lap time of just completed lap to right side of racer's LED
               PrintClock(r1LapTimeToLog, 7, Sc, led1Disp);
+              // update racer's current lap total on lcd
+              PrintNumbers(r1LapCount - 1, 3, 11, lcdDisp, true, 2);
+              // update racer's current best lap time to lcd
+              PrintClock(r1FastestLaps[0][1], 19, Sm, lcdDisp, 2);
+              // record the timestamp at which this flash period is starting at
               flash1StartMillis = curMillis;
+              // set the flash state to 2 = hold until flash period time is over
               lane1LapFlash = 2;
             } else { // flash status = 2 which means it's been written and still active
               // if flash time is up, set flag to zero ending display of last lap
               if (curMillis - flash1StartMillis > flashDisplayTime) lane1LapFlash = 0;
             }
           } else { // lane flash status = 0, or inactive
+            // if the lane is in use then start displaying live lap time again
             if (lane1State) {
               lc.clearDisplay(led1Disp - 1);
               PrintNumbers(r1LapCount, 3, 2, led1Disp);
@@ -1093,17 +1149,28 @@ void loop(){
           if (lane2LapFlash > 0) {
             if (lane2LapFlash == 1) {
               unsigned long r2LapTimeToLog;
-              r2LapTimeToLog = r2LastXMillis [(r2LapCount-1) % lapMillisQSize] - r1LastXMillis [(r2LapCount-2) % lapMillisQSize];
+              r2LapTimeToLog = r2LastXMillis [(r2LapCount-1) % lapMillisQSize] - r2LastXMillis [(r2LapCount-2) % lapMillisQSize];
+              // the current lap is the live lap so we need to subtract 1 from lapcount
+              UpdateFastestLap(r2FastestLaps, r2LapCount - 1, r2LapTimeToLog);
               lc.clearDisplay( led2Disp - 1 );
+              // print the just completed lap # to left side of racer's  LED
               PrintNumbers(r2LapCount - 1, 3, 2, led2Disp);
+              // print the lap time of just completed lap to right side of racer's LED
               PrintClock(r2LapTimeToLog, 7, Sc, led2Disp);
+              // update racer's current lap total on lcd
+              PrintNumbers(r2LapCount - 1, 3, 11, lcdDisp, true, 3);
+              // update racer's current best lap time to lcd
+              PrintClock(r2FastestLaps[0][1], 19, Sm, lcdDisp, 3);
+              // record the timestamp at which this flash period is starting at
               flash2StartMillis = curMillis;
+              // set the flash state to 2 = hold until flash period time is over
               lane2LapFlash = 2;
             } else { // flash status = 2 which means it's been written and still active
               // if flash time is up, set flag to zero ending display of last lap
               if (curMillis - flash2StartMillis > flashDisplayTime) lane2LapFlash = 0;
             }
           } else { // lane flash status = 0, or inactive
+            // if the lane is in use then start displaying live lap time again
             if (lane2State) {
               lc.clearDisplay(led2Disp - 1);
               PrintNumbers(r2LapCount, 3, 2, led2Disp);
@@ -1118,19 +1185,17 @@ void loop(){
         // check for the race end condition and finishing places
         switch (raceType) {
           case Standard: {
-            byte first = 255;
-            byte second = 255;
-              Serial.println("pre racer1 laps final");
-              Serial.println(r1LapCount);
-              Serial.println("pre racer2 laps final");
-              Serial.println(r2LapCount);
+            // ****** STANDARD FINSIH *******************
+            // check for a winner
             // After crossing finish of last lap, lap Count will be equal to raceLaps + 1
             // which will trigger the finish of a standard race
-            // ****** STANDARD FINSIH *******************
             if (r1LapCount > raceLaps || r2LapCount > raceLaps) {
-              // turn off lap trigger interrupts to prevent additional lap triggers from other racers
+              // turn off lap trigger interrupts to prevent any additional lap triggers
               clearPCI(lane1Pin);
               clearPCI(lane2Pin);
+              // create temp variable that will hold the determined 1st and 2nd place racers
+              byte first = 255;
+              byte second = 255;
               // adjust final lap count by 1 because current, unfinished, lap is not to be included
               // this ternary operator notatation states that if lapCount is 0 already,
               // then just leave is zero, otherwise subtract 1
@@ -1215,22 +1280,23 @@ void loop(){
 
 // Integer power function as pow() is only good with floats
 int ipow(int base, int exp) {
-    int result = 1;
-    for (;;) {
-        if (exp & 1)
-            result *= base;
-        exp >>= 1;
-        if (!exp)
-            break;
-        base *= base;
-    }
-    return result;
+  int result = 1;
+  for (;;) {
+    if (exp & 1)
+      result *= base;
+    exp >>= 1;
+    if (!exp)
+      break;
+    base *= base;
+  }
+  return result;
 }
 
 
-// this function is used to monitor user input
-// it takes in the current state, number of characters and returns the reulstin int
-int enterNumber(int digits, int maxValue, int line, int cursorPos){
+// This function handles user input of values on the lcd. Once this function is entered, 
+// it continues to monitor keypad until the user enters enough digits.
+// This funcion writes the input directly to the lcd then returns the entered number
+int lcdEnterNumber(int digits, int maxValue, int line, int cursorPos){
   byte digitsOG = digits;
   // char inputNumber[digits];
   int inputNumber[digits];
