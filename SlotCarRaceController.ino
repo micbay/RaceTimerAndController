@@ -10,11 +10,6 @@
 // library of sounds
 #include "pitches.h"
 
-// note: don't use '=' or ';' when setting a define
-// Also it is usually preferred to use a const than a define macro
-// However, here it fits to clarify the usage of a byte as a set of bitwise flags
-// lanes for bitwise flags
-
 
 // ********* AUDIO HARDWARE *********
 const byte buzzPin = A3;
@@ -125,9 +120,7 @@ byte preStartCountDown = 5;
 // flag to tell race timer if race time is going up or going down as in a time limit race.
 bool countingDown = false;
 
-#define LANE1_ENABLED (1 << 0)
-#define LANE2_ENABLED (1 << 1)
-int nddd = LANE1_ENABLED;
+// bitwise flag mask for enabling/disabling lanes
 const byte lane1Enabled = (1 << 0);
 const byte lane2Enabled = (1 << 1);
 
@@ -143,15 +136,14 @@ byte const fastLapsLimit = 10;
 unsigned long r1FastestLaps[ fastLapsLimit ][2] = {};
 unsigned long r2FastestLaps[ fastLapsLimit ][2] = {};
 unsigned long topFastestLaps[ 2 * fastLapsLimit ][2] = {};
-// storing first lap start millis() timestamp and last X number of lap timeStamps
-// because we don't have room to store all possible laps we keep a running last 5
-// to manage the fact our array index no longer matches lap # we use pointers
-// to tell us which array index is currently first and last
-byte const lastXMillisMax = 3;
-unsigned long r1LastXMillis [ lastXMillisMax ] = {};
+// There is not room to store all laps, so we only track the last X number of lap timeStamps
+// The modulus of the lap count by the lapMillisQSize (lapCount % lapMillisQSize), will set the index
+// lapMillisQSize should always be >= 3
+byte const lapMillisQSize = 5;
+unsigned long r1LastXMillis [ lapMillisQSize ] = {};
 byte r1LastXFront = -1;
 byte r1LastXRear = -1;
-unsigned long r2LastXMillis [ lastXMillisMax ] = {};
+unsigned long r2LastXMillis [ lapMillisQSize ] = {};
 byte r2LastXFront = -1;
 byte r2LastXRear = -1;
 // col1 is the idx of the text array for the display, col2 is the bit flag value
@@ -312,7 +304,7 @@ void InitializeRacerArrays(){
     r2FastestLaps[i][0] = 0;
     r2FastestLaps[i][1] = 999999;
   }
-  for (byte i = 0; i < lastXMillisMax; i++) {
+  for (byte i = 0; i < lapMillisQSize; i++) {
     r1LastXMillis[i] = 0;
     r2LastXMillis[i] = 0;
   }
@@ -357,9 +349,9 @@ ISR (PCINT1_vect) {
       // Serial.println(r1LapCount);
       r1LapCount++;
       Beep();
-    } else if ((logMillis - r1LastXMillis [(r1LapCount-1) % lastXMillisMax] ) > debounceTime){
+    } else if ((logMillis - r1LastXMillis [(r1LapCount-1) % lapMillisQSize] ) > debounceTime){
       lane1LapFlash = 1;
-      r1LastXMillis [r1LapCount % lastXMillisMax] = logMillis;
+      r1LastXMillis [r1LapCount % lapMillisQSize] = logMillis;
       r1LapStartMillis = logMillis;
       // Serial.println("R1 Lap Count 1++");
       // Serial.println(r1LapCount);
@@ -384,9 +376,9 @@ ISR (PCINT1_vect) {
       // Serial.println(r2LapCount);
       r2LapCount++;
       Beep();
-    } else if ((logMillis - r2LastXMillis [(r2LapCount-1) % lastXMillisMax] ) > debounceTime){
+    } else if ((logMillis - r2LastXMillis [(r2LapCount-1) % lapMillisQSize] ) > debounceTime){
       lane2LapFlash = 1;
-      r2LastXMillis [r2LapCount % lastXMillisMax] = logMillis;
+      r2LastXMillis [r2LapCount % lapMillisQSize] = logMillis;
       r2LapStartMillis = logMillis;
       // Serial.println("R2 Lap Count 1++");
       // Serial.println(r2LapCount);
@@ -912,8 +904,8 @@ void loop(){
                 preStart = true;
                 entryFlag = true;
                 // if the lane is enabled in settings then set to truthy default, StandBy
-                // if (LANE1_ENABLED & lanesEnabled[lanesEnabledIdx][1] > 0) lane1State = StandBy;
-                // if (LANE2_ENABLED & lanesEnabled[lanesEnabledIdx][1] > 0) lane2State = StandBy;
+                // if (lane1Enabled & lanesEnabled[lanesEnabledIdx][1] > 0) lane1State = StandBy;
+                // if (lane2Enabled & lanesEnabled[lanesEnabledIdx][1] > 0) lane2State = StandBy;
                 if (key == 'A') {raceType = Standard; countingDown = false;}
                 else if (key == 'B') {raceType = Timed; countingDown = true;}
                 else {raceType = Pole; countingDown = false;};
@@ -1076,7 +1068,7 @@ void loop(){
           if (lane1LapFlash > 0) {
             if (lane1LapFlash == 1) {
               unsigned long r1LapTimeToLog;
-              r1LapTimeToLog = r1LastXMillis [(r1LapCount-1) % lastXMillisMax] - r1LastXMillis [(r1LapCount-2) % lastXMillisMax];
+              r1LapTimeToLog = r1LastXMillis [(r1LapCount-1) % lapMillisQSize] - r1LastXMillis [(r1LapCount-2) % lapMillisQSize];
               // during the intro to the lap flash cycle we also update all the racer lap records
               // we do this here to keep it interruptable and out of the lap trigger intrrupt funct.
               // the current lap is the live lap so we need to subtract 1 from lapcount
@@ -1101,7 +1093,7 @@ void loop(){
           if (lane2LapFlash > 0) {
             if (lane2LapFlash == 1) {
               unsigned long r2LapTimeToLog;
-              r2LapTimeToLog = r2LastXMillis [(r2LapCount-1) % lastXMillisMax] - r1LastXMillis [(r2LapCount-2) % lastXMillisMax];
+              r2LapTimeToLog = r2LastXMillis [(r2LapCount-1) % lapMillisQSize] - r1LastXMillis [(r2LapCount-2) % lapMillisQSize];
               lc.clearDisplay( led2Disp - 1 );
               PrintNumbers(r2LapCount - 1, 3, 2, led2Disp);
               PrintClock(r2LapTimeToLog, 7, Sc, led2Disp);
@@ -1154,8 +1146,8 @@ void loop(){
               else if (r2LapCount > r1LapCount) {first = racer2; second = racer1;}
               // if timing is such that 2nd place has crossed while processing then the
               // final lap timestamp will show who was first
-              else if (r1LastXMillis[ r1LapCount % lastXMillisMax ] < r2LastXMillis[ r2LapCount % lastXMillisMax ]) {first = racer1; second = racer2;}
-              else if (r2LastXMillis[r2LapCount % lastXMillisMax] < r1LastXMillis[r1LapCount % lastXMillisMax]) {first = racer2; second = racer1;}
+              else if (r1LastXMillis[ r1LapCount % lapMillisQSize ] < r2LastXMillis[ r2LapCount % lapMillisQSize ]) {first = racer1; second = racer2;}
+              else if (r2LastXMillis[r2LapCount % lapMillisQSize] < r1LastXMillis[r1LapCount % lapMillisQSize]) {first = racer2; second = racer1;}
               // else if lapcount and last lap timestamps are the same it's a tie
               else if(r2LapCount == r1LapCount && r1LastXMillis[r1LapCount] == r2LastXMillis[r2LapCount]){
                 // we use 254 as a flag for tie, since it is larger than the racer name list size will ever be
