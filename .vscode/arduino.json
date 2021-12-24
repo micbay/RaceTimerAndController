@@ -1,8 +1,4 @@
 {
     "port": "COM12",
-    "configuration": "cpu=atmega328old",
-    "board": "arduino:avr:nano",
-    "programmer": "arduino:avrispmkii",
-    "sketch": "SlotCarRaceController.ino",
-    "output": "build"
+    "board": "arduino:avr:nano"
 }
