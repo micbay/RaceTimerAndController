@@ -9,7 +9,8 @@
 #include <LedControl.h>
 // library of sounds
 #include "pitches.h"
-
+// library to use program memory for constants
+#include <avr/pgmspace.h>
 
 // ********* AUDIO HARDWARE *********
 const byte buzzPin = A3;
@@ -150,6 +151,8 @@ unsigned long topFastestTimes[ 2 * fastLapsQSize ] = {};
 byte const lapMillisQSize = 5;
 unsigned long r1LastXMillis [ lapMillisQSize ] = {};
 unsigned long r2LastXMillis [ lapMillisQSize ] = {};
+// flag to alert results menu whether the race data is garbage or not
+bool raceDataExists = false;
 
 // bitwise mask for enabling/disabling lanes
 const byte lane1Enabled = (1 << 0);
@@ -248,37 +251,78 @@ byte const racerCount = 7;
 const char* Racers[racerCount] = {
   "Lucien", "ZOE", "Elise", "John", "Angie", "Uncle BadAss", "5318008"
 };
-const char* MainText[4] = {
-  "A| Select Racers",
-  "B| Change Settings",
-  "C| Select a Race",
-  "D| See Results"
+
+char buffer[LCD_COLS];
+
+const char Main0[] PROGMEM = "A| Select Racers";
+const char Main1[] PROGMEM = "B| Change Settings";
+const char Main2[] PROGMEM = "C| Select a Race";
+const char Main3[] PROGMEM = "D| See Results";
+const char* const MainText[4] PROGMEM = {
+  Main0,
+  Main1,
+  Main2,
+  Main3
+};
+// const char* MainText[4] = {
+//   "A| Select Racers",
+//   "B| Change Settings",
+//   "C| Select a Race",
+//   "D| See Results"
+// };
+
+const char Settings0[] PROGMEM = " A|Lap  B|Min  C|Sec";
+const char Settings1[] PROGMEM = " D|Lanes:";
+const char Settings2[] PROGMEM = "Num Laps:";
+const char Settings3[] PROGMEM = "Racetime:   :";
+const char* const SettingsText[4] PROGMEM = {
+  Settings0,
+  Settings1,
+  Settings2,
+  Settings3
 };
 // Main Menu's sub-Menus
-const char* SettingsText[4] = {
-  " A|Lap  B|Min  C|Sec",
-  " D|Lanes:",
-  "Num Laps:",
-  "Racetime:   :"
+// const char* SettingsText[4] = {
+//   " A|Lap  B|Min  C|Sec",
+//   " D|Lanes:",
+//   "Num Laps:",
+//   "Racetime:   :"
+// };
+
+const char SelectRacers0[] PROGMEM = "<--A            B-->";
+const char SelectRacers1[] PROGMEM = "Racer1:";
+const char SelectRacers2[] PROGMEM = "<--C            D-->";
+const char SelectRacers3[] PROGMEM = "Racer2:";
+const char* const SelectRacersText[4] PROGMEM = {
+  SelectRacers0,
+  SelectRacers1,
+  SelectRacers2,
+  SelectRacers3
 };
-const char* SelectRacersText[4] = {
-  "<--A            B-->",
-  "Racer1:",
-  "<--C            D-->",
-  "Racer2:"
+// const char* SelectRacersText[4] = {
+//   "<--A            B-->",
+//   "Racer1:",
+//   "<--C            D-->",
+//   "Racer2:"
+// };
+
+const char SelectRace0[] PROGMEM = "A|First to     Laps";
+const char SelectRace1[] PROGMEM = "B|Most Laps in   :";
+const char SelectRace2[] PROGMEM = "";
+const char SelectRace3[] PROGMEM = "D|Countdown:    Sec";
+const char* const SelectRaceText[4] PROGMEM = {
+  SelectRace0,
+  SelectRace1,
+  SelectRace2,
+  SelectRace3
 };
-const char* SelectRaceText[4] = {
-  "A|First to     Laps",
-  "B|Most Laps in   :",
-  "",
-  "D|Countdown:    Sec"
-};
-const char* ResultsText[4] = {
-  "RESULTS: C|Overall",
-  "",
-  "",
-  ""
-};
+// const char* SelectRaceText[4] = {
+//   "A|First to     Laps",
+//   "B|Most Laps in   :",
+//   "",
+//   "D|Countdown:    Sec"
+// };
+
 // additional text strings used in multiple places
 const char* Start = {"Start"};
 
@@ -306,7 +350,9 @@ unsigned long ClockToMillis(const byte ulHour, const byte ulMin, const byte ulSe
   // NOTE: we must us the 'UL' designation or otherwise cast to unsigned long
   //       if we don't, then the multiplication will not be the exptected value.
   //       This is because the default type of the number is a signed int which
-  //       which results in out of range. 60 * 1000 is out of range for int.       
+  //       in this case, results in 60 * 1000 is out of range for int.
+  //       Even though the variable it is going into is a long, the right side
+  //       remains an int until after the evaluation so we get an overflow.       
   return (ulHour * 60UL * 60UL * 1000UL) +
          (ulMin * 60UL * 1000UL) +
          (ulSec * 1000UL);
@@ -471,17 +517,22 @@ void lcdUpdateMenu(const char *curMenu[]){
   // For each string in the menu array, print it to the screen
   // Clear screen first, in case new text doesn't cover all old text
   lcd.clear();
+  // for (int i=0; i<4; i++){
+  //   lcd.setCursor(0,i);
+  //   lcd.print(curMenu[i]);
+  // }
   for (int i=0; i<4; i++){
+    strcpy_P(buffer, (char*)pgm_read_word(&(curMenu[i])));
     lcd.setCursor(0,i);
-    lcd.print(curMenu[i]);
+    lcd.print(buffer);
   }
 }
 
 
 // Provides, looping, up or down indexing of items in list
 // This function assumes the start of the list is at zero index
-byte IndexList(int curIdx, int listLength, bool cycleUp = true) {
-  int newIndex = curIdx;
+byte IndexList(byte curIdx, byte listLength, bool cycleUp, byte otherRacer) {
+  byte newIndex = curIdx;
   if (cycleUp) {
     // Cycling up we need to reset to zero if we reach end of list.
     // The modulus (%) of a numerator smaller than its denominator is equal to itself,
@@ -494,6 +545,11 @@ byte IndexList(int curIdx, int listLength, bool cycleUp = true) {
     } else {
       newIndex--;
     }
+  }
+  // We can't allow two racers to have the same id,
+  // so if the result is the other selected racer then index again.
+  if (newIndex == otherRacer) {
+    newIndex = IndexList(newIndex, listLength, cycleUp, otherRacer);
   }
   return newIndex;
 }
@@ -785,10 +841,10 @@ void UpdateFastestLap(unsigned long fastestTimes[], unsigned int fastestLaps[][2
 }
 
 
-void UpdateResults(unsigned long fastestTimes[], unsigned int fastestLaps[][2], int arraySize) {
+void UpdateResults(unsigned long fastestTimes[], unsigned int fastestLaps[][2], int lapCount) {
   for (byte i = 0; i < 3; i++){
-    // ignore if lap = 0 which means it's a dummy lap
-    if (fastestLaps[resultsMenuIdx + i][0] > 0) {
+    // ignore if lap = 0 which means it's a dummy lap or if index greater than lap count
+    if (fastestLaps[resultsMenuIdx + i][0] > 0 && i < lapCount) {
       // print rank of time, which is index + 1
       PrintNumbers(resultsMenuIdx + i + 1, 2, 1, lcdDisp, false, i + 1, false);
       // then print lap
@@ -811,22 +867,23 @@ void UpdateResults(unsigned long fastestTimes[], unsigned int fastestLaps[][2], 
   }
 }
 
+// we need lapcount to cover the case there are fewer laps than display lines
 void UpdateResultsMenu() {
   switch(resultsSubMenu){
     case TopResults:  // update the results menu title
-      lcdClearLine(0);
+      lcd.clear();
       PrintText("C | TOP RESULTS", lcdDisp, 14, 15, false, 0);
-      UpdateResults(topFastestTimes, topFastestLaps, fastLapsQSize * 2);
+      UpdateResults(topFastestTimes, topFastestLaps, r1LapCount + r2LapCount);
     break;
     case Racer1Results:
-      lcdClearLine(0);
+      lcd.clear();
       PrintText("C | RACER 1 RESULTS", lcdDisp, 18, 19, false, 0);
-      UpdateResults(r1FastestTimes, r1FastestLaps, fastLapsQSize);
+      UpdateResults(r1FastestTimes, r1FastestLaps, r1LapCount);
     break;
     case Racer2Results:
-      lcdClearLine(0);
+      lcd.clear();
       PrintText("C | RACER 2 RESULTS", lcdDisp, 18, 19, false, 0);
-      UpdateResults(r2FastestTimes, r2FastestLaps, fastLapsQSize);
+      UpdateResults(r2FastestTimes, r2FastestLaps, r2LapCount);
     break;
   }
 }
@@ -1023,7 +1080,7 @@ void loop(){
                 // clear line to remove extra ch from long names replaced by shorter ones
                 lcdClearLine(1, nameCursorPos);
                 lcd.setCursor(nameCursorPos, 1);
-                racer1 = IndexList(racer1, racerCount, key == 'A');
+                racer1 = IndexList(racer1, racerCount, key == 'A', racer2);
                 lcd.print(Racers[racer1]);
                 break;
               }
@@ -1032,7 +1089,7 @@ void loop(){
                 // clear line to remove extra ch from long names replaced by shorter ones
                 lcdClearLine(3, nameCursorPos);
                 lcd.setCursor(nameCursorPos, 3);
-                racer2 = IndexList(racer2, racerCount, key == 'D');
+                racer2 = IndexList(racer2, racerCount, key == 'D', racer1);
                 lcd.print(Racers[racer2]);
                 break;
               }
@@ -1093,50 +1150,62 @@ void loop(){
           } // END of SelectRace Menu Case
 
           case ResultsMenu:{
-            if (entryFlag) {
-              lcdUpdateMenu(ResultsText);
-              UpdateResultsMenu();
-              entryFlag = false;
-            }
-            switch (key) {
-              // cycle up or down the lap list
-              case 'A': case 'B':{
-                byte arrayMax;
-                // if resultsSubMenu is 'Top', then it equals 0 and is false
-                if (resultsSubMenu) arrayMax = fastLapsQSize;
-                else arrayMax = fastLapsQSize * 2;
-                // clear line to remove extra ch from long names replace by short ones
-                lcdClearLine(1);
-                lcdClearLine(2);
-                lcdClearLine(3);
-                if (key == 'A' && resultsMenuIdx > 0) resultsMenuIdx--;
-                // we subtract 3 because there are two rows printed after tracked index
-                if (key == 'B' && resultsMenuIdx < arrayMax-3) resultsMenuIdx++;
-                UpdateResultsMenu();
-                Serial.println("result idx");
-                Serial.println(resultsMenuIdx);
+              if (entryFlag) {
+                // lcdUpdateMenu(ResultsText);
+                lcd.clear();
+                if(raceDataExists)
+                  UpdateResultsMenu();
+                else
+                  lcd.print("-NO RACE DATA-");
+                entryFlag = false;
               }
-              break;
-              // cycle up or down racer list and update Racer2 name
-              case 'C': case 'D':{
-                // clear line to remove extra ch from long names replace by short ones
-                if (resultsSubMenu == TopResults) resultsSubMenu = Racer1Results;
-                else if (resultsSubMenu == Racer1Results) resultsSubMenu = Racer2Results;
-                else if (resultsSubMenu == Racer2Results) resultsSubMenu = TopResults;
-                // reset the result index to 0
-                resultsMenuIdx = 0;
-                UpdateResultsMenu();
-              }
-              break;
-              case '*':{
-                // return to MainMenu
-                currentMenu = MainMenu;
-                entryFlag = true;
-              }
-              break;
-              default:
-              break;
-            } // END of keypad switch   
+              switch (key) {
+                // cycle up or down the lap list
+                case 'A': case 'B':{
+                  // only deal with data if it exists,
+                  // otherwise garbage will be displayed on screen
+                  if(raceDataExists) {
+                    byte arrayMax;
+                    // if resultsSubMenu is 'Top', then it equals 0 and is false
+                    if (resultsSubMenu) arrayMax = fastLapsQSize;
+                    else arrayMax = fastLapsQSize * 2;
+                    // clear line to remove extra ch from long names replace by short ones
+                    lcdClearLine(1);
+                    lcdClearLine(2);
+                    lcdClearLine(3);
+                    if (key == 'A' && resultsMenuIdx > 0) resultsMenuIdx--;
+                    // we subtract 3 because there are two rows printed after tracked index
+                    if (key == 'B' && resultsMenuIdx < arrayMax-3) resultsMenuIdx++;
+                    UpdateResultsMenu();
+                    Serial.println("result idx");
+                    Serial.println(resultsMenuIdx);
+                  }
+                }
+                break;
+                // cycle up or down racer list and update Racer2 name
+                case 'C': case 'D':{
+                  // only deal with data if it exists,
+                  // otherwise garbage will be displayed on screen
+                  if(raceDataExists) {
+                    // clear line to remove extra ch from long names replace by short ones
+                    if (resultsSubMenu == TopResults) resultsSubMenu = Racer1Results;
+                    else if (resultsSubMenu == Racer1Results) resultsSubMenu = Racer2Results;
+                    else if (resultsSubMenu == Racer2Results) resultsSubMenu = TopResults;
+                    // reset the result index to 0
+                    resultsMenuIdx = 0;
+                    UpdateResultsMenu();
+                  }
+                }
+                break;
+                case '*':{
+                  // return to MainMenu
+                  currentMenu = MainMenu;
+                  entryFlag = true;
+                }
+                break;
+                default:
+                break;
+              } // END of keypad switch
             break;
           } // END of ResultsMenu Case
           default:
@@ -1253,6 +1322,7 @@ void loop(){
           // A lap Flash is triggered by the completion of a lap, it's 'resting' value is 0
           if (lane1LapFlash > 0) {
             if (lane1LapFlash == 1) {
+              raceDataExists = true;
               unsigned long r1LapTimeToLog;
               r1LapTimeToLog = r1LastXMillis [(r1LapCount-1) % lapMillisQSize] - r1LastXMillis [(r1LapCount-2) % lapMillisQSize];
               // during the intro to the lap flash cycle we also update all the racer lap records
@@ -1298,6 +1368,7 @@ void loop(){
 
           if (lane2LapFlash > 0) {
             if (lane2LapFlash == 1) {
+              raceDataExists = true;
               unsigned long r2LapTimeToLog;
               r2LapTimeToLog = r2LastXMillis [(r2LapCount-1) % lapMillisQSize] - r2LastXMillis [(r2LapCount-2) % lapMillisQSize];
               // the current lap is the live lap so we need to subtract 1 from lapcount
