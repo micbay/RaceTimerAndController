@@ -213,7 +213,8 @@ unsigned long flash1StartMillis;
 unsigned long flash2StartMillis;
 
 // index of top lap time to display in results window
-byte resultsMenuIdx = 0;
+// keep this an int so it can be signed. A negative is the trigger to loop index
+int resultsMenuIdx = 0;
 enum Results {
   TopResults = 0,
   Racer1Results = 1,
@@ -382,7 +383,7 @@ void InitializeRacerArrays(){
 
 // Used to initialize results, top fastest, lap array to high numbers.
 // A lap number of 0 marks it is a dummy lap.
-void InitializeResultsArrays(){
+void InitializeTopFastest(){
   for (byte i = 0; i < fastLapsQSize * 2; i++) {
     topFastestLaps[i][0] = 0;
     topFastestLaps[i][1] = 255;
@@ -828,18 +829,31 @@ void UpdateFastestLap(unsigned long fastestTimes[], unsigned int fastestLaps[][2
       fastestTimes[i] = newLapTime;
       fastestLaps[i][0] = lap;
       fastestLaps[i][1] = racer;
-      for (int k = 0; k < arrayLength; k++){
-        Serial.println("UpdateFastest End");
-        Serial.print(fastestTimes[k]);
-        Serial.print(" : ");
-        Serial.println(fastestLaps[k][0]);
-      }
+      // for (int k = 0; k < arrayLength; k++){
+      //   Serial.println("UpdateFastest End");
+      //   Serial.print(fastestTimes[k]);
+      //   Serial.print(" : ");
+      //   Serial.println(fastestLaps[k][0]);
+      // }
       // exit function, no need to continue once found and shift made
       return;
     } // END if (fastestTimes) block
   } // END fastest lap array for loop
 }
 
+
+void CompileTopFastest(){
+  // first we need to re-initialize or else we will be duplicating previously added laps
+  InitializeTopFastest();
+  // add racer 1 fastest laps to top lap list
+  for (byte i = 0; i < fastLapsQSize; i++) {
+    UpdateFastestLap(topFastestTimes, topFastestLaps, r1FastestLaps[i][0], r1FastestTimes[i], racer1, 2 * fastLapsQSize);
+  }
+  // add racer 2 fastest laps to top lap list
+  for (byte j = 0; j < fastLapsQSize; j++) {
+    UpdateFastestLap(topFastestTimes, topFastestLaps, r2FastestLaps[j][0], r2FastestTimes[j], racer2, 2 * fastLapsQSize);
+  }
+}
 
 void UpdateResults(unsigned long fastestTimes[], unsigned int fastestLaps[][2], int lapCount) {
   for (byte i = 0; i < 3; i++){
@@ -862,13 +876,14 @@ void UpdateResults(unsigned long fastestTimes[], unsigned int fastestLaps[][2], 
       PrintText(Racers[fastestLaps[resultsMenuIdx + i][1]], lcdDisp, 19, 7, true, i + 1, false);
     } else {
       // we want to set the index back one so it doesn't keep scrolling in empty space
-      resultsMenuIdx = resultsMenuIdx -1;
+      resultsMenuIdx = (resultsMenuIdx -1) >= 0 ? resultsMenuIdx - 1 : 0;
+      // if this condition exists, we want to end the loop to avoid doubles
+      break;
     }
   }
 }
 
 void UpdateResultsMenu() {
-  resultsMenuIdx = 0;
   switch(resultsSubMenu){
     case TopResults: {
       lcd.clear();
@@ -900,7 +915,7 @@ void ResetRace(){
   lane1State = Off;
   lane2State = Off;
   InitializeRacerArrays();
-  InitializeResultsArrays();
+  // InitializeTopFastest();
 }
 
 
@@ -1008,7 +1023,7 @@ void loop(){
                 break;
               case 'D':
                 currentMenu = ResultsMenu;
-                resultsSubMenu == TopResults;
+                resultsSubMenu = TopResults;
                 entryFlag = true;
               default:
                 break;
@@ -1157,10 +1172,14 @@ void loop(){
             if (entryFlag) {
               // lcdUpdateMenu(ResultsText);
               lcd.clear();
-              if(raceDataExists)
+              if(raceDataExists){
+                resultsMenuIdx = 0;
+                lcd.print("-Compiling Results-");
+                CompileTopFastest();
                 UpdateResultsMenu();
-              else
+              } else {
                 lcd.print("-NO RACE DATA-");
+              }
               entryFlag = false;
             }
             switch (key) {
@@ -1168,6 +1187,8 @@ void loop(){
               case 'A': case 'B':{
                 // only deal with data if it exists,
                 // otherwise garbage will be displayed on screen
+                  Serial.println("result A B press - data exists");
+                  Serial.println(raceDataExists);
                 if(raceDataExists) {
                   byte arrayMax;
                   // if resultsSubMenu is 'Top', then it equals 0 and is false
@@ -1179,10 +1200,17 @@ void loop(){
                   lcdClearLine(3);
                   if (key == 'A' && resultsMenuIdx > 0) resultsMenuIdx--;
                   // we subtract 3 because there are two rows printed after tracked index
-                  if (key == 'B' && resultsMenuIdx < arrayMax-3) resultsMenuIdx++;
+                  if (key == 'B' && resultsMenuIdx < arrayMax-2) resultsMenuIdx++;
                   UpdateResultsMenu();
-                  // Serial.println("result idx");
-                  // Serial.println(resultsMenuIdx);
+                  Serial.println("result idx");
+                  Serial.println(resultsMenuIdx);
+                  Serial.println(key);
+                  Serial.println("lap count r1");
+                  Serial.println(r1LapCount);
+                  Serial.println("lap count r2");
+                  Serial.println(r2LapCount);
+                  Serial.println("array max");
+                  Serial.println(arrayMax);
                 }
               }
               break;
@@ -1191,11 +1219,16 @@ void loop(){
                 // only deal with data if it exists,
                 // otherwise garbage will be displayed on screen
                 if(raceDataExists) {
+                  // when changing fastest list, reset resultsMenuIdx to 0
+                  resultsMenuIdx = 0;
                   // clear line to remove extra ch from long names replace by short ones
                   if (resultsSubMenu == TopResults) resultsSubMenu = Racer1Results;
                   else if (resultsSubMenu == Racer1Results) resultsSubMenu = Racer2Results;
                   else if (resultsSubMenu == Racer2Results) resultsSubMenu = TopResults;
                   UpdateResultsMenu();
+                  Serial.println("result idx");
+                  Serial.println(resultsMenuIdx);
+                  Serial.println(key);
                 }
               }
               break;
@@ -1299,14 +1332,8 @@ void loop(){
         // If racetype is timed then displayTick will be a negative number
         if (countingDown) {
           curRaceTime = raceSetTimeMs < (curMillis - raceStartMillis) ? 0 : raceSetTimeMs - (curMillis - raceStartMillis);
-          Serial.println("counting down");
-          Serial.println(raceSetTimeMs);
-          Serial.println(curRaceTime);
         } else {
           curRaceTime = curMillis - raceStartMillis;
-          Serial.println("NOT counting down");
-          Serial.println(raceSetTimeMs);
-          Serial.println(curRaceTime);
         }
         // If lanestate is non-zero (ie active or standby) then update current lap time
         if (lane1State) r1CurLapTime = curMillis - r1LapStartMillis;
@@ -1331,8 +1358,7 @@ void loop(){
               // we do this here to keep it interruptable and out of the lap trigger intrrupt funct.
               // the current lap is the live lap so we need to subtract 1 from lapcount
               UpdateFastestLap(r1FastestTimes, r1FastestLaps, r1LapCount - 1, r1LapTimeToLog, racer1, fastLapsQSize);
-              UpdateFastestLap(topFastestTimes, topFastestLaps, r1LapCount - 1, r1LapTimeToLog, racer1, 2 * fastLapsQSize);
-              // UpdateFastestLap(topFastestLaps, r1LapCount - 1, r1LapTimeToLog);
+              // UpdateFastestLap(topFastestTimes, topFastestLaps, r1LapCount - 1, r1LapTimeToLog, racer1, 2 * fastLapsQSize);
               lc.clearDisplay( led1Disp - 1 );
               // print the just completed lap # to left side of racer's  LED
               PrintNumbers(r1LapCount - 1, 3, 2, led1Disp);
@@ -1374,10 +1400,8 @@ void loop(){
               unsigned long r2LapTimeToLog;
               r2LapTimeToLog = r2LastXMillis [(r2LapCount-1) % lapMillisQSize] - r2LastXMillis [(r2LapCount-2) % lapMillisQSize];
               // the current lap is the live lap so we need to subtract 1 from lapcount
-              // UpdateFastestLap(r2FastestLaps, r2LapCount - 1, r2LapTimeToLog);
-              // UpdateFastestLap(topFastestLaps, r2LapCount - 1, r2LapTimeToLog);
               UpdateFastestLap(r2FastestTimes, r2FastestLaps, r2LapCount - 1, r2LapTimeToLog, racer2, fastLapsQSize);
-              UpdateFastestLap(topFastestTimes, topFastestLaps, r2LapCount - 1, r2LapTimeToLog, racer2, 2 * fastLapsQSize);
+              // UpdateFastestLap(topFastestTimes, topFastestLaps, r2LapCount - 1, r2LapTimeToLog, racer2, 2 * fastLapsQSize);
               lc.clearDisplay( led2Disp - 1 );
               // print the just completed lap # to left side of racer's  LED
               PrintNumbers(r2LapCount - 1, 3, 2, led2Disp);
@@ -1470,6 +1494,7 @@ void loop(){
         state = Menu;
         currentMenu = ResultsMenu;
         entryFlag = true;
+        resultsMenuIdx = TopResults;
       }
       break;
     } // END of Paused state
