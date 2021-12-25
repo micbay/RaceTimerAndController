@@ -867,23 +867,26 @@ void UpdateResults(unsigned long fastestTimes[], unsigned int fastestLaps[][2], 
   }
 }
 
-// we need lapcount to cover the case there are fewer laps than display lines
 void UpdateResultsMenu() {
+  resultsMenuIdx = 0;
   switch(resultsSubMenu){
-    case TopResults:  // update the results menu title
+    case TopResults: {
       lcd.clear();
       PrintText("C | TOP RESULTS", lcdDisp, 14, 15, false, 0);
       UpdateResults(topFastestTimes, topFastestLaps, r1LapCount + r2LapCount);
+    }
     break;
-    case Racer1Results:
+    case Racer1Results: {
       lcd.clear();
       PrintText("C | RACER 1 RESULTS", lcdDisp, 18, 19, false, 0);
       UpdateResults(r1FastestTimes, r1FastestLaps, r1LapCount);
+    }
     break;
-    case Racer2Results:
+    case Racer2Results: {
       lcd.clear();
       PrintText("C | RACER 2 RESULTS", lcdDisp, 18, 19, false, 0);
       UpdateResults(r2FastestTimes, r2FastestLaps, r2LapCount);
+    }
     break;
   }
 }
@@ -1005,6 +1008,7 @@ void loop(){
                 break;
               case 'D':
                 currentMenu = ResultsMenu;
+                resultsSubMenu == TopResults;
                 entryFlag = true;
               default:
                 break;
@@ -1150,62 +1154,60 @@ void loop(){
           } // END of SelectRace Menu Case
 
           case ResultsMenu:{
-              if (entryFlag) {
-                // lcdUpdateMenu(ResultsText);
-                lcd.clear();
-                if(raceDataExists)
+            if (entryFlag) {
+              // lcdUpdateMenu(ResultsText);
+              lcd.clear();
+              if(raceDataExists)
+                UpdateResultsMenu();
+              else
+                lcd.print("-NO RACE DATA-");
+              entryFlag = false;
+            }
+            switch (key) {
+              // cycle up or down the lap list
+              case 'A': case 'B':{
+                // only deal with data if it exists,
+                // otherwise garbage will be displayed on screen
+                if(raceDataExists) {
+                  byte arrayMax;
+                  // if resultsSubMenu is 'Top', then it equals 0 and is false
+                  if (resultsSubMenu) arrayMax = fastLapsQSize;
+                  else arrayMax = fastLapsQSize * 2;
+                  // clear line to remove extra ch from long names replace by short ones
+                  lcdClearLine(1);
+                  lcdClearLine(2);
+                  lcdClearLine(3);
+                  if (key == 'A' && resultsMenuIdx > 0) resultsMenuIdx--;
+                  // we subtract 3 because there are two rows printed after tracked index
+                  if (key == 'B' && resultsMenuIdx < arrayMax-3) resultsMenuIdx++;
                   UpdateResultsMenu();
-                else
-                  lcd.print("-NO RACE DATA-");
-                entryFlag = false;
+                  // Serial.println("result idx");
+                  // Serial.println(resultsMenuIdx);
+                }
               }
-              switch (key) {
-                // cycle up or down the lap list
-                case 'A': case 'B':{
-                  // only deal with data if it exists,
-                  // otherwise garbage will be displayed on screen
-                  if(raceDataExists) {
-                    byte arrayMax;
-                    // if resultsSubMenu is 'Top', then it equals 0 and is false
-                    if (resultsSubMenu) arrayMax = fastLapsQSize;
-                    else arrayMax = fastLapsQSize * 2;
-                    // clear line to remove extra ch from long names replace by short ones
-                    lcdClearLine(1);
-                    lcdClearLine(2);
-                    lcdClearLine(3);
-                    if (key == 'A' && resultsMenuIdx > 0) resultsMenuIdx--;
-                    // we subtract 3 because there are two rows printed after tracked index
-                    if (key == 'B' && resultsMenuIdx < arrayMax-3) resultsMenuIdx++;
-                    UpdateResultsMenu();
-                    Serial.println("result idx");
-                    Serial.println(resultsMenuIdx);
-                  }
+              break;
+              // cycle up or down racer list and update Racer2 name
+              case 'C': case 'D':{
+                // only deal with data if it exists,
+                // otherwise garbage will be displayed on screen
+                if(raceDataExists) {
+                  // clear line to remove extra ch from long names replace by short ones
+                  if (resultsSubMenu == TopResults) resultsSubMenu = Racer1Results;
+                  else if (resultsSubMenu == Racer1Results) resultsSubMenu = Racer2Results;
+                  else if (resultsSubMenu == Racer2Results) resultsSubMenu = TopResults;
+                  UpdateResultsMenu();
                 }
-                break;
-                // cycle up or down racer list and update Racer2 name
-                case 'C': case 'D':{
-                  // only deal with data if it exists,
-                  // otherwise garbage will be displayed on screen
-                  if(raceDataExists) {
-                    // clear line to remove extra ch from long names replace by short ones
-                    if (resultsSubMenu == TopResults) resultsSubMenu = Racer1Results;
-                    else if (resultsSubMenu == Racer1Results) resultsSubMenu = Racer2Results;
-                    else if (resultsSubMenu == Racer2Results) resultsSubMenu = TopResults;
-                    // reset the result index to 0
-                    resultsMenuIdx = 0;
-                    UpdateResultsMenu();
-                  }
-                }
-                break;
-                case '*':{
-                  // return to MainMenu
-                  currentMenu = MainMenu;
-                  entryFlag = true;
-                }
-                break;
-                default:
-                break;
-              } // END of keypad switch
+              }
+              break;
+              case '*':{
+                // return to MainMenu
+                currentMenu = MainMenu;
+                entryFlag = true;
+              }
+              break;
+              default:
+              break;
+            } // END of keypad switch
             break;
           } // END of ResultsMenu Case
           default:
