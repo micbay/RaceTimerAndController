@@ -46,12 +46,12 @@ const byte PRESTART_CLK_POS = RACE_CLK_POS - 2;
 
 
 // ***** 7-Seg 8-digit LED Bars *****
-// LedControl(DataIn, CLK, CS/LOAD, Number of Max chips (ie 8-digit bars))
 const byte PIN_TO_LED_DIN = 2;
 const byte PIN_TO_LED_CS = 3;
 const byte PIN_TO_LED_CLK = 4;
 const byte LED_BAR_COUNT = 2; // # of attached max7219 controlled LED bars
 const byte LED_DIGITS = 8;    // # of digits on each LED bar
+// LedControl parameters (DataIn, CLK, CS/LOAD, Number of Max chips (ie 8-digit bars))
 LedControl lc = LedControl(PIN_TO_LED_DIN, PIN_TO_LED_CLK, PIN_TO_LED_CS, LED_BAR_COUNT);
 
 
@@ -126,11 +126,16 @@ byte preStartCountDown = 5;
 // Since the default race type is standard the default countingDown is false.
 bool countingDown = false;
 
-// racer#'s value is the index of Racers[] identifying the racer name
+// If program is updated to accomodate more than 2 racers,
+// these racer variables should become an array to accomodate any number 2+.
+// For now, with just 2, it's easier to handle them as individual variables.
+// racer#'s value is the index of Racers[] identifying the racer name.
+// The value of each racer must be unique.
+// Do not allow user to select same racer id for more than 1 lane.
 byte racer1 = 0;
 byte racer2 = 1;
 // Variable to track current lap being timed.
-// Note this may often be 1 greater than the lap of interest
+// Note that the current lap count may often be 1 greater than the lap of interest.
 int r1LapCount = 0;
 int r2LapCount = 0;
 // Fastest laps table col0 = lap#, col1 = laptime in ms
@@ -234,10 +239,10 @@ enum Menus {
     SelectRaceMenu,
     ResultsMenu
 };
-// create variale to hold current 'state'
+// create variale to hold current game 'state' and menu state
 states state = Menu;
 Menus currentMenu;
-// This flag is used to indicate first entry into a state so
+// This flag is used to indicate first entry into a state or menu so
 // that the state can do one time only prep for its first loop.
 bool entryFlag = true;
 
@@ -253,6 +258,10 @@ const char* Racers[racerCount] = {
   "Lucien", "ZOE", "Elise", "John", "Angie", "Uncle BadAss", "5318008"
 };
 
+// *** STRING PROGMEM *************
+// in this section we define our menu string constants to use program memory
+// this frees up significant RAM. In this case, using progmem to replace
+// these few const char* arrays, reduced RAM used by globals, by 10%.
 char buffer[LCD_COLS];
 
 const char Main0[] PROGMEM = "A| Select Racers";
@@ -353,7 +362,7 @@ unsigned long ClockToMillis(const byte ulHour, const byte ulMin, const byte ulSe
   //       This is because the default type of the number is a signed int which
   //       in this case, results in 60 * 1000 is out of range for int.
   //       Even though the variable it is going into is a long, the right side
-  //       remains an int until after the evaluation so we get an overflow.       
+  //       remains an int until after the evaluation so we would get an overflow.       
   return (ulHour * 60UL * 60UL * 1000UL) +
          (ulMin * 60UL * 1000UL) +
          (ulSec * 1000UL);
@@ -364,8 +373,8 @@ void Beep() {
   tone(buzzPin, 4000, 200);
 }
 
-// Used to set fastest lap array to high numbers that will be replaced
-// A lap number of 0 indicates it is a dummy lap
+// Used to set fastest lap array to high numbers that will be replaced on comparison.
+// A lap number of 0, and racer id of 255, marks these as dummy laps.
 void InitializeRacerArrays(){
   for (byte i = 0; i < fastLapsQSize; i++) {
     r1FastestLaps[i][0] = 0;
@@ -382,7 +391,7 @@ void InitializeRacerArrays(){
 }
 
 // Used to initialize results, top fastest, lap array to high numbers.
-// A lap number of 0 marks it is a dummy lap.
+// A lap number of 0, and racer id of 255, marks these as dummy laps.
 void InitializeTopFastest(){
   for (byte i = 0; i < fastLapsQSize * 2; i++) {
     topFastestLaps[i][0] = 0;
@@ -391,8 +400,15 @@ void InitializeTopFastest(){
   }
 }
 
+// Because the software is single threaded any poling method used
+// to detect lap triggers can only check one pin at a time.
+// This creates a potential that simultaneous triggers would cause
+// one racer's lap to be skipped.
+// With the Arduino, however, we can use its port register interrupts
+// to read the state of an entire block of pins simultaneously.
 // This function enables port register change interrupts on given pin
-// can be used for pins among A0-A6
+// can be used for pins among A0-A6.
+// We'll use this to enable interrupts 
 void pciSetup(byte pin) {
   // Enable interrupts on pin
   *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));
@@ -402,6 +418,7 @@ void pciSetup(byte pin) {
   PCICR  |= bit (digitalPinToPCICRbit(pin));
 }
 // Used to disable port register interrupt on given pin
+// when for periods we don't want to have lap sensor input.
 void clearPCI(byte pin) {
   // Clear any outstanding interrupt
   PCIFR  |= bit (digitalPinToPCICRbit(pin));
@@ -618,11 +635,11 @@ void PrintNumbers(const unsigned long numberIN, const byte width, const byte end
 }
 
 
-// input time in ms; clockEndPos is the index of where the last digit of the clock should go.
-// this index is always considered left to right, and starting with 0.
-// The function will flip index internally if needed for right to left indexed display
-// The MAX7219 LED bars are such displays where, internally, digit idx 0 is the far right digit
-// Using this function with LED bar, to have clock end at far right input clockEndPos 7
+// Input time in ms; clockEndPos is the index of where the last digit of the clock should go.
+// This index is always considered left to right, and starting with 0.
+// The function will flip index internally if needed for a right to left indexed display.
+// The MAX7219 LED bars are such displays where, internally, digit idx 0 is the far right digit.
+// Using this function with LED bar, to have clock end at far right input clockEndPos 7, not 0.
 void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displays display, byte line = 0, bool leadingZs = false) {
   unsigned long ulHour;
   unsigned long ulMin;
@@ -631,8 +648,8 @@ void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displ
   unsigned long ulCent;
   unsigned long ulMill;
   SplitTime(timeMillis, ulHour, ulMin, ulSec, ulDec, ulCent, ulMill);
-  // calculate and adjust start position affected by number of decimal second digits requested
-  // the Hours position sets the start, we use the endPos of the hours as the start endPos
+  //Calculate and adjust start position affected by number of decimal seconds digits requested
+  // We use the endPos of the hours as the start endPos of the whole clock print.
   unsigned long decimalSec;
   byte decimalWidth;
   byte hourEndPos;
@@ -656,8 +673,8 @@ void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displ
     break;
   }
 
-  // Using a series of if statements instead of a switch because of how the
-  // the cascading width variable falls through with options it works better with ifs
+  // Using a series of if statements for printWidth instead of a switch because of how the
+  // the cascading width variable falls through with options, it works better with ifs.
   if (printWidth == H) {
     // H 00:00:00.0
     switch (display){
@@ -703,7 +720,7 @@ void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displ
   // Any adjustments to code that changes seconds, like adding a no decimal option
   // should be made at that point.
   // However, keeping the if sets up for the preferred next update which adds
-  // the option of no decimal & decimal with M & H, ie: S, Md, Mc, Mm, Hd, Hc, Hm
+  // the option of no decimal S & decimal with M & H, ie: S, Md, Mc, Mm, Hd, Hc, Hm.
   // 
   // If width starts with Seconds then there is the option to display .0d, .00c, or .000m
   if (printWidth == Sd || printWidth == Sc || printWidth == Sm) {
@@ -724,12 +741,6 @@ void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displ
       break;
     } // END of display switch
   }
-  // Serial.println("ulMin");
-  // Serial.println(ulMin);
-  // Serial.println("ulSec");
-  // Serial.println(ulSec);
-  // Serial.println("ulcent");
-  // Serial.println(ulcent);
 } // END PrintClock()
 
 
@@ -744,8 +755,8 @@ int calcDigits(int number){
 }
 
 
-// clear screen on given line from start to end position, inclusive
-// the defalut is to clear the whole line
+// Clear screen on given line from start to end position, inclusive.
+// The defalut is to clear the whole line.
 void lcdClearLine(byte lineNumber, byte posStart = 0, byte posEnd = LCD_COLS) {
   lcd.setCursor(posStart, lineNumber);
   for(byte n = posStart; n < posEnd; n++){
@@ -754,6 +765,7 @@ void lcdClearLine(byte lineNumber, byte posStart = 0, byte posEnd = LCD_COLS) {
 }
 
 
+// function to write pre-start final countdown digits to LEDs
 void ledWriteDigits(byte digit) {
   for (int j=0; j < LED_BAR_COUNT; j++){
     for (int i=0; i < LED_DIGITS; i++){
@@ -763,17 +775,18 @@ void ledWriteDigits(byte digit) {
 }
 
 
+// This function prints the input text, to the indicated display, at the indicated position.
 void PrintText(const char textToWrite[], const displays display, const byte writeSpaceEndPos, const byte width = LED_DIGITS, bool rightJust = false, const byte line = 0, bool clear = true) {
-  // Even if text is right justified, available space filled starting with 1st character.
-  // need to track the character index seperately from display digit position
+  // Even if text is right justified, available space is filled starting with 1st character.
+  // Need to track the character index seperately from display digit position.
   byte const textLength = strlen(textToWrite);
-  // we take 1 away from width because the endposition is inclusive in the width count
+  // We take 1 away from width because the endposition is inclusive in the width count.
   byte cursorStartPos = writeSpaceEndPos - (width - 1);
   byte cursorEndPos = writeSpaceEndPos;
-  // adjust start and end positions based on text length and available space
+  // Adjust start and end positions based on text length and available space.
   if (textLength < width && rightJust) cursorStartPos = cursorEndPos - (textLength - 1);
   if (textLength < width && !rightJust) cursorEndPos = cursorEndPos - (width - textLength);
-  // because the writing position index may not match the text char index
+  // Because the writing position index may not match the text char index
   // we nust track them seperately.
   byte textIndex = 0;
   switch (display) {
@@ -792,7 +805,7 @@ void PrintText(const char textToWrite[], const displays display, const byte writ
     case led1Disp: case led2Disp: {
       if (clear) lc.clearDisplay(display - 1);
       for (byte i = cursorStartPos; i <= cursorEndPos; i++){
-        // The digit position of the LED bars is right to left so we flip the requested index
+        // The digit position of the LED bars is right to left so we flip the requested index.
         lc.setChar(display - 1, (LED_DIGITS-1) - i, textToWrite[textIndex], false);
         textIndex++;
       }
@@ -810,12 +823,8 @@ void PrintText(const char textToWrite[], const displays display, const byte writ
 void UpdateFastestLap(unsigned long fastestTimes[], unsigned int fastestLaps[][2], const int lap, const unsigned long newLapTime, const byte racer, const byte arrayLength){
   Serial.println("ENTERED FASTEST");
   for (byte i = 0; i < arrayLength; i++){
-        // Serial.print("Fastest For i = ");
-        // Serial.println(i);
-        // Serial.println(fastestTimes[i][1]);
-        // Serial.println(newLapTime);
     // Starting from beginning of list, compare new time with existing times.
-    // If new lap time is faster, hold its place, and shift displaced, and remaining times down.
+    // If new lap time is faster, hold its place, and shift bested, and remaining times down.
     if (fastestTimes[i] > newLapTime) {
       // Starting from the end of list, replace rows with previous row,
       // until we reach row of the bested time to be replaced.
@@ -842,6 +851,7 @@ void UpdateFastestLap(unsigned long fastestTimes[], unsigned int fastestLaps[][2
 }
 
 
+// This function combines all the racer's fastest laps and list the top fastest overall.
 void CompileTopFastest(){
   // first we need to re-initialize or else we will be duplicating previously added laps
   InitializeTopFastest();
