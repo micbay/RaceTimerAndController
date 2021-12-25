@@ -114,8 +114,8 @@ int raceLaps = 8;
 // Race time for a Timed race type, most laps before time runs out wins.
 // We create a clock time array to hold converted values for easy display update.
 // raceSetTime[1] holds Min, raceSetTime[0] holds Sec, settable from menu.
-const byte defMin = 2;
-const byte defSec = 0;
+const byte defMin = 0;
+const byte defSec = 30;
 byte raceSetTime[2] = {defSec, defMin};
 // raceSetTime in milliseconds, will be initialized in setup().
 unsigned long raceSetTimeMs;
@@ -166,7 +166,7 @@ unsigned long curMillis;
 // The millis() timestamp of the start of active race.
 unsigned long raceStartMillis;
 // Live elapsed race time in ms, or remaining time in preStart, or timed race.
-unsigned long raceCurTime;
+unsigned long curRaceTime;
 // Live lap elapsed time in ms of current lap for each racer
 unsigned long r1CurLapTime;
 unsigned long r2CurLapTime;
@@ -303,9 +303,13 @@ void SplitTime(unsigned long msIN, unsigned long &ulHour, unsigned long &ulMin, 
 // Converts clock time into milliseconds
 unsigned long ClockToMillis(const byte ulHour, const byte ulMin, const byte ulSec) {
   // Sets the number of milliseconds from midnight to current time
-  return (ulHour * 60 * 60 * 1000) +
-         (ulMin * 60 * 1000) +
-         (ulSec * 1000);
+  // NOTE: we must us the 'UL' designation or otherwise cast to unsigned long
+  //       if we don't, then the multiplication will not be the exptected value.
+  //       This is because the default type of the number is a signed int which
+  //       which results in out of range. 60 * 1000 is out of range for int.       
+  return (ulHour * 60UL * 60UL * 1000UL) +
+         (ulMin * 60UL * 1000UL) +
+         (ulSec * 1000UL);
 }
 
 
@@ -848,6 +852,9 @@ unsigned long lastNoteMillis;
 // ********** SETUP ****************************
 // Initialize hardware and establish software initial state
 void setup(){
+  // open connection on serial port
+  Serial.begin(9600);
+  while(!Serial);
   // SETUP LCD DIPSLAY
 	// initialize LCD with begin() which will return
   // a non-zero error code int if it fails, or zero on success 
@@ -889,8 +896,6 @@ void setup(){
   currentMenu = MainMenu;
   entryFlag = true;
   
-  // open connection on serial port
-  Serial.begin(9600);
   // Serial.println(currentMenu);
 }
 
@@ -1058,28 +1063,31 @@ void loop(){
               entryFlag = false;
             }
             switch (key) {
-              case 'A': case 'B': case 'C':
-                state = Race;
-                preStart = true;
-                entryFlag = true;
+              case 'A': case 'B': case 'C': {
                 // if the lane is enabled in settings then set to truthy default, StandBy
                 // if (lane1Enabled & lanesEnabled[lanesEnabledIdx][1] > 0) lane1State = StandBy;
                 // if (lane2Enabled & lanesEnabled[lanesEnabledIdx][1] > 0) lane2State = StandBy;
                 if (key == 'A') {raceType = Standard; countingDown = false;}
                 else if (key == 'B') {raceType = Timed; countingDown = true;}
                 // else {raceType = Pole; countingDown = false;};
-                break;
-              case 'D':
+                state = Race;
+                preStart = true;
+                entryFlag = true;
+              }
+              break;
+              case 'D': {
                 // change how long the preStartCountDown before the race start lasts
                 preStartCountDown = lcdEnterNumber(2, 30, 3, 13);
-                break;
-              case '*':
+              }
+              break;
+              case '*': {
                 // return to main menu
                 currentMenu = MainMenu;
                 entryFlag = true;
-                break;
+              }
+              break;
               default:
-                break;
+              break;
             } // END of key switch
             break;
           } // END of SelectRace Menu Case
@@ -1143,12 +1151,12 @@ void loop(){
       // initialize variables for preStart timing loop first cycle only
       if (entryFlag & preStart) {
         // preStartCountDown is in seconds so we convert to millis
-        raceCurTime = preStartCountDown * 1000;
+        curRaceTime = preStartCountDown * 1000;
         lastTickMillis = curMillis;
         lcd.clear();
         lcd.setCursor(0,1);
         lcd.print("Your Race Starts in:");
-        PrintClock(raceCurTime, PRESTART_CLK_POS, Sd, lcdDisp, 2);
+        PrintClock(curRaceTime, PRESTART_CLK_POS, Sd, lcdDisp, 2);
         PrintText(Racers[racer1], led1Disp, 7, 8, true);
         PrintText(Racers[racer2], led2Disp, 7, 8, false);
         // reset any race variables to initial values
@@ -1157,7 +1165,7 @@ void loop(){
       }
       // initialize variables for race timing loop first cycle only
       if (entryFlag & !preStart) {
-        raceCurTime = 0;
+        curRaceTime = 0;
         lastTickMillis = curMillis;
         raceStartMillis = curMillis;
         entryFlag = false;
@@ -1193,17 +1201,17 @@ void loop(){
       }
 
       if (preStart) {
-        if (raceCurTime > 0){
+        if (curRaceTime > 0){
           // update LCD on each tick
           if (curMillis - lastTickMillis > displayTick){
-            raceCurTime = raceCurTime - displayTick;
-            PrintClock(raceCurTime, PRESTART_CLK_POS, Sc, lcdDisp, 2);
+            curRaceTime = curRaceTime - displayTick;
+            PrintClock(curRaceTime, PRESTART_CLK_POS, Sc, lcdDisp, 2);
             lastTickMillis = curMillis;
           }
           // In last 3 seconds send countdown to LEDs
-          if (raceCurTime < 2999 & (raceCurTime/1000 + 1) != ledCountdownTemp) {
+          if (curRaceTime < 2999 & (curRaceTime/1000 + 1) != ledCountdownTemp) {
             // we add 1 because it should change on start of the digit not end
-            ledCountdownTemp = raceCurTime/1000 + 1;
+            ledCountdownTemp = curRaceTime/1000 + 1;
             ledWriteDigits(ledCountdownTemp);
           }
         } else {
@@ -1216,14 +1224,24 @@ void loop(){
         }
       } else { // ********* LIVE RACE **********
         // Regardless of race type, we do these things
+        // update current racetime
+        // If racetype is timed then displayTick will be a negative number
+        if (countingDown) {
+          curRaceTime = raceSetTimeMs < (curMillis - raceStartMillis) ? 0 : raceSetTimeMs - (curMillis - raceStartMillis);
+          Serial.println("counting down");
+          Serial.println(raceSetTimeMs);
+          Serial.println(curRaceTime);
+        } else {
+          curRaceTime = curMillis - raceStartMillis;
+          Serial.println("NOT counting down");
+          Serial.println(raceSetTimeMs);
+          Serial.println(curRaceTime);
+        }
+        // If lanestate is non-zero (ie active or standby) then update current lap time
+        if (lane1State) r1CurLapTime = curMillis - r1LapStartMillis;
+        if (lane2State) r2CurLapTime = curMillis - r2LapStartMillis;
+        // if tick has passed, then update displays
         if (curMillis - lastTickMillis >  displayTick){
-          // update current racetime
-          raceCurTime = curMillis - raceStartMillis;
-          // If racetype is timed then displayTick will be a negative number
-          if (countingDown) raceCurTime = ClockToMillis(0, raceSetTime[1], raceSetTime[0]) - raceSetTimeMs;
-          // If lanestate is non-zero (ie active or standby) then update current lap time
-          if (lane1State) r1CurLapTime = curMillis - r1LapStartMillis;
-          if (lane2State) r2CurLapTime = curMillis - r2LapStartMillis;
           // Serial.println("lane1state");
           // Serial.println(lane1State);
           // Serial.println("r1CurLapTime");
@@ -1247,10 +1265,14 @@ void loop(){
               // print the just completed lap # to left side of racer's  LED
               PrintNumbers(r1LapCount - 1, 3, 2, led1Disp);
               // print the lap time of just completed lap to right side of racer's LED
-              PrintClock(r1LapTimeToLog, 7, Sc, led1Disp);
-              // update racer's current lap total on lcd
+              if (r1LapTimeToLog > 60000){
+                PrintClock(r1LapTimeToLog, 7, M, led1Disp);
+              } else {
+                PrintClock(r1LapTimeToLog, 7, Sm, led1Disp);
+              }
+              // update racer's current lap total on LCD
               PrintNumbers(r1LapCount - 1, 3, 11, lcdDisp, true, 2);
-              // update racer's current best lap time to lcd
+              // update racer's current best lap time to LCD
               PrintClock(r1FastestTimes[0], 19, Sm, lcdDisp, 2);
               // record the timestamp at which this flash period is starting at
               flash1StartMillis = curMillis;
@@ -1287,7 +1309,11 @@ void loop(){
               // print the just completed lap # to left side of racer's  LED
               PrintNumbers(r2LapCount - 1, 3, 2, led2Disp);
               // print the lap time of just completed lap to right side of racer's LED
-              PrintClock(r2LapTimeToLog, 7, Sc, led2Disp);
+              if (r2LapTimeToLog > 60000){
+                PrintClock(r2LapTimeToLog, 7, M, led2Disp);
+              } else {
+                PrintClock(r2LapTimeToLog, 7, Sm, led2Disp);
+              }
               // update racer's current lap total on lcd
               PrintNumbers(r2LapCount - 1, 3, 11, lcdDisp, true, 3);
               // update racer's current best lap time to lcd
@@ -1314,7 +1340,7 @@ void loop(){
             }
           }
           // Update LCD with absolute race time and racer lap logs
-          PrintClock(raceCurTime, RACE_CLK_POS, M, lcdDisp, 0, true);
+          PrintClock(curRaceTime, RACE_CLK_POS, M, lcdDisp, 0, true);
           lastTickMillis = curMillis;
         } // END of if(displayTick) block
 
@@ -1329,54 +1355,28 @@ void loop(){
               // turn off lap trigger interrupts to prevent any additional lap triggers
               clearPCI(lane1Pin);
               clearPCI(lane2Pin);
-              // create temp variable that will hold the determined 1st and 2nd place racers
-              byte first = 255;
-              byte second = 255;
-              // adjust final lap count by 1 because current, unfinished, lap is not to be included
-              // this ternary operator notatation states that if lapCount is 0 already,
-              // then just leave is zero, otherwise subtract 1
-              // we do this because '##LapCount' is used as an index so we need to protect against negatives
-              r1LapCount = r1LapCount == 0 ? r1LapCount : r1LapCount - 1;
-              r2LapCount = r2LapCount == 0 ? r2LapCount : r2LapCount - 1;
-              Serial.println("racer1 laps final");
-              Serial.println(r1LapCount);
-              Serial.println("racer2 laps final");
-              Serial.println(r2LapCount);
-              // verify winner if one lap count is higher than the other it is clear
-              if (r1LapCount > r2LapCount) {first = racer1; second = racer2;}
-              else if (r2LapCount > r1LapCount) {first = racer2; second = racer1;}
-              // if timing is such that 2nd place has crossed while processing then the
-              // final lap timestamp will show who was first
-              else if (r1LastXMillis[ r1LapCount % lapMillisQSize ] < r2LastXMillis[ r2LapCount % lapMillisQSize ]) {first = racer1; second = racer2;}
-              else if (r2LastXMillis[r2LapCount % lapMillisQSize] < r1LastXMillis[r1LapCount % lapMillisQSize]) {first = racer2; second = racer1;}
-              // else if lapcount and last lap timestamps are the same it's a tie
-              else if(r2LapCount == r1LapCount && r1LastXMillis[r1LapCount] == r2LastXMillis[r2LapCount]){
-                // we use 254 as a flag for tie, since it is larger than the racer name list size will ever be
-                first = 254;
-                second = 254;
-              }
-              if (first == 254 && second == 254) {
-                PrintText("A TIE", led1Disp, 7, 8, true);
-                PrintText("A TIE", led2Disp, 7, 8, true);
-              } else if (first == 255) {
-                PrintText("ERROR", led1Disp, 7, 8);
-                PrintText("ERROR", led2Disp, 7, 8);
-              } else {
-                PrintText("1st", first == racer1 ? led1Disp:led2Disp, 2, 3, false);
-                PrintText(Racers[first], first == racer1 ? led1Disp:led2Disp, 7, 4, true, 0, false);
-                PrintText("2nd", second == racer1 ? led1Disp:led2Disp, 2, 3, false);
-                PrintText(Racers[second], second == racer1 ? led1Disp:led2Disp, 7, 4, true, 0, false);
-              }
+              DetermineWinner();
               state = Menu;
               currentMenu = ResultsMenu;
               entryFlag = true;
+              resultsMenuIdx = TopResults;
             }
             break;
-          } // END standard case
+          } // END standard race case
           case Timed:{
-
-            break;
-          }
+            // if time <= 0 then race is over and the most laps wins
+            if (curRaceTime <= 0) {
+              // turn off lap trigger interrupts to prevent any additional lap triggers
+              clearPCI(lane1Pin);
+              clearPCI(lane2Pin);
+              DetermineWinner();
+              state = Menu;
+              currentMenu = ResultsMenu;
+              entryFlag = true;
+              resultsMenuIdx = TopResults;
+            }
+          } // END Timed race case
+          break;
           case Pole:{
 
             break;
@@ -1386,10 +1386,8 @@ void loop(){
         } // END RaceType Switch
 
       } // END PreStart if-then-else
-
-
       break;
-    } // END of Race state
+    } // END of Race state switch
     case Paused:{
       // Serial.println("Entered Paused state");      
       char key = keypad.getKey();
@@ -1411,6 +1409,48 @@ void loop(){
   } // END of States Switch
 
 } // END of MAIN LOOP
+
+// returns racer index of winner
+byte DetermineWinner() {
+  byte first = 255;
+  byte second = 255;
+  // adjust final lap count by 1 because current, unfinished, lap is not to be included
+  // this ternary operator notatation states that if lapCount is 0 already,
+  // then just leave is zero, otherwise subtract 1
+  // we do this because '##LapCount' is used as an index so we need to protect against negatives
+  r1LapCount = r1LapCount == 0 ? r1LapCount : r1LapCount - 1;
+  r2LapCount = r2LapCount == 0 ? r2LapCount : r2LapCount - 1;
+  // Serial.println("racer1 laps final");
+  // Serial.println(r1LapCount);
+  // Serial.println("racer2 laps final");
+  // Serial.println(r2LapCount);
+  // verify winner if one lap count is higher than the other it is clear
+  if (r1LapCount > r2LapCount) {first = racer1; second = racer2;}
+  else if (r2LapCount > r1LapCount) {first = racer2; second = racer1;}
+  // if timing is such that 2nd place has crossed while processing then the
+  // final lap timestamp will show who was first
+  else if (r1LastXMillis[ r1LapCount % lapMillisQSize ] < r2LastXMillis[ r2LapCount % lapMillisQSize ]) {first = racer1; second = racer2;}
+  else if (r2LastXMillis[r2LapCount % lapMillisQSize] < r1LastXMillis[r1LapCount % lapMillisQSize]) {first = racer2; second = racer1;}
+  // else if lapcount and last lap timestamps are the same it's a tie
+  else if(r2LapCount == r1LapCount && r1LastXMillis[r1LapCount] == r2LastXMillis[r2LapCount]){
+    // we use 254 as a flag for tie, since it is larger than the racer name list size will ever be
+    first = 254;
+    second = 254;
+  }
+  if (first == 254 && second == 254) {
+    PrintText("A TIE", led1Disp, 7, 8, true);
+    PrintText("A TIE", led2Disp, 7, 8, true);
+  } else if (first == 255) {
+    PrintText("ERROR", led1Disp, 7, 8);
+    PrintText("ERROR", led2Disp, 7, 8);
+  } else {
+    PrintText("1st", first == racer1 ? led1Disp:led2Disp, 2, 3, false);
+    PrintText(Racers[first], first == racer1 ? led1Disp:led2Disp, 7, 4, true, 0, false);
+    PrintText("2nd", second == racer1 ? led1Disp:led2Disp, 2, 3, false);
+    PrintText(Racers[second], second == racer1 ? led1Disp:led2Disp, 7, 4, true, 0, false);
+  }
+  return first;
+}
 
 
 
