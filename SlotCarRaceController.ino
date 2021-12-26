@@ -160,8 +160,8 @@ unsigned long r2LastXMillis [ lapMillisQSize ] = {};
 bool raceDataExists = false;
 
 // bitwise mask for enabling/disabling lanes
-const byte lane1Enabled = (1 << 0);
-const byte lane2Enabled = (1 << 1);
+const byte lane1EnableMask = (1 << 0);
+const byte lane2EnableMask = (1 << 1);
 // Array variable to hold lane state and property indexes
 // col0 is the idx of the text array for the display, col1 is its enabled bit flag value
 byte lanesEnabled[3][2] = {
@@ -262,6 +262,8 @@ const char* Racers[racerCount] = {
 // in this section we define our menu string constants to use program memory
 // this frees up significant RAM. In this case, using progmem to replace
 // these few const char* arrays, reduced RAM used by globals, by 10%.
+// The character buffer needs to be as large as largest string to be used.
+// Since our longest row of characters is on the LCD we use its row length.
 char buffer[LCD_COLS];
 
 const char Main0[] PROGMEM = "A| Select Racers";
@@ -400,6 +402,14 @@ void InitializeTopFastest(){
   }
 }
 
+
+// This function adjusts the 'lastXtime' arrays upon restarting
+// after a pause so that the lap relative times are still correct.
+void PauseTimeAdjust() {
+
+}
+
+
 // Because the software is single threaded any poling method used
 // to detect lap triggers can only check one pin at a time.
 // This creates a potential that simultaneous triggers would cause
@@ -408,6 +418,8 @@ void InitializeTopFastest(){
 // to read the state of an entire block of pins simultaneously.
 // This function enables port register change interrupts on given pin
 // can be used for pins among A0-A6.
+// As long as the sensor positive trigger duration is longer than the
+// exectuion of the ISR(), then we should never miss a trigger.
 // We'll use this to enable interrupts 
 void pciSetup(byte pin) {
   // Enable interrupts on pin
@@ -430,6 +442,8 @@ void clearPCI(byte pin) {
 const int debounceTime = 1000;
 // ISR is a special Arduino Macro or routine that handles interrupts ISR(vector, attributes)
 // PCINT1_vect handles pin change interrupt for the pin block A0-A5, represented in bit0-bit5
+// The execution time of this function should be as fast as possible as
+// interrupts are disabled while inside it.
 ISR (PCINT1_vect) {
   unsigned long logMillis = millis();
   // Serial.println("LED Interrupt log Millis");
@@ -446,13 +460,23 @@ ISR (PCINT1_vect) {
   // Lane 1 is on pin A0 which uses the first bit of the register, idx 0, of PINC Byte
   if (!IsBitSet(PINC, 0)) {
     // if it's the first log, it's the intial cross of start line
-    if (r1LapCount == 0) {
+    // if (r1LapCount == 0) {
+    // Lanes are in standby before initial start or returning from Pause.
+    if (lane1State == StandBy) {
       lane1State = Active;
-      r1LastXMillis [ r1LapCount ] = logMillis;
-      r1LapStartMillis = logMillis;
+      // if race start
+      if(r1LapCount == 0) {
+        r1LastXMillis [ r1LapCount ] = logMillis;
+        r1LapStartMillis = logMillis;
+        // only index the lapcount if initial start, not on pause restart
+        r1LapCount++;
+      } else {
+        // If returning from Pause, we need to feed the new start time to the pevious lap index spot,
+        // and not index the current lapcount.
+        r1LastXMillis [(r1LapCount-1) % lapMillisQSize] = logMillis;
+      }
       // Serial.println("R1 Lap Count 0");
       // Serial.println(r1LapCount);
-      r1LapCount++;
       Beep();
     } else if ((logMillis - r1LastXMillis [(r1LapCount-1) % lapMillisQSize] ) > debounceTime){
       lane1LapFlash = 1;
@@ -496,20 +520,32 @@ ISR (PCINT1_vect) {
   // Puase button positive trigger PINC = 0xXXXXX0XX
   // Pause is on pin A2 which uses the 3rd bit of the register, idx 2, of PINC Byte
   if (!IsBitSet(PINC, 2)) {
+    // Because this is the paused state, it's not as important how long it takes to execute
     // If not within debounce time of previous trigger process
     if (logMillis - pauseDebounceMillis > debounceTime){
       pauseDebounceMillis = logMillis;
       switch(state){
         // if currently in a race, then put in Paused state
-        case Race:
+        case Race: {
           state = Paused;
           entryFlag = true;
+          // PrintText("PAUSED", led1Disp, 7, 8, true);
+          if (lane1EnableMask & lanesEnabled[lanesEnabledIdx][1] > 0) lane1State = StandBy;
+            else lane1State = Off;
+          if (lane2EnableMask & lanesEnabled[lanesEnabledIdx][1] > 0) lane2State = StandBy;
+            else lane2State = Off;
+        }
         break;
         // if already paused then return to race
-        case Paused:
+        case Paused: {
           state = Race;
           // make sure entry flag is turned back off before re-entering race state
           entryFlag = false;
+          r1CurLapTime = 0;
+          r2CurLapTime = 0;
+          r1LapStartMillis = logMillis;
+          r2LapStartMillis = logMillis;
+        }
         break;
         // otherwise ignore the button
         default:
@@ -521,11 +557,11 @@ ISR (PCINT1_vect) {
 
 // Function returns true if the bit at the, 'pos', postion of a byte is 1,
 // otherwise it returns false.
-// In a Byte, position is from right to left and starts with 0.
+// In a Byte, position is from right to left, the far right bit is considered bit 1 at idx0.
 // EX. If function parameters are pos = 3 and b = 0x11111000
-//     the integer 1 = 0x00000001, if we left shift 3 places we get 0x00001000
-//     thus 0x00001000 & (0x11111000) = 0x00001000
-// which is not zero, so this returns true, that bit of the input Byte is set.
+//     the integer 1 = 0x00000001, if we left shift pos=3 places we get 0x00001000
+//     thus 0x11111000 & (0x00001000) = 0x00001000
+// Which is not zero, so the ex returns true, the indicated bit of the input Byte is set.
 bool IsBitSet(byte b, byte pos) {
    return (b & (1 << pos)) != 0;
 }
@@ -535,10 +571,13 @@ void lcdUpdateMenu(const char *curMenu[]){
   // For each string in the menu array, print it to the screen
   // Clear screen first, in case new text doesn't cover all old text
   lcd.clear();
+  // Code for using menus in form of global variable, const char* arrays.
   // for (int i=0; i<4; i++){
   //   lcd.setCursor(0,i);
   //   lcd.print(curMenu[i]);
   // }
+
+  // Code for using menus built from strings saved in PROGMEM.
   for (int i=0; i<4; i++){
     strcpy_P(buffer, (char*)pgm_read_word(&(curMenu[i])));
     lcd.setCursor(0,i);
@@ -1149,10 +1188,12 @@ void loop(){
               entryFlag = false;
             }
             switch (key) {
-              case 'A': case 'B': case 'C': {
+              case 'A': case 'B': {
                 // if the lane is enabled in settings then set to truthy default, StandBy
-                // if (lane1Enabled & lanesEnabled[lanesEnabledIdx][1] > 0) lane1State = StandBy;
-                // if (lane2Enabled & lanesEnabled[lanesEnabledIdx][1] > 0) lane2State = StandBy;
+                if (lane1EnableMask & lanesEnabled[lanesEnabledIdx][1] > 0) lane1State = StandBy;
+                  else lane1State = Off;
+                if (lane2EnableMask & lanesEnabled[lanesEnabledIdx][1] > 0) lane2State = StandBy;
+                  else lane2State = Off;
                 if (key == 'A') {raceType = Standard; countingDown = false;}
                 else if (key == 'B') {raceType = Timed; countingDown = true;}
                 // else {raceType = Pole; countingDown = false;};
@@ -1285,8 +1326,8 @@ void loop(){
         entryFlag = false;
         // Write Live Race menu and racer names to displays
         lcd.clear();
-        lcd.setCursor(9,1);
-        lcd.print("Lap | Best");
+        lcd.setCursor(8,1);
+        lcd.print("Laps   Best");
         PrintText(Racers[racer1], lcdDisp, 7, 8, false, 2);
         lcd.print(":");
         lcd.setCursor(10, 2);
@@ -1303,8 +1344,8 @@ void loop(){
         PrintText(Start, led1Disp, 7, 8, false);
         PrintText(Start, led2Disp, 7, 8, false);
         // put any enabled lanes into an active state ready to log 
-        // if (lane1State) lane1State = Active;
-        // if (lane2State) lane2State = Active;
+        if (lane1EnableMask) lane1State = StandBy;
+        if (lane2EnableMask) lane2State = StandBy;
         // clear led of name text
         // lc.clearDisplay(led1Disp-1);
         // this act enables the racer to trigger first lap
@@ -1346,8 +1387,10 @@ void loop(){
           curRaceTime = curMillis - raceStartMillis;
         }
         // If lanestate is non-zero (ie active or standby) then update current lap time
-        if (lane1State) r1CurLapTime = curMillis - r1LapStartMillis;
-        if (lane2State) r2CurLapTime = curMillis - r2LapStartMillis;
+        if (lane1State == Active) r1CurLapTime = curMillis - r1LapStartMillis;
+          else r1CurLapTime = 0;
+        if (lane2State == Active) r2CurLapTime = curMillis - r2LapStartMillis;
+          else r2CurLapTime = 0;
         // if tick has passed, then update displays
         if (curMillis - lastTickMillis >  displayTick){
           // Serial.println("lane1state");
@@ -1392,7 +1435,7 @@ void loop(){
             }
           } else { // lane flash status = 0, or inactive
             // if the lane is in use then start displaying live lap time again
-            if (lane1State) {
+            if (lane1State == Active) {
               lc.clearDisplay(led1Disp - 1);
               PrintNumbers(r1LapCount, 3, 2, led1Disp);
               // if over 60 seconds use minutes format
