@@ -1,5 +1,5 @@
 {
-    "port": "COM13",
+    "port": "COM12",
     "board": "arduino:avr:nano",
     "programmer": "arduino:avrispmkii",
     "sketch": "SlotCarRaceController.ino",
