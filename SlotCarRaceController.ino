@@ -254,10 +254,10 @@ bool entryFlag = true;
 // there is not easy way to determine the number of elements,
 // so we use a constant to set the length.
 // This must be maintained manually to match Racers[] actual content below
-byte const racerCount = 7;
+byte const racerCount = 9;
 // For 7-seg displays there are no W's, M's, X's, K's, or V's
 const char* Racers[racerCount] = {
-  "Lucien", "ZOE", "Elise", "John", "Angie", "Uncle BadAss", "5318008"
+  "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020", "The OG", "5318008"
 };
 // byte nameCursorPos = 8;
 // sets screen cursor position names on the racer select menu
@@ -703,8 +703,9 @@ void DrawPreStartScreen(){
   lcd.setCursor(0,1);
   lcd.print("Your Race Starts in:");
   PrintClock(curRaceTime, PRESTART_CLK_POS, Sd, lcdDisp, 2);
-  if(lanes[1][1]) PrintText(Racers[racer1], led1Disp, 7, 8, false);
-  if(lanes[2][1]) PrintText(Racers[racer2], led2Disp, 7, 8, false);
+  // if lanes are not off, then update screen
+  if(lanes[1][1] > 0) PrintText(Racers[racer1], led1Disp, 7, 8, false);
+  if(lanes[2][1] > 0) PrintText(Racers[racer2], led2Disp, 7, 8, false);
 }
 
 
@@ -1320,15 +1321,6 @@ void loop(){
                   // we subtract 3 because there are two rows printed after tracked index
                   if (key == 'B' && resultsMenuIdx < arrayMax-2) resultsMenuIdx++;
                   UpdateResultsMenu();
-                  // Serial.println("result idx");
-                  // Serial.println(resultsMenuIdx);
-                  // Serial.println(key);
-                  // Serial.println("lap count r1");
-                  // Serial.println(r1LapCount);
-                  // Serial.println("lap count r2");
-                  // Serial.println(r2LapCount);
-                  // Serial.println("array max");
-                  // Serial.println(arrayMax);
                 }
               }
               break;
@@ -1661,7 +1653,6 @@ byte DetermineWinner() {
   }
   return first;
 }
-
 
 
 // Integer power function as pow() is only good with floats
