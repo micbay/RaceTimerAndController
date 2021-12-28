@@ -417,19 +417,17 @@ void InitializeTopFastest(){
 
 // This function sets the lane state set by the user menu
 void UpdateLaneState(byte enabledIndex) {
-  // Check all the physical lanes available established by the lanesAvailable
-  // the current index of the lanes array
-  // Using a logical & against the available lanes
-  // We start at 1 because the mask array skips the 1st index to match lane# and idx
+  // Check all the physical lanes available established by the lanes[].
+  // We start at 1 because the mask array skips the 1st index to match lane# with idx
   for (byte i = 1; i <= laneCount; i++){
-    // index 1 of lanesEnabledSetting is the byte mask representing the enabled lanes
-    // Index 0 of a lanes element is its byte mask, index 1 is its current enabled state. 
+    // Idx1 of lanesEnabledSetting is the byte mask representing the enabled lanes.
+    // Idx0 of a lanes[i] element is its byte mask, index 1 is its current enabled state. 
     if((lanes[i][0] & lanesEnabledSetting[enabledIndex][1]) > 0) lanes[i][1] = StandBy;
     else lanes[i][1] = Off;
-    Serial.println("Lane State");
-    Serial.println(lanes[i][0]);
-    Serial.println(lanes[i][1]);
-    Serial.println(lanesEnabledSetting[enabledIndex][1]);
+    // Serial.println("Lane State");
+    // Serial.println(lanes[i][0]);
+    // Serial.println(lanes[i][1]);
+    // Serial.println(lanesEnabledSetting[enabledIndex][1]);
   }
 }
 
@@ -439,29 +437,29 @@ void SetLanePins(bool EnableInterrupt){
   // if the enabled state is truthy (Standby or Active) then turn pin on
   // if the enabled state is 'Off' it will be 0 or falsey.
   // if to be enabled then turn interrupts on, else turn interrupts off
-  if(EnableInterrupt) {
-    pciSetup(lane1Pin);
-    pciSetup(lane2Pin);
-  }
-  if(!EnableInterrupt) {
-    clearPCI(lane1Pin);
-    clearPCI(lane2Pin);
-  }
+  // if(EnableInterrupt) {
+  //   pciSetup(lane1Pin);
+  //   pciSetup(lane2Pin);
+  // }
+  // if(!EnableInterrupt) {
+  //   clearPCI(lane1Pin);
+  //   clearPCI(lane2Pin);
+  // }
   // pciSetup(PIN_A2);
 
   for (byte i = 1; i <= laneCount; i++){
-  //   if(lanes[i][1] && EnableInterrupt) {
-  //     pciSetup(lanes[i][2]);
-  //     Serial.println("pin enabled");
-  //   }
-  //   else if(lanes[i][1] && !EnableInterrupt){
-  //     clearPCI(lanes[i][2]);
-  //     Serial.println("pin disabled");
-  //   }
-    Serial.println("Set i, State then Pin");
-    Serial.println(i);
-    Serial.println(lanes[i][1]);
-    Serial.println(lanes[i][2]);
+    if(lanes[i][1] && EnableInterrupt) {
+      pciSetup(lanes[i][2]);
+      // Serial.println("pin enabled");
+    }
+    else if(lanes[i][1] && !EnableInterrupt){
+      clearPCI(lanes[i][2]);
+      // Serial.println("pin disabled");
+    }
+    // Serial.println("Set i, State then Pin");
+    // Serial.println(i);
+    // Serial.println(lanes[i][1]);
+    // Serial.println(lanes[i][2]);
   }
 }
 
@@ -481,36 +479,36 @@ void pciSetup(byte pin) {
   *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));
   // Clear any outstanding interrupt
   PCIFR  |= bit (digitalPinToPCICRbit(pin));
-  // Enable interrupt for the group
+  // Enables the port for interrupts interrupt for the group
   PCICR  |= bit (digitalPinToPCICRbit(pin));
-  Serial.println("setPCI");
-  Serial.println(pin);
+  // Serial.println("setPCI");
+  // Serial.println(*digitalPinToPCMSK(pin), BIN);
+  // Serial.println(bit (digitalPinToPCMSKbit(pin)), BIN);
 }
 // Used to disable port register interrupt on given pin
 // when for periods we don't want to have lap sensor input.
 void clearPCI(byte pin) {
   // Clear any outstanding interrupt
   PCIFR  |= bit (digitalPinToPCICRbit(pin));
-  // Disable interrupts on pin
-  *digitalPinToPCMSK(pin) &= bit (digitalPinToPCMSKbit(pin));
-  PCICR  |= bit (digitalPinToPCICRbit(pin));
-  Serial.println("clearPCI");
-  Serial.println(pin);
+  // Disable interrupts on pin,
+  // using a logical & with the bitwise not (~) of the bitmask for the pin
+  *digitalPinToPCMSK(pin) &= ~bit (digitalPinToPCMSKbit(pin));
+  // Serial.println("clearPCI");
+  // Serial.println(*digitalPinToPCMSK(pin), BIN);
+  // Serial.println(bit (digitalPinToPCMSKbit(pin)), BIN);
+  // Serial.println("Not");
+  // Serial.println(~bit (digitalPinToPCMSKbit(pin)), BIN);
 }
 
 // debounceTime (ms), time within which not to accept additional signal input
 const int debounceTime = 1000;
+
 // ISR is a special Arduino Macro or routine that handles interrupts ISR(vector, attributes)
 // PCINT1_vect handles pin change interrupt for the pin block A0-A5, represented in bit0-bit5
 // The execution time of this function should be as fast as possible as
 // interrupts are disabled while inside it.
 ISR (PCINT1_vect) {
   unsigned long logMillis = millis();
-  // Serial.println("LED Interrupt log Millis");
-  // Serial.println(logMillis);
-  // Serial.println("PINC");
-  // Serial.println(PINC);
-
   // We have setup the lap triggers and Pause button as inputs.
   // This means the pins have been set to HIGH, indicated by a 1 on its register bit.
   // When a button is pressed, or sensor triggered, it should bring the pin LOW.
@@ -524,24 +522,22 @@ ISR (PCINT1_vect) {
     // Lanes are in standby before initial start or when returning from Pause.
     // The first trigger from standby should only set the lap start time
     if (lanes[1][1] == StandBy) {
-      lanes[1][1]  = Active;
-      // if race start
+      lanes[1][1] = Active;
+      // If the very first lap, then log and index
       if(r1LapCount == 0) {
         r1LastXMillis [ r1LapCount ] = logMillis;
         r1LapStartMillis = logMillis;
         // only index the lapcount if initial start, not on pause restart
         r1LapCount++;
       } else {
-        // If returning from Pause, we need to feed the new start time to the pevious lap index spot,
-        // and not index the current lapcount.
-        r1LastXMillis [(r1LapCount-1) % lapMillisQSize] = logMillis;
+        // If returning from Pause, we need to feed the new start time,
+        // into the pevious lap index spot, and not index the current lapcount.
+        r1LastXMillis [(r1LapCount - 1) % lapMillisQSize] = logMillis;
         r1LapStartMillis = logMillis;
       }
-      // Serial.println("R1 Lap Count 0");
-      // Serial.println(r1LapCount);
       Beep();
     } else if(lanes[1][1] == Active) {
-      // if lanes is active then chedk that current sense time is outside of any active debounce
+      // Check that current sense time is outside of active debounce period, otherwise ignore it.
       if((logMillis - r1LastXMillis [(r1LapCount-1) % lapMillisQSize] ) > debounceTime){
         lane1LapFlash = 1;
         r1LastXMillis [r1LapCount % lapMillisQSize] = logMillis;
@@ -553,32 +549,35 @@ ISR (PCINT1_vect) {
       }
     }
     // if not the first log or beyond debounce time then don't log the trigger
-    // Serial.println("R1 r1LastXMillis [0]");
-    // Serial.println(r1LastXMillis [0]); 
-    // Serial.println("R1 r1LastXMillis [1]"); 
-    // Serial.println(r1LastXMillis [1]); 
-    // Serial.println("A0");
-    // digitalWrite(ledPIN, HIGH);
   }
   // Lane 2 positive trigger PINC = 0xXXXXXX0X
   // Lane 2 is on pin A1 which uses the 2nd bit of the register, idx 1, of PINC Byte
   if (!IsBitSet(PINC, 1)) {
-    if (r2LapCount == 0) {
-      lane2State = Active;
-      r2LastXMillis [ r2LapCount ] = logMillis;
-      r2LapStartMillis = logMillis;
-      // Serial.println("R2 Lap Count 0");
-      // Serial.println(r2LapCount);
-      r2LapCount++;
+    if (lanes[2][1] == StandBy) {
+      lanes[2][1] = Active;
+      // If the very first lap, then log and index
+      if(r2LapCount == 0){
+        r2LastXMillis [ r2LapCount ] = logMillis;
+        r2LapStartMillis = logMillis;
+        // only index the lapcount if initial start, not on pause restart
+        r2LapCount++;
+      } else {
+        // If returning from Pause, we need to feed the new start time,
+        // into the pevious lap index spot, and not index the current lapcount.
+        r2LastXMillis [(r2LapCount - 1) % lapMillisQSize] = logMillis;
+        r2LapStartMillis = logMillis;
+      }
       Beep();
-    } else if ((logMillis - r2LastXMillis [(r2LapCount-1) % lapMillisQSize] ) > debounceTime){
-      lane2LapFlash = 1;
-      r2LastXMillis [r2LapCount % lapMillisQSize] = logMillis;
-      r2LapStartMillis = logMillis;
-      // Serial.println("R2 Lap Count 1++");
-      // Serial.println(r2LapCount);
-      r2LapCount++;
-      Beep();
+    } else if (lanes[2][1] == Active) {
+      if((logMillis - r2LastXMillis [(r2LapCount-1) % lapMillisQSize] ) > debounceTime){
+        lane2LapFlash = 1;
+        r2LastXMillis [r2LapCount % lapMillisQSize] = logMillis;
+        r2LapStartMillis = logMillis;
+        // Serial.println("R2 Lap Count 1++");
+        // Serial.println(r2LapCount);
+        r2LapCount++;
+        Beep();
+      }
     }
   } // END of PINC, 1 aka lane/racer2 pin detect
 
@@ -593,22 +592,13 @@ ISR (PCINT1_vect) {
       switch(state){
         // if currently in a race, then put in Paused state
         case Race: {
-          // Serial.println("Race State Pause entered");
-          // Serial.println(state);
           // immediately turn off the interrupts on the lap sensing pins
-          clearPCI(lane1Pin);
-          clearPCI(lane2Pin);
           state = Paused;
           entryFlag = true;
           // Turn off the lane interrupts
-          // SetLanePins(false);
-          // PrintText("PAUSED", led1Disp, 7, 8, true);
-          // the updating function sets any 'enabled' lane to StandBy and any 'disabled' lane to Off
+          SetLanePins(false);
+          // Reset lanes to the default Enabled laneState, 'StandBy'.
           UpdateLaneState(lanesEnabledIdx);
-          // if (lane1EnableMask & lanesEnabledSetting[lanesEnabledIdx][1] > 0) lane1State = StandBy;
-          //   else lane1State = Off;
-          // if (lane2EnableMask & lanesEnabledSetting[lanesEnabledIdx][1] > 0) lane2State = StandBy;
-          //   else lane2State = Off;
         }
         break;
         // if already paused then return to race
@@ -621,9 +611,9 @@ ISR (PCINT1_vect) {
           r1LapStartMillis = logMillis;
           r2LapStartMillis = logMillis;
           // Renable pins on active lanes
-          // SetLanePins(true);
-          pciSetup(lane1Pin);
-          pciSetup(lane2Pin);
+          SetLanePins(true);
+          // pciSetup(lane1Pin);
+          // pciSetup(lane2Pin);
         }
         break;
         // otherwise ignore the button
@@ -934,6 +924,14 @@ void PrintText(const char textToWrite[], const displays display, const byte writ
   } // END display switch
 }
 
+void DrawPreStartScreen(){
+  lcd.clear();
+  lcd.setCursor(0,1);
+  lcd.print("Your Race Starts in:");
+  PrintClock(curRaceTime, PRESTART_CLK_POS, Sd, lcdDisp, 2);
+  PrintText(Racers[racer1], led1Disp, 7, 8, false);
+  PrintText(Racers[racer2], led2Disp, 7, 8, false);
+}
 
 // This function compares the input race time with current fastest list.
 // If the new lap time is faster than any existing time, it takes its place,
@@ -1099,6 +1097,7 @@ void setup(){
   // Setup initial program variables
   currentMenu = MainMenu;
   entryFlag = true;
+  // Set lanes to whatever their default array parameters are
   UpdateLaneState(lanesEnabledIdx);
   
   // Serial.println(currentMenu);
@@ -1125,8 +1124,8 @@ void loop(){
         // but DON'T clear entry flag here, it is used at the menu level in the menu state.
         // This means these interrupts get disabled on every new menu, but keeps things simpler.
         if (entryFlag) {
-          // clearPCI(lane1Pin);
-          // clearPCI(lane2Pin);
+          SetLanePins(false);
+          clearPCI(pauseStopPin);
         }
         // All of the menus and sub-menus should been flattened to this single switch
         switch (currentMenu) {
@@ -1199,7 +1198,7 @@ void loop(){
                 lcdClearLine(1, 10);
                 lcd.setCursor(10, 1);
                 lcd.print(laneText[lanesEnabledSetting[lanesEnabledIdx][0]]);
-                // Only this menu selection should change the lanestate to or from an 'Off' state.
+                // Update lane parameters per new setting
                 UpdateLaneState(lanesEnabledIdx);
                 break;
               case '*':
@@ -1392,12 +1391,7 @@ void loop(){
         // preStartCountDown is in seconds so we convert to millis
         curRaceTime = preStartCountDown * 1000;
         lastTickMillis = curMillis;
-        lcd.clear();
-        lcd.setCursor(0,1);
-        lcd.print("Your Race Starts in:");
-        PrintClock(curRaceTime, PRESTART_CLK_POS, Sd, lcdDisp, 2);
-        PrintText(Racers[racer1], led1Disp, 7, 8, true);
-        PrintText(Racers[racer2], led2Disp, 7, 8, false);
+        DrawPreStartScreen();
         // reset any race variables to initial values
         ResetRace();
         entryFlag = false;
@@ -1425,18 +1419,18 @@ void loop(){
         lcd.setCursor(14, 3);
         lcd.print("00.000");
         // Indicate race start for each racer
-        PrintText(Start, led1Disp, 7, 8, false);
-        PrintText(Start, led2Disp, 7, 8, false);
+        PrintText(Start, led1Disp, 7, 8, true, 0, false);
+        PrintText(Start, led2Disp, 7, 8, true, 0, false);
         // put any enabled lanes into an active state ready to log 
         // if (lane1EnableMask) lane1State = StandBy;
         // if (lane2EnableMask) lane2State = StandBy;
         // clear led of name text
         // lc.clearDisplay(led1Disp-1);
         // this act enables the racer to trigger first lap
-        pciSetup(lane1Pin);
-        pciSetup(lane2Pin);
+        // pciSetup(lane1Pin);
+        // pciSetup(lane2Pin);
         // Turn on interrupts for enabled lane pins
-        // SetLanePins(true);
+        SetLanePins(true);
         // enable race pause button interrupt
         pciSetup(pauseStopPin);
       }
@@ -1462,6 +1456,10 @@ void loop(){
           ledCountdownTemp = 0;
           // reset entry flag to true so race timing variables can be initialized
           entryFlag = true;
+          // Clear LEDs because we don't clear before drawing start
+          // so the same function can be used to draw the restart after pause.
+          lc.clearDisplay(0);
+          lc.clearDisplay(1);
         }
       } else { // ********* LIVE RACE **********
         // Regardless of race type, we do these things
@@ -1475,7 +1473,7 @@ void loop(){
         // If lanestate is active then update current lap time
         if (lanes[1][1] == Active) r1CurLapTime = curMillis - r1LapStartMillis;
           else r1CurLapTime = 0;
-        if (lane2State == Active) r2CurLapTime = curMillis - r2LapStartMillis;
+        if (lanes[2][1] == Active) r2CurLapTime = curMillis - r2LapStartMillis;
           else r2CurLapTime = 0;
         // if tick has passed, then update displays
         if (curMillis - lastTickMillis >  displayTick){
@@ -1564,7 +1562,7 @@ void loop(){
             }
           } else { // lane flash status = 0, or inactive
             // if the lane is in use then start displaying live lap time again
-            if (lane2State) {
+            if (lanes[2][1] == Active) {
               lc.clearDisplay(led2Disp - 1);
               PrintNumbers(r2LapCount, 3, 2, led2Disp);
               // if over 60 seconds use minutes format
@@ -1589,8 +1587,7 @@ void loop(){
             // which will trigger the finish of a standard race
             if (r1LapCount > raceLaps || r2LapCount > raceLaps) {
               // turn off lap trigger interrupts to prevent any additional lap triggers
-              clearPCI(lane1Pin);
-              clearPCI(lane2Pin);
+              SetLanePins(false);
               DetermineWinner();
               state = Menu;
               currentMenu = ResultsMenu;
@@ -1603,8 +1600,7 @@ void loop(){
             // if time <= 0 then race is over and the most laps wins
             if (curRaceTime <= 0) {
               // turn off lap trigger interrupts to prevent any additional lap triggers
-              clearPCI(lane1Pin);
-              clearPCI(lane2Pin);
+              SetLanePins(false);
               DetermineWinner();
               state = Menu;
               currentMenu = ResultsMenu;
@@ -1625,6 +1621,10 @@ void loop(){
       break;
     } // END of Race state switch
     case Paused:{
+      if(entryFlag){
+        PrintText("PAUSE", led1Disp, 7, 5, true, 0, false);
+        PrintText("PAUSE", led2Disp, 7, 5, true, 0, false);
+      }
       // Serial.println("Entered Paused state");      
       char key = keypad.getKey();
       // only if a press is detected or it is the first loop of a new state
