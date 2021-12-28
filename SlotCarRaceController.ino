@@ -191,7 +191,7 @@ const char* laneText[laneCount + 1] = {"All", "1 Only", "2 Only"};
 byte lanesEnabledIdx = 0;
 // Array variable to hold lane state and property indexes
 // col0 is the idx of the text array for the display, col1 is its enabled bit flag value
-const byte lanesEnabledSetting[3][2] = {
+const byte lanesEnabled[3][2] = {
   {0, 3},  // All           0x11111111
   {1, 1},  // Lane 1 Only   0x00000001
   {2, 2}   // Land 2 Only   0x00000010
@@ -715,9 +715,9 @@ void UpdateLaneState(byte enabledIndex, bool updateDisplay = false) {
   // Check all the physical lanes available established by the lanes[].
   // We start at 1 because the mask array skips the 1st index to match lane# with idx
   for (byte i = 1; i <= laneCount; i++){
-    // Idx1 of lanesEnabledSetting is the byte mask representing the enabled lanes.
+    // Idx1 of lanesEnabled is the byte mask representing the enabled lanes.
     // Idx0 of a lanes[i] element is its byte mask, index 1 is its current enabled state. 
-    if((lanes[i][0] & lanesEnabledSetting[enabledIndex][1]) > 0) lanes[i][1] = StandBy;
+    if((lanes[i][0] & lanesEnabled[enabledIndex][1]) > 0) lanes[i][1] = StandBy;
     else lanes[i][1] = Off;
     if (updateDisplay){
       if (i == 1){
@@ -730,7 +730,7 @@ void UpdateLaneState(byte enabledIndex, bool updateDisplay = false) {
     // Serial.println("Lane State");
     // Serial.println(lanes[i][0]);
     // Serial.println(lanes[i][1]);
-    // Serial.println(lanesEnabledSetting[enabledIndex][1]);
+    // Serial.println(lanesEnabled[enabledIndex][1]);
   }
 }
 
@@ -1165,7 +1165,7 @@ void loop(){
               PrintNumbers(raceLaps, 3, 12, lcdDisp, true, 2);
               //draw current lane settings
               lcd.setCursor(10, 1);
-              lcd.print(laneText[ lanesEnabledSetting [ lanesEnabledIdx ][0]]);
+              lcd.print(laneText[ lanesEnabled [ lanesEnabledIdx ][0]]);
               entryFlag = false;
             }
             switch (key) {
@@ -1188,8 +1188,8 @@ void loop(){
               case 'D':
                 // cycles through active lane options
                 // The lanes enabled array holds the bit mask of enabled pins in col idx 1
-                lanesEnabledIdx = (lanesEnabledIdx + 1) % ((sizeof lanesEnabledSetting/sizeof lanesEnabledSetting[0]));
-                PrintText(laneText[lanesEnabledSetting[lanesEnabledIdx][0]], lcdDisp, 19, 10, false, 1);
+                lanesEnabledIdx = (lanesEnabledIdx + 1) % ((sizeof lanesEnabled/sizeof lanesEnabled[0]));
+                PrintText(laneText[lanesEnabled[lanesEnabledIdx][0]], lcdDisp, 19, 10, false, 1);
                 // Update lane parameters per new setting
                 UpdateLaneState(lanesEnabledIdx, true);
                 break;
@@ -1612,16 +1612,17 @@ void loop(){
 
 } // END of MAIN LOOP
 
-// returns racer index of winner
+// Returns racer index of winner.
+// This function assumes only 2 racers, needs to be reworked if more racers added.
 byte DetermineWinner() {
   byte first = 255;
   byte second = 255;
-  // adjust final lap count by 1 because current, unfinished, lap is not to be included
-  // this ternary operator notatation states that if lapCount is 0 already,
-  // then just leave is zero, otherwise subtract 1
-  // we do this because '##LapCount' is used as an index so we need to protect against negatives
-  r1LapCount = r1LapCount == 0 ? r1LapCount : r1LapCount - 1;
-  r2LapCount = r2LapCount == 0 ? r2LapCount : r2LapCount - 1;
+  // Adjust final lap count by 1 because current, unfinished, lap is not to be included.
+  // This conditional ternary operator notatation states that if lapCount is 0 already,
+  // then leave it zero, otherwise subtract 1.
+  // Because '##LapCount' is used as an index we need to protect against negatives.
+  r1LapCount = r1LapCount == 0 ? 0 : r1LapCount - 1;
+  r2LapCount = r2LapCount == 0 ? 0 : r2LapCount - 1;
   // Serial.println("racer1 laps final");
   // Serial.println(r1LapCount);
   // Serial.println("racer2 laps final");
@@ -1640,16 +1641,20 @@ byte DetermineWinner() {
     second = 254;
   }
   if (first == 254 && second == 254) {
-    PrintText("A TIE", led1Disp, 7, 8, true);
-    PrintText("A TIE", led2Disp, 7, 8, true);
+    if(lanes[1][1]) PrintText("A TIE", led1Disp, 7, 8, true);
+    if(lanes[2][1]) PrintText("A TIE", led2Disp, 7, 8, true);
   } else if (first == 255) {
-    PrintText("ERROR", led1Disp, 7, 8);
-    PrintText("ERROR", led2Disp, 7, 8);
+    // If first is never changed from default 255 then somehow an error occurred.
+    if(lanes[1][1]) PrintText("ERROR", led1Disp, 7, 8);
+    if(lanes[2][1]) PrintText("ERROR", led2Disp, 7, 8);
   } else {
     PrintText("1st", first == racer1 ? led1Disp:led2Disp, 2, 3, false);
     PrintText(Racers[first], first == racer1 ? led1Disp:led2Disp, 7, 4, true, 0, false);
-    PrintText("2nd", second == racer1 ? led1Disp:led2Disp, 2, 3, false);
-    PrintText(Racers[second], second == racer1 ? led1Disp:led2Disp, 7, 4, true, 0, false);
+    // Only if 'All' lanes are enabled, aka =3, aka 0x00000011, is there a 2nd place.
+    if(lanesEnabled[lanesEnabledIdx][1] == 3) {
+      PrintText("2nd", second == racer1 ? led1Disp:led2Disp, 2, 3, false);
+      PrintText(Racers[second], second == racer1 ? led1Disp:led2Disp, 7, 4, true, 0, false);
+    }
   }
   return first;
 }
