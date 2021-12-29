@@ -1,3 +1,7 @@
+#include <pitches.h>
+// library for playing RTTTL song types
+// #include <PlayRtttl.h>
+
 // Wire library is for I2C communication
 #include <Wire.h>
 // LCD driver libraries
@@ -10,7 +14,8 @@
 // // library of sounds
 // #include "pitches.h"   // this file is include by the melodies.h file
 // #include "melodies.h"
-#include "melodies_prog.h"
+// #include "melodies_prog.h"
+#include "RTTTL_songs.h"
 // library to use program memory for constants
 #include <avr/pgmspace.h>
 
@@ -1149,12 +1154,15 @@ void setup(){
   // playingNotes = marioMainThemeNotes;
   // playingTempo = marioMainThemeTempo;
   // songLength = marioMainThemeLength;
-  playingNotes = takeOnMeNotes;
-  playingTempo = takeOnMeTempo;
-  songLength = takeOnMeLength;
+  // playingNotes = takeOnMeNotes;
+  // playingTempo = takeOnMeTempo;
+  // songLength = takeOnMeLength;
   // playingNotes = knightRiderNotes;
   // playingTempo = knightRiderTempo;
   // songLength = knightRiderLength;
+  
+  // playRtttlBlocking(buzzPin1, StarWarsInRam);
+  // startPlayRtttlPGM(buzzPin1, starWarsEnd);
 }
 
 void loop(){
@@ -1164,8 +1172,9 @@ void loop(){
   // Serial.println(r2LapCount);
   if(melodyPlaying){
     if(millis() - lastNoteMillis >= noteDelay){
-      noteDelay = PlayNote(playingNotes, playingTempo, melodyIndex);
+      // noteDelay = PlayNote(playingNotes, playingTempo, melodyIndex, true);
       // noteDelay = PlayNote();
+      // updatePlayRtttl();
     }
   }
   switch (state) {

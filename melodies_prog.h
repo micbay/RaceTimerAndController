@@ -260,3 +260,4 @@ const int knightRiderTempo[] PROGMEM = {
 };
 
 const int knightRiderLength = sizeof(knightRiderNotes)/sizeof(int);
+

@@ -18,6 +18,7 @@
             "includePath": [
                 "C:\\Users\\mbayc\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.4\\cores\\arduino",
                 "C:\\Users\\mbayc\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.4\\variants\\eightanaloginputs",
+                "C:\\Users\\mbayc\\Documents\\Arduino\\libraries\\PlayRtttl\\src",
                 "C:\\Users\\mbayc\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.4\\libraries\\Wire\\src",
                 "C:\\Users\\mbayc\\Documents\\Arduino\\libraries\\hd44780",
                 "C:\\Users\\mbayc\\Documents\\Arduino\\libraries\\Keypad\\src",
