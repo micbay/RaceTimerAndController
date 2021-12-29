@@ -2,3 +2,4 @@
 # ignore the arduino build directory which is for caching previous compiles to save compile time
 build/*
 .vscode/*
+ScrapFolder/*

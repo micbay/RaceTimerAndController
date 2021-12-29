@@ -7,20 +7,14 @@
 #include <Keypad.h>
 // library for 7-seg LED Bars
 #include <LedControl.h>
-// library of sounds
-#include "pitches.h"
+// // library of sounds
+// #include "pitches.h"   // this file is include by the melodies.h file
+#include "melodies.h"
 // library to use program memory for constants
 #include <avr/pgmspace.h>
 
 // ********* AUDIO HARDWARE *********
-const byte buzzPin = A3;
-
-int melody[] = {
-  NOTE_C4, NOTE_G3,NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
-};
-int noteDurations[] = {
-  4, 8, 8, 4, 4, 4, 4, 4
-};
+const byte buzzPin1 = A3;
 
 
 //***** Setting Up Lap Triggers and Pause-Stop button *********
@@ -241,12 +235,12 @@ enum Menus {
     SelectRaceMenu,
     ResultsMenu
 };
-// create variale to hold current game 'state' and menu state
-states state = Menu;
+// Create variale to hold current game 'state' and menu page.
+states state;
 Menus currentMenu;
 // This flag is used to indicate first entry into a state or menu so
 // that the state can do one time only prep for its first loop.
-bool entryFlag = true;
+bool entryFlag;
 
 //****** Menu String Arrays **********
 // Racer list
@@ -377,7 +371,7 @@ unsigned long ClockToMillis(const byte ulHour, const byte ulMin, const byte ulSe
 
 
 void Beep() {
-  tone(buzzPin, 4000, 200);
+  tone(buzzPin1, 4000, 200);
 }
 
 // Used to set fastest lap array to high numbers that will be replaced on comparison.
@@ -975,7 +969,8 @@ void CompileTopFastest(){
   }
 }
 
-void UpdateResults(unsigned long fastestTimes[], unsigned int fastestLaps[][2], int lapCount) {
+// Prints given results array to lcd display
+void lcdPrintResults(unsigned long fastestTimes[], unsigned int fastestLaps[][2], int lapCount) {
   for (byte i = 0; i < 3; i++){
     // ignore if lap = 0 which means it's a dummy lap or if index greater than lap count
     if (fastestLaps[resultsMenuIdx + i][0] > 0 && i < lapCount) {
@@ -1008,19 +1003,19 @@ void UpdateResultsMenu() {
     case TopResults: {
       lcd.clear();
       PrintText("C | TOP RESULTS", lcdDisp, 14, 15, false, 0);
-      UpdateResults(topFastestTimes, topFastestLaps, r1LapCount + r2LapCount);
+      lcdPrintResults(topFastestTimes, topFastestLaps, r1LapCount + r2LapCount);
     }
     break;
     case Racer1Results: {
       lcd.clear();
       PrintText("C | RACER 1 RESULTS", lcdDisp, 18, 19, false, 0);
-      UpdateResults(r1FastestTimes, r1FastestLaps, r1LapCount);
+      lcdPrintResults(r1FastestTimes, r1FastestLaps, r1LapCount);
     }
     break;
     case Racer2Results: {
       lcd.clear();
       PrintText("C | RACER 2 RESULTS", lcdDisp, 18, 19, false, 0);
-      UpdateResults(r2FastestTimes, r2FastestLaps, r2LapCount);
+      lcdPrintResults(r2FastestTimes, r2FastestLaps, r2LapCount);
     }
     break;
   }
@@ -1034,32 +1029,112 @@ void ResetRace(){
   lane2LapFlash = 0;
   UpdateLaneState(lanesEnabledIdx);
   InitializeRacerArrays();
-  // InitializeTopFastest();
 }
 
+int *playingNotes;
+int *playingTempo;
 
 bool melodyPlaying = false;
 // Holds the time of last tone played so timing of next note in melody can be determined
-unsigned long lastNoteMillis;
+unsigned long lastNoteMillis = 0;
+int melodyIndex = 0;
+// time in ms between beginning of last note and when next note should be played.
+int noteDelay = 0;
+int songLength;
+
+// int PlayNote(int *songNotes, int *songTempo, int curNoteIdx){
+//   digitalWrite(13, HIGH);
+//   // Serial.println("Playing Note:");
+//   // Serial.println("songNote");
+//   // Serial.println(songNotes[curNoteIdx]);
+//   // Serial.println(*songNotes);
+//   // Serial.println("song Tempo:");
+//   // Serial.println(songTempo[curNoteIdx]);
+//   // To calculate note duration, take 1Sec/noteTempo.
+//   // ex. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+//   int noteDuration = 1000 / songTempo[curNoteIdx];
+//   // mark time this note began
+//   lastNoteMillis = millis();
+//   tone(buzzPin1, songNotes[curNoteIdx], noteDuration);
+//   melodyIndex++;
+//   // If this is the last note, then stop tones and reset melody flags and index.
+//   Serial.println(songLength);
+//   if(curNoteIdx == songLength - 1){
+//     melodyPlaying = false;
+//     // tone(buzzPin1, 0, noteDuration);
+//     noTone(buzzPin1);
+//     // Beep();
+//     melodyIndex = 0;
+//     noteDelay = 0;
+//     songLength = 0;
+//   }
+//   digitalWrite(13, LOW);
+//   // to distinguish the notes, set a minimum time between them.
+//   // the note's duration + 30% seems to work well:
+//   return noteDuration * 1.30;
+// }
+
+int PlayNote(){
+  digitalWrite(13, HIGH);
+  // Serial.println("Playing Note:");
+  // Serial.println("songNote");
+  // Serial.println(songNotes[curNoteIdx]);
+  // Serial.println(*songNotes);
+  // Serial.println("song Tempo:");
+  // Serial.println(songTempo[curNoteIdx]);
+  // To calculate note duration, take 1Sec/noteTempo.
+  // ex. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+  int noteDuration = 1000 / *(playingTempo + melodyIndex);
+  // mark time this note began
+  lastNoteMillis = millis();
+  tone(buzzPin1, *(playingNotes + melodyIndex), noteDuration);
+  melodyIndex++;
+  // If this is the last note, then stop tones and reset melody flags and index.
+  Serial.println(songLength);
+  if(melodyIndex == songLength - 1){
+    melodyPlaying = false;
+    // tone(buzzPin1, 0, noteDuration);
+    noTone(buzzPin1);
+    // Beep();
+    melodyIndex = 0;
+    noteDelay = 0;
+    songLength = 0;
+  }
+  digitalWrite(13, LOW);
+  // to distinguish the notes, set a minimum time between them.
+  // the note's duration + 30% seems to work well:
+  return noteDuration * 1.30;
+}
+
+
+// This function provide mechanism for selecting different songs.
+void PlaySong(){
+
+}
+
 
 // *********************************************
-// ********** SETUP ****************************
+// ***************** SETUP *********************
 // Initialize hardware and establish software initial state
 void setup(){
-  // open connection on serial port
+  // --- SETUP SERIAL ------------------------
+  // NOTE: Serial port is only used in debugging at the moment.
+  // The hile loop waits for the serial connection to be established
+  // before moving on so we don't miss anything. If the Arduion seems to
+  // 'hang', this may be the culprit if there is a connection issue.
+  // Open port and wait for connection before proceeding.
   Serial.begin(9600);
   while(!Serial);
-  // SETUP LCD DIPSLAY
+  // --- SETUP LCD DIPSLAY -----------------------------
 	// initialize LCD with begin() which will return
   // a non-zero error code int if it fails, or zero on success 
 	// the actual status codes are defined in <hd44780.h>
 	int status = lcd.begin(LCD_COLS, LCD_ROWS);
-  // if display initialization fails, trigger onboard error LED if exists
+  // If display initialization fails, trigger onboard error LED if exists.
 	if(status) hd44780::fatalError(status);
-  // clear the display of any existing content
+  // Clear the display of any existing content
   lcd.clear();
-
-  // SETUP LED 7-SEG, 8-DIGIT MAX7219 LED BARS
+  // --- SETUP LED 7-SEG, 8-DIGIT MAX7219 LED BARS ------
   //we have already set the number of devices when we created the LedControl
   int devices = lc.getDeviceCount();
   //we have to init all devices in a loop
@@ -1068,11 +1143,10 @@ void setup(){
     lc.shutdown(deviceID, false);
     // This sets the brightness, but doesn't work with this LCD, use pot on back
     // lc.setIntensity(deviceID, 12);
-    /* and clear the display */
+    // Finally, clear the display
     lc.clearDisplay(deviceID);
   }
-
-  // SETUP LAP TRIGGERS AND BUTTONS
+  // --- SETUP LAP TRIGGERS AND BUTTONS ----------------
   // roughly equivalent to digitalWrite(lane1Pin, HIGH)
   pinMode(lane1Pin, INPUT_PULLUP);
   pinMode(lane2Pin, INPUT_PULLUP);
@@ -1080,29 +1154,43 @@ void setup(){
   // Setup an indicator LED
   pinMode(ledPIN, OUTPUT); 
   digitalWrite(ledPIN, ledState);
-
-  // make sure all race variables are in initial condition
+  // Reset all race variables to initial condition.
   ResetRace();
-
-  // Initialize racetime millisecond to default raceSetTime
+  // Initialize racetime millisecond to default raceSetTime.
   raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
-  // Setup initial program variables
+  // Set initial state to Menu and initial menu to MainMenu, turn initial entry flag on.
+  state = Menu;
   currentMenu = MainMenu;
   entryFlag = true;
-  // Set lanes to whatever their default array parameters are
+  // Set lanes to their default parameters stored in the array, lanes[].
+  // This will set any enabled lanes to 'StandBy' state, and any disabled lanes to 'Off'
   UpdateLaneState(lanesEnabledIdx);
+  // Update LEDs with the active default racer names.
   PrintText(Racers[racer1], led1Disp, 7, 8);
   PrintText(Racers[racer2], led2Disp, 7, 8);
-  
   // Serial.println(currentMenu);
+  melodyPlaying = true;
+  // playingNotes = &marioMainThemeNotes[0];
+  // playingTempo = &marioMainThemeTempo[0];
+  // playingNotes = marioMainThemeNotes;
+  // playingTempo = marioMainThemeTempo;
+  // songLength = marioMainThemeLength;
+  playingNotes = takeOnMeNotes;
+  playingTempo = takeOnMeTempo;
+  songLength = takeOnMeLength;
 }
-
 
 void loop(){
   // Serial.println("MAIN LOOP START");
   // Serial.println(state);
   // Serial.println("R2Lap count MAIN");
   // Serial.println(r2LapCount);
+  if(melodyPlaying){
+    if(millis() - lastNoteMillis >= noteDelay){
+      // noteDelay = PlayNote(playingNotes, playingTempo, melodyIndex);
+      noteDelay = PlayNote();
+    }
+  }
   switch (state) {
     // Serial.println("Entered Stat Switch");
     // In the 'Menu' state the program is focused on looking for keypad input
@@ -1125,7 +1213,7 @@ void loop(){
         switch (currentMenu) {
           // The 'MainMenu' is the default and top level menu in the menu tree.
           // Within each menu case is another switch for each available key input.
-          case MainMenu:
+          case MainMenu:{
             if (entryFlag) {
               lcdUpdateMenu(MainText);
               entryFlag = false;
@@ -1150,10 +1238,11 @@ void loop(){
                 entryFlag = true;
               default:
                 break;
-            }
+            } // END key switch
             break;
+          } // END MainMenu case
 
-          case SettingsMenu:
+          case SettingsMenu: {
             if (entryFlag) {
               //draw non-editable text
               lcdUpdateMenu(SettingsText);
@@ -1169,39 +1258,45 @@ void loop(){
               entryFlag = false;
             }
             switch (key) {
-              case 'A':
+              case 'A':{
                 // change lap count
                 raceLaps = lcdEnterNumber(3, 999, 2, 10);
-                break;
-              case 'B':
+              }
+              break;
+              case 'B':{
                 // Change minutes
                 raceSetTime[1] = lcdEnterNumber(2, 60, 3, 10);
                 // update the race time in ms
                 raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
-                break;
-              case 'C':
+              }
+              break;
+              case 'C':{
                 // change seconds
                 raceSetTime[0] = lcdEnterNumber(2, 59, 3, 13);
                 // update the race time in ms
                 raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
-                break;
-              case 'D':
+              }
+              break;
+              case 'D':{
                 // cycles through active lane options
                 // The lanes enabled array holds the bit mask of enabled pins in col idx 1
                 lanesEnabledIdx = (lanesEnabledIdx + 1) % ((sizeof lanesEnabled/sizeof lanesEnabled[0]));
                 PrintText(laneText[lanesEnabled[lanesEnabledIdx][0]], lcdDisp, 19, 10, false, 1);
                 // Update lane parameters per new setting
                 UpdateLaneState(lanesEnabledIdx, true);
-                break;
-              case '*':
+              }
+              break;
+              case '*':{
                 // return to main menu
                 currentMenu = MainMenu;
                 entryFlag = true;
-                break;
+              }
+              break;
               default:
-                break;
-            }
+              break;
+            } // END key switch
             break;
+          } // END Settings Menu case
 
           case SelectRacersMenu: {
             if (entryFlag) {
@@ -1289,7 +1384,7 @@ void loop(){
             break;
           } // END of SelectRace Menu Case
 
-          case ResultsMenu:{
+          case ResultsMenu: {
             if (entryFlag) {
               lcd.clear();
               if(raceDataExists){
