@@ -9,7 +9,8 @@
 #include <LedControl.h>
 // // library of sounds
 // #include "pitches.h"   // this file is include by the melodies.h file
-#include "melodies.h"
+// #include "melodies.h"
+#include "melodies_prog.h"
 // library to use program memory for constants
 #include <avr/pgmspace.h>
 
@@ -1042,39 +1043,7 @@ int melodyIndex = 0;
 int noteDelay = 0;
 int songLength;
 
-// int PlayNote(int *songNotes, int *songTempo, int curNoteIdx){
-//   digitalWrite(13, HIGH);
-//   // Serial.println("Playing Note:");
-//   // Serial.println("songNote");
-//   // Serial.println(songNotes[curNoteIdx]);
-//   // Serial.println(*songNotes);
-//   // Serial.println("song Tempo:");
-//   // Serial.println(songTempo[curNoteIdx]);
-//   // To calculate note duration, take 1Sec/noteTempo.
-//   // ex. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-//   int noteDuration = 1000 / songTempo[curNoteIdx];
-//   // mark time this note began
-//   lastNoteMillis = millis();
-//   tone(buzzPin1, songNotes[curNoteIdx], noteDuration);
-//   melodyIndex++;
-//   // If this is the last note, then stop tones and reset melody flags and index.
-//   Serial.println(songLength);
-//   if(curNoteIdx == songLength - 1){
-//     melodyPlaying = false;
-//     // tone(buzzPin1, 0, noteDuration);
-//     noTone(buzzPin1);
-//     // Beep();
-//     melodyIndex = 0;
-//     noteDelay = 0;
-//     songLength = 0;
-//   }
-//   digitalWrite(13, LOW);
-//   // to distinguish the notes, set a minimum time between them.
-//   // the note's duration + 30% seems to work well:
-//   return noteDuration * 1.30;
-// }
-
-int PlayNote(){
+int PlayNote(int *songNotes, int *songTempo, int curNoteIdx, bool durationRaw = false){
   digitalWrite(13, HIGH);
   // Serial.println("Playing Note:");
   // Serial.println("songNote");
@@ -1084,14 +1053,20 @@ int PlayNote(){
   // Serial.println(songTempo[curNoteIdx]);
   // To calculate note duration, take 1Sec/noteTempo.
   // ex. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-  int noteDuration = 1000 / *(playingTempo + melodyIndex);
+  int noteDuration;
+  // if song tempo has duration in ms use as is, else if inverse notes convert.
+  if(durationRaw){
+    noteDuration = pgm_read_word(&songTempo[curNoteIdx]);
+  } else {
+    noteDuration = 1000 / pgm_read_word(&songTempo[curNoteIdx]);
+  }
   // mark time this note began
   lastNoteMillis = millis();
-  tone(buzzPin1, *(playingNotes + melodyIndex), noteDuration);
+  tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), noteDuration);
   melodyIndex++;
   // If this is the last note, then stop tones and reset melody flags and index.
   Serial.println(songLength);
-  if(melodyIndex == songLength - 1){
+  if(curNoteIdx == songLength - 1){
     melodyPlaying = false;
     // tone(buzzPin1, 0, noteDuration);
     noTone(buzzPin1);
@@ -1170,14 +1145,16 @@ void setup(){
   PrintText(Racers[racer2], led2Disp, 7, 8);
   // Serial.println(currentMenu);
   melodyPlaying = true;
-  // playingNotes = &marioMainThemeNotes[0];
-  // playingTempo = &marioMainThemeTempo[0];
+
   // playingNotes = marioMainThemeNotes;
   // playingTempo = marioMainThemeTempo;
   // songLength = marioMainThemeLength;
   playingNotes = takeOnMeNotes;
   playingTempo = takeOnMeTempo;
   songLength = takeOnMeLength;
+  // playingNotes = knightRiderNotes;
+  // playingTempo = knightRiderTempo;
+  // songLength = knightRiderLength;
 }
 
 void loop(){
@@ -1187,8 +1164,8 @@ void loop(){
   // Serial.println(r2LapCount);
   if(melodyPlaying){
     if(millis() - lastNoteMillis >= noteDelay){
-      // noteDelay = PlayNote(playingNotes, playingTempo, melodyIndex);
-      noteDelay = PlayNote();
+      noteDelay = PlayNote(playingNotes, playingTempo, melodyIndex);
+      // noteDelay = PlayNote();
     }
   }
   switch (state) {
