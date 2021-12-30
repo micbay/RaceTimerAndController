@@ -1,3 +1,5 @@
+// File of songs defined using pitch notes and tempo arrays
+// This is an alternative method to using Rttl style songs and players.
 
 #include "pitches.h"
 // this files holds the tempo's and melodies of music to be played,

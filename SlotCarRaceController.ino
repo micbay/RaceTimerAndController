@@ -1,6 +1,8 @@
-#include <pitches.h>
+
 // library for playing RTTTL song types
-// #include <PlayRtttl.h>
+#include <PlayRtttl.h>
+// file of RTTTL song definition strings
+#include "RTTTL_songs.h"
 
 // Wire library is for I2C communication
 #include <Wire.h>
@@ -12,10 +14,9 @@
 // library for 7-seg LED Bars
 #include <LedControl.h>
 // // library of sounds
-// #include "pitches.h"   // this file is include by the melodies.h file
+// #include <pitches.h>  // this file is include by the melodies.h file
 // #include "melodies.h"
 // #include "melodies_prog.h"
-#include "RTTTL_songs.h"
 // library to use program memory for constants
 #include <avr/pgmspace.h>
 
@@ -258,6 +259,9 @@ byte const racerCount = 9;
 // For 7-seg displays there are no W's, M's, X's, K's, or V's
 const char* Racers[racerCount] = {
   "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020", "The OG", "5318008"
+};
+const char* victorySong[racerCount] = {
+  starWarsImperialMarch, TakeOnMe, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter
 };
 // byte nameCursorPos = 8;
 // sets screen cursor position names on the racer select menu
@@ -1050,12 +1054,6 @@ int songLength;
 
 int PlayNote(int *songNotes, int *songTempo, int curNoteIdx, bool durationRaw = false){
   digitalWrite(13, HIGH);
-  // Serial.println("Playing Note:");
-  // Serial.println("songNote");
-  // Serial.println(songNotes[curNoteIdx]);
-  // Serial.println(*songNotes);
-  // Serial.println("song Tempo:");
-  // Serial.println(songTempo[curNoteIdx]);
   // To calculate note duration, take 1Sec/noteTempo.
   // ex. quarter note = 1000 / 4, eighth note = 1000/8, etc.
   int noteDuration;
@@ -1151,9 +1149,6 @@ void setup(){
   // Serial.println(currentMenu);
   melodyPlaying = true;
 
-  // playingNotes = marioMainThemeNotes;
-  // playingTempo = marioMainThemeTempo;
-  // songLength = marioMainThemeLength;
   // playingNotes = takeOnMeNotes;
   // playingTempo = takeOnMeTempo;
   // songLength = takeOnMeLength;
@@ -1161,8 +1156,9 @@ void setup(){
   // playingTempo = knightRiderTempo;
   // songLength = knightRiderLength;
   
-  // playRtttlBlocking(buzzPin1, StarWarsInRam);
-  // startPlayRtttlPGM(buzzPin1, starWarsEnd);
+  // Initiates a non-blocking play of melody using 'PlayRtttl' library
+  // startPlayRtttlPGM(buzzPin1, spyHunter);
+  startPlayRtttlPGM(buzzPin1, takeOnMe1);
 }
 
 void loop(){
@@ -1173,9 +1169,10 @@ void loop(){
   if(melodyPlaying){
     if(millis() - lastNoteMillis >= noteDelay){
       // noteDelay = PlayNote(playingNotes, playingTempo, melodyIndex, true);
-      // noteDelay = PlayNote();
-      // updatePlayRtttl();
+      updatePlayRtttl();
     }
+  } else {
+    noTone(buzzPin1);
   }
   switch (state) {
     // Serial.println("Entered Stat Switch");
@@ -1461,25 +1458,24 @@ void loop(){
         entryFlag = false;
         // Write Live Race menu and racer names to displays
         lcd.clear();
+        lcd.setCursor(8,1);
+        lcd.print("Laps   Best");
         if(lanes[1][1] > 0){
-          lcd.setCursor(8,1);
-          lcd.print("Laps   Best");
+          // Print racer's name to LCD
           PrintText(Racers[racer1], lcdDisp, 7, 8, false, 2);
-          lcd.print(":");
-          lcd.setCursor(10, 2);
-          lcd.print("0");
-          lcd.setCursor(14, 2);
-          lcd.print("00.000");
-          // Indicate race start for each racer
+          // update racer's current lap total on LCD
+          PrintNumbers(r1LapCount == 0 ? 0 : r1LapCount - 1, 3, 11, lcdDisp, true, 2);
+          // update racer's current best lap time to LCD
+          if(r1LapCount > 0) PrintClock(r1FastestTimes[0], 19, Sm, lcdDisp, 2);
           PrintText(Start, led1Disp, 7, 8, true, 0, false);
         }
         if(lanes[2][1] > 0){
+          // Print racer's name to LCD
           PrintText(Racers[racer2], lcdDisp, 7, 8, false, 3);
-          lcd.print(":");
-          lcd.setCursor(10, 3);
-          lcd.print("0");
-          lcd.setCursor(14, 3);
-          lcd.print("00.000");
+          // update racer's current lap total on lcd (0 if start, current if restart)
+          PrintNumbers(r2LapCount == 0 ? 0 : r2LapCount - 1, 3, 11, lcdDisp, true, 3);
+          // update racer's current best lap time to lcd
+          if(r2LapCount > 0) PrintClock(r2FastestTimes[0], 19, Sm, lcdDisp, 3);
           PrintText(Start, led2Disp, 7, 8, true, 0, false);
         }
         // this act enables the racer to trigger first lap
@@ -1737,6 +1733,8 @@ byte DetermineWinner() {
       PrintText(Racers[second], second == racer1 ? led1Disp:led2Disp, 7, 4, true, 0, false);
     }
   }
+  // Play theme song from winner's victorySong[] index
+  startPlayRtttlPGM(buzzPin1, victorySong[first]);
   return first;
 }
 
