@@ -1041,54 +1041,50 @@ void ResetRace(){
   InitializeRacerArrays();
 }
 
-int *playingNotes;
-int *playingTempo;
 
-bool melodyPlaying = false;
-// Holds the time of last tone played so timing of next note in melody can be determined
-unsigned long lastNoteMillis = 0;
-int melodyIndex = 0;
-// time in ms between beginning of last note and when next note should be played.
-int noteDelay = 0;
-int songLength;
+////////////////////////////////////////
+// *** This section for using Note and Tempo arrays for songs
+// int *playingNotes;
+// int *playingTempo;
+// bool melodyPlaying = false;
+// // Holds the time of last tone played so timing of next note in melody can be determined
+// unsigned long lastNoteMillis = 0;
+// int melodyIndex = 0;
+// // time in ms between beginning of last note and when next note should be played.
+// int noteDelay = 0;
+// int songLength;
 
-int PlayNote(int *songNotes, int *songTempo, int curNoteIdx, bool durationRaw = false){
-  digitalWrite(13, HIGH);
-  // To calculate note duration, take 1Sec/noteTempo.
-  // ex. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-  int noteDuration;
-  // if song tempo has duration in ms use as is, else if inverse notes convert.
-  if(durationRaw){
-    noteDuration = pgm_read_word(&songTempo[curNoteIdx]);
-  } else {
-    noteDuration = 1000 / pgm_read_word(&songTempo[curNoteIdx]);
-  }
-  // mark time this note began
-  lastNoteMillis = millis();
-  tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), noteDuration);
-  melodyIndex++;
-  // If this is the last note, then stop tones and reset melody flags and index.
-  Serial.println(songLength);
-  if(curNoteIdx == songLength - 1){
-    melodyPlaying = false;
-    // tone(buzzPin1, 0, noteDuration);
-    noTone(buzzPin1);
-    // Beep();
-    melodyIndex = 0;
-    noteDelay = 0;
-    songLength = 0;
-  }
-  digitalWrite(13, LOW);
-  // to distinguish the notes, set a minimum time between them.
-  // the note's duration + 30% seems to work well:
-  return noteDuration * 1.30;
-}
-
-
-// This function provide mechanism for selecting different songs.
-void PlaySong(){
-
-}
+// int PlayNote(int *songNotes, int *songTempo, int curNoteIdx, bool durationRaw = false){
+//   digitalWrite(13, HIGH);
+//   // To calculate note duration, take 1Sec/noteTempo.
+//   // ex. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+//   int noteDuration;
+//   // if song tempo has duration in ms use as is, else if inverse notes convert.
+//   if(durationRaw){
+//     noteDuration = pgm_read_word(&songTempo[curNoteIdx]);
+//   } else {
+//     noteDuration = 1000 / pgm_read_word(&songTempo[curNoteIdx]);
+//   }
+//   // mark time this note began
+//   lastNoteMillis = millis();
+//   tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), noteDuration);
+//   melodyIndex++;
+//   // If this is the last note, then stop tones and reset melody flags and index.
+//   Serial.println(songLength);
+//   if(curNoteIdx == songLength - 1){
+//     melodyPlaying = false;
+//     // tone(buzzPin1, 0, noteDuration);
+//     noTone(buzzPin1);
+//     // Beep();
+//     melodyIndex = 0;
+//     noteDelay = 0;
+//     songLength = 0;
+//   }
+//   digitalWrite(13, LOW);
+//   // to distinguish the notes, set a minimum time between them.
+//   // the note's duration + 30% seems to work well:
+//   return noteDuration * 1.30;
+// }
 
 
 // *********************************************
@@ -1147,7 +1143,7 @@ void setup(){
   PrintText(Racers[racer1], led1Disp, 7, 8);
   PrintText(Racers[racer2], led2Disp, 7, 8);
   // Serial.println(currentMenu);
-  melodyPlaying = true;
+  // melodyPlaying = true;
 
   // playingNotes = takeOnMeNotes;
   // playingTempo = takeOnMeTempo;
@@ -1158,7 +1154,7 @@ void setup(){
   
   // Initiates a non-blocking play of melody using 'PlayRtttl' library
   // startPlayRtttlPGM(buzzPin1, spyHunter);
-  startPlayRtttlPGM(buzzPin1, takeOnMe1);
+  startPlayRtttlPGM(buzzPin1, reveille);
 }
 
 void loop(){
@@ -1166,14 +1162,14 @@ void loop(){
   // Serial.println(state);
   // Serial.println("R2Lap count MAIN");
   // Serial.println(r2LapCount);
-  if(melodyPlaying){
-    if(millis() - lastNoteMillis >= noteDelay){
-      // noteDelay = PlayNote(playingNotes, playingTempo, melodyIndex, true);
-      updatePlayRtttl();
-    }
-  } else {
-    noTone(buzzPin1);
-  }
+  updatePlayRtttl();
+  // if(melodyPlaying){
+  //   if(millis() - lastNoteMillis >= noteDelay){
+  //     // noteDelay = PlayNote(playingNotes, playingTempo, melodyIndex, true);
+  //   }
+  // } else {
+  //   noTone(buzzPin1);
+  // }
   switch (state) {
     // Serial.println("Entered Stat Switch");
     // In the 'Menu' state the program is focused on looking for keypad input

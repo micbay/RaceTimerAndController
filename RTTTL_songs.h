@@ -21,3 +21,9 @@ const char takeOnMe1[] PROGMEM = "takeOnMe1:d=4,o=4,b=160:8f#5,8f#5,8f#5,8d5,8p,
 const char airWolfTheme[] PROGMEM = "airWolfTheme:d=4,o=6,b=100:e5,16a5,16b5,16d,e,16g,16f_,16d,e,16g,16f_,16d,e,8d,16f_,b5,a5,8g5,16a5,8f_5,16d5,g5,16c,16d,16f,g,16c,16b,16f,g,16c,16b,16f,g,8f,16a,d,c,8b5,16d,8a5,16f5,g5,16c,16d,16f,g,16c,16b,16f";
 
 const char galaga[] PROGMEM = "Galaga:d=4,o=5,b=125:8g4,32c,32p,8d,32f,32p,8e,32c,32p,8d,32a,32p,8g,32c,32p,8d,32f,32p,8e,32c,32p,8g,32b,32p,8c6,32a#,32p,8g#,32g,32p,8f,32d#,32p,8d,32a#4,32p,8a#,32c6,32p,8a#,32g,32p,16a,16f,16d,16g,16e,16d";
+
+const char nellyOne[] PROGMEM = "NumberOn:d=16,o=5,b=90:a,e,a,8e6,8c6,2a,a,e,a,8e6,8c6,2a,a,e,a,8e6,8c6,2a,a,e,8a,g,a,g,8c6,a,4a";
+
+const char gnrSweetChild[] PROGMEM = "SweetChi:d=16,o=6,b=80:f5,f,c,a5,a#,c,a,c,f5,f,c,a5,a#,c,a,c,g5,f,c,a#5,a#,c,a,c,g5,f,c,a#5,a#,c,a,c,a#5,f,c,a#5,a#,c,a,c,a#5,f,c,a#5,a#,c,a,c,f5,f,c,a5,a#,c,a,c,f5,f,c,a5,a#,c,a,c,f5,f,c,a5,a#,c,a,c,f5,f,c,a5,a#,c,a,c,g5,f,c,a#5,a#,c,a,c,g5,f,c,a#5,a#,c,a,c,a#5,f,c,a#5,a#,c,a,c,a#5,f,c,a#5,a#,c,a,c,f5,f,c,a5,a#,c,a,c,f5,f,c,a5,a#,c,a,c";
+
+const char reveille[] PROGMEM = "Reveille:d=4,o=5,b=140:e6,8c6,g,8g,8c6,8g,8e6,8c6,8c6,8c6,e6,8c6,g,8g,8c6,8g,8e6,c.6,8g,8g,8g,8c6,8e6,8c6,8g,8g,8g,c6,8e6,8g,8g,8g,8c6,8e6,8c6,8g,8g,8g,c.6";
