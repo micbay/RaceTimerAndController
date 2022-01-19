@@ -1,26 +1,40 @@
 
+// Enable if using RTTL type song/melody data for playing sounds
+//-------------------
 // library for playing RTTTL song types
 #include <PlayRtttl.h>
-// file of RTTTL song definition strings
+// file of RTTTL song definition strings.
+// Because these strings are stored in PROGMEM we must also include 'avr/pgmspace.h' to access them.
 #include "RTTTL_songs.h"
+//-------------------
 
-// Wire library is for I2C communication
+// Enable if using Note-Lengths Array method of playing Arduino sounds
+//-------------------
+// Defines the note constants that make up a melodie's Notes[] array.
+#include <pitches.h>
+// File of songs/melodies defined using Note & Lengths array.
+// Because these arrays are stored in PROGMEM we must also include 'avr/pgmspace.h' to access them.
+#include "melodies_prog.h"
+//-------------------
+
+// Library to support storing/accessing constant variables in PROGMEM
+#include <avr/pgmspace.h>
+
+// The 'Wire' library is for I2C, and is included in the Arduino installation.
+// Specific implemntation is determined by the board selected in Arduino IDE.
 #include <Wire.h>
 // LCD driver libraries
 #include <hd44780.h>						            // main hd44780 header file
-#include <hd44780ioClass/hd44780_I2Cexp.h>	// i/o class header for i2c expander backpack 
-// libraries to support 4 x 4 keypad
-#include <Keypad.h>
+#include <hd44780ioClass/hd44780_I2Cexp.h>	// i/o class header for i2c expander backpack
 // library for 7-seg LED Bars
 #include <LedControl.h>
-// // library of sounds
-// #include <pitches.h>  // this file is include by the melodies.h file
-// #include "melodies.h"
-// #include "melodies_prog.h"
-// library to use program memory for constants
-#include <avr/pgmspace.h>
+
+// Library to support 4 x 4 keypad
+#include <Keypad.h>
 
 // ********* AUDIO HARDWARE *********
+// A3 is a built in Arduino identifier that is replaced by the preprocessor,
+// with the physical pin number, of the Arduino hardware selected in the IDE.
 const byte buzzPin1 = A3;
 
 
@@ -32,14 +46,13 @@ const byte ledPIN = 13;
 int ledState = HIGH;
 
 //***** Variables for LCD 4x20 Display **********
-// Pin A4 is used for SDA
-// Pin A5 used for SCL
-// the hd44780 library I think hardcodes or auto-detects these pins.
-// declare lcd object: auto locate & config exapander chip
+// This display communicates using I2C via the SCL and SDA pins,
+// which are dedicated by the hardware and cannot be changed by software.
+// For the Arduino Nano, pin A4 is used for SDA, pin A5 is used for SCL.
+// Declare 'lcd' object representing display:
+// Use class 'hd44780_I2Cexp' to control LCD using i2c i/o expander backpack (PCF8574 or MCP23008)
 hd44780_I2Cexp lcd;
-// Set display size
-// const int LCD_COLS = 20;
-// const int LCD_ROWS = 2;
+// Constants to set display size
 const byte LCD_COLS = 20;
 const byte LCD_ROWS = 4;
 const byte RACE_CLK_POS = 13;
@@ -140,7 +153,7 @@ byte racer2 = 1;
 int r1LapCount = 0;
 int r2LapCount = 0;
 // Fastest laps table col0 = lap#, col1 = laptime in ms
-byte const fastLapsQSize = 10;
+const byte fastLapsQSize = 10;
 // We use two arrays, kept in sync to track fastest laps.
 // one array of longs to hold the time and an int array of the lap# and racer id.
 // This is to save on memory over a single 2D long array.
@@ -154,7 +167,7 @@ unsigned long topFastestTimes[ 2 * fastLapsQSize ] = {};
 // The modulus of the lap count, by the lapMillisQSize, will set the looping index.
 // (lapCount % lapMillisQSize) = idx, will always be 0 <= idx < lapMillisQSize
 // DO NOT SET lapMillisQSize < 3
-byte const lapMillisQSize = 5;
+const byte lapMillisQSize = 5;
 unsigned long r1LastXMillis [ lapMillisQSize ] = {};
 unsigned long r2LastXMillis [ lapMillisQSize ] = {};
 // flag to alert results menu whether the race data is garbage or not
@@ -183,7 +196,7 @@ unsigned long pauseDebounceMillis = 0;
 bool preStart = false;
 
 // The # of physical lanes that will have a counter sensor
-byte const laneCount = 2;
+const byte laneCount = 2;
 // Variable to map lane selection to menu text
 // We add one to the lane count to account for 'All'
 const char* laneText[laneCount + 1] = {"All", "1 Only", "2 Only"};
@@ -600,14 +613,11 @@ void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displ
     // the default decimal is deci-seconds ie 00.0
     printWidth = Sd;
   }
-  // This final if is probably not necessary if all clocks end in S as we already
-  // evaluate the same options at the beginning to set the value for decimalSec.
-  // Any adjustments to code that changes seconds, like adding a no decimal option
-  // should be made at that point.
-  // However, keeping the if sets up for the preferred next update which adds
-  // the option of no decimal S & decimal with M & H, ie: S, Md, Mc, Mm, Hd, Hc, Hm.
-  // 
-  // If width starts with Seconds then there is the option to display .0d, .00c, or .000m
+  /* This final if is probably not necessary if all clocks end in S as we already evaluate the same options at the beginning to set the value for decimalSec.
+  Any adjustments to code that changes seconds, like adding a no decimal option should be made at that point.
+  However, keeping the if sets up for the preferred next update which adds the option of no decimal S & decimal with M & H, ie: S, Md, Mc, Mm, Hd, Hc, Hm.
+  If width starts with Seconds then there is the option to display .0d, .00c, or .000m
+  */
   if (printWidth == Sd || printWidth == Sc || printWidth == Sm) {
     // Sd 00.0,   Sc 00.00,   Sm 00.000
     switch (display){
@@ -711,7 +721,6 @@ void DrawPreStartScreen(){
   if(lanes[1][1] > 0) PrintText(Racers[racer1], led1Disp, 7, 8, false);
   if(lanes[2][1] > 0) PrintText(Racers[racer2], led2Disp, 7, 8, false);
 }
-
 
 
 // This function sets the lane state set by the user menu
@@ -1042,49 +1051,50 @@ void ResetRace(){
 }
 
 
-////////////////////////////////////////
-// *** This section for using Note and Tempo arrays for songs
-// int *playingNotes;
-// int *playingTempo;
-// bool melodyPlaying = false;
-// // Holds the time of last tone played so timing of next note in melody can be determined
-// unsigned long lastNoteMillis = 0;
-// int melodyIndex = 0;
-// // time in ms between beginning of last note and when next note should be played.
-// int noteDelay = 0;
-// int songLength;
+// *** This section for using Note and Lengths arrays for songs
+// Globals for holding the current melody data references.
+int *playingNotes;
+int *playingLengths;
+int songLength;
+// Default tempo to 0 which means, use note length value as raw milliseconds
+byte activeTempoBPM = 0;
+// flag to indicate to the main program loop whether a melody is in process
+// so it should execute the 'PlayNote()' function with the current melody parameters.
+bool melodyPlaying = false;
+// Holds the time of last tone played so timing of next note in melody can be determined
+unsigned long lastNoteMillis = 0;
+int melodyIndex = 0;
+// time in ms between beginning of last note and when next note should be played.
+int noteDelay = 0;
 
-// int PlayNote(int *songNotes, int *songTempo, int curNoteIdx, bool durationRaw = false){
-//   digitalWrite(13, HIGH);
-//   // To calculate note duration, take 1Sec/noteTempo.
-//   // ex. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-//   int noteDuration;
-//   // if song tempo has duration in ms use as is, else if inverse notes convert.
-//   if(durationRaw){
-//     noteDuration = pgm_read_word(&songTempo[curNoteIdx]);
-//   } else {
-//     noteDuration = 1000 / pgm_read_word(&songTempo[curNoteIdx]);
-//   }
-//   // mark time this note began
-//   lastNoteMillis = millis();
-//   tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), noteDuration);
-//   melodyIndex++;
-//   // If this is the last note, then stop tones and reset melody flags and index.
-//   Serial.println(songLength);
-//   if(curNoteIdx == songLength - 1){
-//     melodyPlaying = false;
-//     // tone(buzzPin1, 0, noteDuration);
-//     noTone(buzzPin1);
-//     // Beep();
-//     melodyIndex = 0;
-//     noteDelay = 0;
-//     songLength = 0;
-//   }
-//   digitalWrite(13, LOW);
-//   // to distinguish the notes, set a minimum time between them.
-//   // the note's duration + 30% seems to work well:
-//   return noteDuration * 1.30;
-// }
+// Function to play the current note index of a melody using 'tone()'.
+int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM = 0){
+  int noteDuration;
+  // If tempo = 0 then use note length directly as ms duration
+  if(tempoBPM == 0){
+    noteDuration = pgm_read_word(&songLengths[curNoteIdx]);
+  } else {
+    // Otherwise calculate duration from bpm:
+    // (60,000ms/min)/Xbpm * 4beats/note * 1/notelength
+    noteDuration = (60000 / tempoBPM) * 4 * ( 1.0 / pgm_read_word(&songLengths[curNoteIdx]) );
+  }
+  // Mark time this note began
+  lastNoteMillis = millis();
+  tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), noteDuration);
+  melodyIndex++;
+  if(curNoteIdx == songLength - 1){
+    // When done turn play flag off and reset the play tracking variables.
+    melodyPlaying = false;
+    melodyIndex = 0;
+    noteDelay = 0;
+    songLength = 0;
+  }
+  // These played notes have no transition time so can sound unatural if run together.
+  // Making the time between notes slightly longer than the note will
+  // create a small break, giving the melody a more natural sound.
+  // Adding 10% seems to work well.
+  return noteDuration * 1.1;
+}
 
 
 // *********************************************
@@ -1100,26 +1110,27 @@ void setup(){
   Serial.begin(9600);
   while(!Serial);
   // --- SETUP LCD DIPSLAY -----------------------------
-	// initialize LCD with begin() which will return
-  // a non-zero error code int if it fails, or zero on success 
-	// the actual status codes are defined in <hd44780.h>
+  // Initialize LCD with begin() which will return zero on success.
+  // Non-zero failure status codes are defined in <hd44780.h>
 	int status = lcd.begin(LCD_COLS, LCD_ROWS);
   // If display initialization fails, trigger onboard error LED if exists.
 	if(status) hd44780::fatalError(status);
-  // Clear the display of any existing content
+  // Make sure display has no residual data and starts in a blank state
   lcd.clear();
+
   // --- SETUP LED 7-SEG, 8-DIGIT MAX7219 LED BARS ------
-  //we have already set the number of devices when we created the LedControl
+  //we have already set the number of devices when we created the 'lc' object
   int devices = lc.getDeviceCount();
   //we have to init all devices in a loop
   for(int deviceID = 0; deviceID < devices; deviceID++) {
     /*The MAX72XX is in power-saving mode on startup*/
     lc.shutdown(deviceID, false);
-    // This sets the brightness, but doesn't work with this LCD, use pot on back
-    // lc.setIntensity(deviceID, 12);
-    // Finally, clear the display
+    // intensity range from 0-15, higher = brighter
+    lc.setIntensity(deviceID, 8);
+    // Blank the LED digits
     lc.clearDisplay(deviceID);
   }
+
   // --- SETUP LAP TRIGGERS AND BUTTONS ----------------
   // roughly equivalent to digitalWrite(lane1Pin, HIGH)
   pinMode(lane1Pin, INPUT_PULLUP);
@@ -1143,18 +1154,20 @@ void setup(){
   PrintText(Racers[racer1], led1Disp, 7, 8);
   PrintText(Racers[racer2], led2Disp, 7, 8);
   // Serial.println(currentMenu);
-  // melodyPlaying = true;
+  melodyPlaying = true;
 
-  // playingNotes = takeOnMeNotes;
-  // playingTempo = takeOnMeTempo;
-  // songLength = takeOnMeLength;
+  playingNotes = takeOnMeNotes;
+  playingLengths = takeOnMeLengths;
+  songLength = takeOnMeCount;
+  activeTempoBPM = takeOnMeTempo;
   // playingNotes = knightRiderNotes;
-  // playingTempo = knightRiderTempo;
+  // playingLengths = knightRiderLengths;
   // songLength = knightRiderLength;
   
   // Initiates a non-blocking play of melody using 'PlayRtttl' library
   // startPlayRtttlPGM(buzzPin1, spyHunter);
-  startPlayRtttlPGM(buzzPin1, reveille);
+  // startPlayRtttlPGM(buzzPin1, reveille);
+  // startPlayRtttlPGM(buzzPin1, gameOfThrones);
 }
 
 void loop(){
@@ -1163,13 +1176,17 @@ void loop(){
   // Serial.println("R2Lap count MAIN");
   // Serial.println(r2LapCount);
   updatePlayRtttl();
-  // if(melodyPlaying){
-  //   if(millis() - lastNoteMillis >= noteDelay){
-  //     // noteDelay = PlayNote(playingNotes, playingTempo, melodyIndex, true);
-  //   }
-  // } else {
-  //   noTone(buzzPin1);
-  // }
+  if(melodyPlaying){
+    if(millis() - lastNoteMillis >= noteDelay){
+    // stop generation of square wave triggered by 'tone()'.
+    // This is not required as all tones should stop at end of duration.
+    // However, we do it just to make sure it 
+      // noTone(buzzPin1);
+      noteDelay = PlayNote(playingNotes, playingLengths, melodyIndex, activeTempoBPM);
+    }
+  } else {
+    noTone(buzzPin1);
+  }
   switch (state) {
     // Serial.println("Entered Stat Switch");
     // In the 'Menu' state the program is focused on looking for keypad input
