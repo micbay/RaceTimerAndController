@@ -1,3 +1,5 @@
+# **<span style="color:red;font-size:72px"> -- IN DRAFT -- </span>**
+
 # **Arduino Race Timer and Game Controller**
 This is an Arduino based project that implements a functional race game controller that can be used for timed racing games. In the present implementation it consists of a main LCD display with a keypad, for user input and menu selection, as well as an additional 8 digit LED lap timer display for each racer. Also with audio feedback and custom victory song for each racer.
 
@@ -147,7 +149,7 @@ The MAX7219 can sensitive to noise on its power input. If the power lines are cl
  
 |Bypass Diagram| Capacitor Diagram Symbol Review|
 |:---:|:---:|
-|![Bypass Caps](Images/../.vscode/BypassCaps.png) | [<img src=Images/CapacitorSymbols.png />](https://www.ifixit.com/Wiki/Troubleshhoting_logic_board_components) 
+|![Bypass Caps](Images/BypassCaps.png) | [<img src=Images/CapacitorSymbols.png />](https://www.ifixit.com/Wiki/Troubleshhoting_logic_board_components) 
 
 <br>
 
