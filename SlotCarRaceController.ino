@@ -1054,46 +1054,60 @@ void ResetRace(){
 // *** This section for using Note and Lengths arrays for songs
 // Globals for holding the current melody data references.
 int *playingNotes;
-int *playingLengths;
-int songLength;
-// Default tempo to 0 which means, use note length value as raw milliseconds
-byte activeTempoBPM = 0;
+int *playingLengths;                                                            
+byte playingTempoBPM = 135;
+int playingCount = 0;
 // flag to indicate to the main program loop whether a melody is in process
 // so it should execute the 'PlayNote()' function with the current melody parameters.
 bool melodyPlaying = false;
-// Holds the time of last tone played so timing of next note in melody can be determined
+// Holds the timestamp of last tone played so timing of next note in melody can be determined
 unsigned long lastNoteMillis = 0;
+// index of the current note to play of 'playing...' song.
 int melodyIndex = 0;
 // time in ms between beginning of last note and when next note should be played.
 int noteDelay = 0;
 
 // Function to play the current note index of a melody using 'tone()'.
-int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM = 0){
+// We want to pass all the variables instead of depending on their globality.
+int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
   int noteDuration;
+  int noteLength = pgm_read_word(&songLengths[curNoteIdx]);
   // If tempo = 0 then use note length directly as ms duration
   if(tempoBPM == 0){
-    noteDuration = pgm_read_word(&songLengths[curNoteIdx]);
+    noteDuration = noteLength;
   } else {
-    // Otherwise calculate duration from bpm:
+    // Otherwise calculate duration in ms from bpm:
     // (60,000ms/min)/Xbpm * 4beats/note * 1/notelength
-    noteDuration = (60000 / tempoBPM) * 4 * ( 1.0 / pgm_read_word(&songLengths[curNoteIdx]) );
+    // Make sure equation has a decimal or result will be incorrect integer math.
+    if (noteLength > 0){
+      noteDuration = (60000 / tempoBPM) * 4 * (1.0 / noteLength);
+    } else {
+      // If note length is negative, then it's dotted so add extra half length.
+      noteDuration = 1.5 * (60000 / tempoBPM) * 4 * (1 / abs(noteLength));
+    }
   }
-  // Mark time this note began
+  // Record millisecond timestamp at start of new note.
   lastNoteMillis = millis();
+  // Play note
   tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), noteDuration);
   melodyIndex++;
-  if(curNoteIdx == songLength - 1){
-    // When done turn play flag off and reset the play tracking variables.
+  // If we have reached the end of the melody array then
+  // flip playing flag off and reset tracking variables for next melody.
+  if(curNoteIdx == playingCount - 1){
     melodyPlaying = false;
     melodyIndex = 0;
     noteDelay = 0;
-    songLength = 0;
+    playingCount = 0;
+    noTone(buzzPin1);
   }
-  // These played notes have no transition time so can sound unatural if run together.
+  // Buzzer notes have no transition time or strike impulse.
+  // So when played as written, each note sounds unaturally run together.
   // Making the time between notes slightly longer than the note will
   // create a small break, giving the melody a more natural sound.
-  // Adding 10% seems to work well.
+  // Factoring + 5-10% seems to be enough.
   return noteDuration * 1.1;
+  //***this will make the true tempo slightly slower.
+  // So increase the song's set tempo from the music sheet to accomodate.
 }
 
 
@@ -1154,15 +1168,17 @@ void setup(){
   PrintText(Racers[racer1], led1Disp, 7, 8);
   PrintText(Racers[racer2], led2Disp, 7, 8);
   // Serial.println(currentMenu);
-  melodyPlaying = true;
+  // melodyPlaying = true;
 
-  playingNotes = takeOnMeNotes;
-  playingLengths = takeOnMeLengths;
-  songLength = takeOnMeCount;
-  activeTempoBPM = takeOnMeTempo;
-  // playingNotes = knightRiderNotes;
-  // playingLengths = knightRiderLengths;
-  // songLength = knightRiderLength;
+  // playingNotes = takeOnMeNotes;
+  // playingLengths = takeOnMeLengths;
+  // playingCount = takeOnMeCount;
+  // playingTempoBPM = takeOnMeTempo;
+
+  playingNotes = marioUnderworldNotes;
+  playingLengths = marioUnderworldLengths;
+  playingCount = marioUnderworldCount;
+  playingTempoBPM = marioUnderworldTempo;
   
   // Initiates a non-blocking play of melody using 'PlayRtttl' library
   // startPlayRtttlPGM(buzzPin1, spyHunter);
@@ -1182,10 +1198,10 @@ void loop(){
     // This is not required as all tones should stop at end of duration.
     // However, we do it just to make sure it 
       // noTone(buzzPin1);
-      noteDelay = PlayNote(playingNotes, playingLengths, melodyIndex, activeTempoBPM);
+      noteDelay = PlayNote(playingNotes, playingLengths, melodyIndex, playingTempoBPM);
     }
   } else {
-    noTone(buzzPin1);
+    // noTone(buzzPin1);
   }
   switch (state) {
     // Serial.println("Entered Stat Switch");
@@ -1313,6 +1329,8 @@ void loop(){
                   racer1 = IndexList(racer1, racerCount, key == 'A', racer2);
                   PrintText(Racers[racer1], lcdDisp, nameEndPos, 12, false, 1);
                   PrintText(Racers[racer1], led1Disp, 7, 8);
+                  // Play racers victory song
+                  startPlayRtttlPGM(buzzPin1, victorySong[racer1]);
                 }
               }
               break;
@@ -1324,6 +1342,8 @@ void loop(){
                   racer2 = IndexList(racer2, racerCount, key == 'D', racer1);
                   PrintText(Racers[racer2], lcdDisp, nameEndPos, 12, false, 3);
                   PrintText(Racers[racer2], led2Disp, 7, 8);
+                  // Play racers victory song
+                  startPlayRtttlPGM(buzzPin1, victorySong[racer2]);
                 }
               }
               break;
@@ -1331,6 +1351,7 @@ void loop(){
                 // return to MainMenu
                 currentMenu = MainMenu;
                 entryFlag = true;
+                stopPlayRtttl();
               }
               break;
               default:

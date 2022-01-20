@@ -1,13 +1,34 @@
-// File of songs defined using pitch notes and tempo arrays
+// File of songs defined using pitch Notes[] and Lengths[] arrays.
 // This is an alternative method to using Rttl style songs and players.
-// Not included here, but the pitch constants called in this file
-// require 'pitches.h'. It should be included by the main sketch.
+
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// The 'pitches.h' file is required to use this song data
+// It should be included by the main sketch and is commented out here.
 // #include "pitches.h"
 
+// ****** MELODY STRUCTURE **************
+// Each melody should be made up of 4 parts.
+//    mySongNameNotes[] is an array of frequencies in Hz, using pitch aliases
+//    mySongNameLengths[] is the corresponding note's length
+//      1 = whole note
+//      2 = half note
+//      4 = quarter note
+//      8 = eighth note
+//      16 = sixteenth note, etc.
+//    mySongNameTempo is a constant 0-255 of the beats per minute to play melody
+//    mySongNameCount holds the number of notes in the melody for easy reference
+
+// TEMPLATE for MELODY VARIABLES, COPY - PASTE - EDIT
+// const int zzzNotes[] PROGMEM = {
+
+// };
+// const int zzzLengths[] PROGMEM = {
+  
+// };
+// const int zzzCount = sizeof(zzzNotes)/sizeof(int);
+// const int zzzTempo = 135;
 
 
-// this files holds the tempo's and melodies of music to be played,
-// with the Slot Car Race Controller
 
 const int testMelodyNotes[] PROGMEM = {
   NOTE_C4, NOTE_G3,NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
@@ -15,7 +36,33 @@ const int testMelodyNotes[] PROGMEM = {
 const int testMelodyLengths[] PROGMEM = {
   4, 8, 8, 4, 4, 4, 4, 4
 };
-const int testMelodyCount = sizeof(testMelodyNotes)/sizeof(int); 
+const int testMelodyCount = sizeof(testMelodyNotes)/sizeof(int);
+const int testMelodyTempo = 85;
+
+
+
+const int imperialMarchNotes[] PROGMEM = {
+  NOTE_A4, NOTE_A4, NOTE_A4, NOTE_A4, NOTE_A4, NOTE_A4, NOTE_F4, 0,
+  NOTE_A4, NOTE_A4, NOTE_A4, NOTE_A4, NOTE_A4, NOTE_A4, NOTE_F4, 0,
+  NOTE_A4, NOTE_A4, NOTE_A4, NOTE_F4, NOTE_C5,
+
+  NOTE_A4, NOTE_F4, NOTE_C5, NOTE_A4,//4
+  NOTE_E5, NOTE_E5, NOTE_E5, NOTE_F5, NOTE_C5,
+  NOTE_A4, NOTE_F4, NOTE_C5, NOTE_A4,
+};
+const int imperialMarchLengths[] PROGMEM = {
+  -4, -4, 16, 16, 16, 16, 8, 8,
+  -4, -4, 16, 16, 16, 16, 8, 8,
+  4, 4, 4, -8, 16,
+
+  4, -8, 16, 2,//4
+  4, 4, 4, -8, 16,
+  4, -8, 16, 2,
+};
+const int imperialMarchCount = sizeof(imperialMarchNotes)/sizeof(int);
+const int imperialMarchTempo = 135;
+
+
 
 const int cScaleNotes[] PROGMEM = {
   NOTE_C4, NOTE_CS4, NOTE_D4, NOTE_DS4, NOTE_E4, NOTE_F4, NOTE_FS4, NOTE_G4,NOTE_GS4, NOTE_A4, NOTE_AS4, NOTE_B4, NOTE_C5
@@ -23,7 +70,13 @@ const int cScaleNotes[] PROGMEM = {
 const int cScaleLengths[] PROGMEM = {
   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
 };
-const int cScaleCount = sizeof(cScaleNotes)/sizeof(int); 
+const int cScaleCount = sizeof(cScaleNotes)/sizeof(int);
+const int cScaleTempo = 85;
+
+
+
+
+
 
 //Mario main theme melody
 const int marioMainThemeNotes[] PROGMEM = {
@@ -31,7 +84,6 @@ const int marioMainThemeNotes[] PROGMEM = {
   0, NOTE_C7, NOTE_E7, 0,
   NOTE_G7, 0, 0,  0,
 
-  
   NOTE_G6, 0, 0, 0,
 
   NOTE_C7, 0, 0, NOTE_G6,
@@ -81,7 +133,9 @@ const int marioMainThemeLengths[] PROGMEM = {
   12, 12, 12, 12,
   12, 12, 12, 12,
 };
-const int marioMainThemeCount = sizeof(marioMainThemeNotes)/sizeof(int); 
+const int marioMainThemeCount = sizeof(marioMainThemeNotes)/sizeof(int);
+const byte marioMainThemeTempo = 130;
+
 
 
 //Underworld melody
@@ -128,23 +182,9 @@ const int marioUnderworldLengths[] PROGMEM = {
   10, 10, 10,
   3, 3, 3
 };
-const int marioUnderworldCount = sizeof(marioUnderworldNotes)/sizeof(int); 
+const int marioUnderworldCount = sizeof(marioUnderworldNotes)/sizeof(int);
+const byte marioUnderworldTempo = 130;
 
-// The melody array 
-const int takeOnMe1Notes[] PROGMEM = {
-  NOTE_FS5, NOTE_FS5, NOTE_D5, NOTE_B4, NOTE_B4, NOTE_E5, 
-  NOTE_E5, NOTE_E5, NOTE_GS5, NOTE_GS5, NOTE_A5, NOTE_B5, 
-  NOTE_A5, NOTE_A5, NOTE_A5, NOTE_E5, NOTE_D5, NOTE_FS5, 
-  NOTE_FS5, NOTE_FS5, NOTE_E5, NOTE_E5, NOTE_FS5, NOTE_E5
-};
-// The note duration, 8 = 8th note, 4 = quarter note, etc.
-const int takeOnMe1Lengths[] PROGMEM = {
-  8, 8, 8, 4, 4, 4, 
-  4, 5, 8, 8, 8, 8, 
-  8, 8, 8, 4, 4, 4, 
-  4, 5, 8, 8, 8, 8
-};
-const int takeOnMe1Count = sizeof(takeOnMe1Notes)/sizeof(int);
 
 
 // The melody array 
@@ -154,12 +194,12 @@ const int takeOnMeNotes[] PROGMEM = {
   NOTE_A5, NOTE_A5, NOTE_A5, NOTE_E5, 0, NOTE_D5, 0, NOTE_FS5, 
   0, NOTE_FS5, 0, NOTE_FS5, NOTE_E5, NOTE_E5, NOTE_FS5, NOTE_E5,
 
-    NOTE_FS5, NOTE_FS5, NOTE_D5, NOTE_B4, 0, NOTE_B4, 0, NOTE_E5,
+  NOTE_FS5, NOTE_FS5, NOTE_D5, NOTE_B4, 0, NOTE_B4, 0, NOTE_E5,
   0, NOTE_E5, 0, NOTE_E5, NOTE_GS5, NOTE_GS5, NOTE_A5, NOTE_B5, 
   NOTE_A5, NOTE_A5, NOTE_A5, NOTE_E5, 0, NOTE_D5, 0, NOTE_FS5, 
   0, NOTE_FS5, 0, NOTE_FS5, NOTE_E5, NOTE_E5, NOTE_FS5, NOTE_E5,
 
-    NOTE_FS5, NOTE_FS5, NOTE_D5, NOTE_B4, 0, NOTE_B4, 0, NOTE_E5,
+  NOTE_FS5, NOTE_FS5, NOTE_D5, NOTE_B4, 0, NOTE_B4, 0, NOTE_E5,
   0, NOTE_E5, 0, NOTE_E5, NOTE_GS5, NOTE_GS5, NOTE_A5, NOTE_B5, 
   NOTE_A5, NOTE_A5, NOTE_A5, NOTE_E5, 0, NOTE_D5, 0, NOTE_FS5, 
   0, NOTE_FS5, 0, NOTE_FS5, 0
@@ -181,8 +221,10 @@ const int takeOnMeLengths[] PROGMEM = {
   8, 8, 8, 8, 8, 8, 8, 8,
   8, 8, 8, 8, 2
 };
-const byte takeOnMeTempo = 160;
 const int takeOnMeCount = sizeof(takeOnMeNotes)/sizeof(int);
+const byte takeOnMeTempo = 160;
+
+
 
 const int knightRiderNotes[] PROGMEM = {
   // 1
@@ -244,7 +286,6 @@ const int knightRiderNotes[] PROGMEM = {
   NOTE_A5, NOTE_AS5, NOTE_A5, NOTE_E5,
   NOTE_A4, NOTE_AS4, NOTE_A4, NOTE_E5, NOTE_A5, NOTE_AS5, NOTE_G5, NOTE_A5
 };
-
 const int knightRiderLengths[] PROGMEM = {
   // 1
   250, 125, 125,
@@ -305,6 +346,65 @@ const int knightRiderLengths[] PROGMEM = {
   250, 125, 125, 1500,
   250, 125, 125, 250, 250, 40, 250, 500
 };
-
 const int knightRiderCount = sizeof(knightRiderNotes)/sizeof(int);
+const byte knightRiderTempo = 0;
+
+
+
+const int gameOfThronesNotes[] PROGMEM = {
+  NOTE_G4, NOTE_C4, NOTE_DS4, NOTE_F4, NOTE_G4, NOTE_C4, NOTE_DS4, NOTE_F4, //1
+  NOTE_G4, NOTE_C4, NOTE_DS4, NOTE_F4, NOTE_G4, NOTE_C4, NOTE_DS4, NOTE_F4,
+  NOTE_G4, NOTE_C4, NOTE_E4, NOTE_F4, NOTE_G4, NOTE_C4, NOTE_E4, NOTE_F4,
+  NOTE_G4, NOTE_C4, NOTE_E4, NOTE_F4, NOTE_G4, NOTE_C4, NOTE_E4, NOTE_F4,
+  NOTE_G4, NOTE_C4,//5
+
+  NOTE_DS4, NOTE_F4, NOTE_G4, NOTE_C4, NOTE_DS4, NOTE_F4, //6
+  NOTE_D4, //7 and 8
+  NOTE_F4, NOTE_AS3,
+  NOTE_DS4, NOTE_D4, NOTE_F4, NOTE_AS3,
+  NOTE_DS4, NOTE_D4, NOTE_C4, //11 and 12
+
+  NOTE_G4, NOTE_C4,//5
+  
+  NOTE_DS4, NOTE_F4, NOTE_G4, NOTE_C4, NOTE_DS4, NOTE_F4, //6
+  NOTE_D4, //7 and 8
+  NOTE_F4, NOTE_AS3,
+  NOTE_DS4, NOTE_D4, NOTE_F4, NOTE_AS3,
+  NOTE_DS4, NOTE_D4, NOTE_C4, //11 and 12
+  NOTE_G4, NOTE_C4,
+  NOTE_DS4, NOTE_F4, NOTE_G4,  NOTE_C4, NOTE_DS4, NOTE_F4,
+};
+const int gameOfThronesLengths[] PROGMEM = {
+  8, 8, 16, 16, 8, 8, 16, 16, //1
+  8, 8, 16, 16, 8, 8, 16, 16,
+  8, 8, 16, 16, 8, 8, 16, 16,
+  8, 8, 16, 16, 8, 8, 16, 16,
+  -4, -4,//5
+
+  16, 16, 4, 4, 16, 16, //6
+  -1, //7 and 8
+  -4, -4,
+  16, 16, 4, -4,
+  16, 16, -1, //11 and 12
+  
+  -4, -4,//5
+  
+  16, 16, 4, 4, 16, 16, //6
+  -1, //7 and 8
+  -4, -4,
+  16, 16, 4, -4,
+  16, 16, -1, //11 and 12
+  -4, -4,
+  16, 16, 4,  4, 16, 16,
+};
+const int gameOfThronesCount = sizeof(gameOfThronesNotes)/sizeof(int);
+const byte gameOfThronesTempo = 110;
+
+
+
+
+
+
+
+
 

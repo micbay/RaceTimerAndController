@@ -27,7 +27,8 @@ All of the components are readily available and can be connected with basic jump
 - [4 x 4 membrane keypad](https://duckduckgo.com/?q=4+x+4+membrane+keypad)
 - [LCD2004 4 row x 20 character display](https://duckduckgo.com/?q=LCD2004A+4+x+20+I2C+backpack), with [I2C backpack](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
 - 2 Chainable, [8-digit, 7-segment LED bar with integrated MAX7219](https://duckduckgo.com/?q=8-digit%2C+7-segment+LED+display)
-- Active Buzzer (DC compatible) or speaker, 5V
+- Passive Buzzer or speaker
+  - The 7-seg LEDs induced a hum on my buzzer, I used a diode on one lead to eliminate it.
 - 2-4 lap sensors/switches/buttons
 - 1 momentary button for in game pause and restart
 - Jumper leads to wire connections between peripherals & Arduino
@@ -44,7 +45,7 @@ All of the components are readily available and can be connected with basic jump
 |Lane1 lap sensor|A0   |\-- |D9   |Keypad 5 (C1)   |
 |Lane2 lap sensor|A1   |\-- |D8   |Keypad 4 (R4)   |
 |Pause Button    |A2   |\-- |D7   |Keypad 3 (R3)   |
-|Buzzer          |A3   |\-- |D6   |Keypad 2 (R2)   |
+|Passive Buzzer  |A3   |\-- |D6   |Keypad 2 (R2)   |
 |LCD SDA         |A4   |\-- |D5   |Keypad 1 (R1)   |
 |LCD SCL         |A5   |\-- |D4   |LED CLK         |
 |                |A6   |\-- |D3   |LED CS          |
@@ -323,62 +324,71 @@ Now that we have a melody transcribed into an array of frequencies and durations
 Because we have many songs to play we'll create a set of global reference variables that we can use to point to different song data variables. We use pointers to the data arrays instead of a temporary copy, to save memory, and because we have songs of different sizes. Managing dynamic array sizing is an uncessary, memory fragmenting, challenge.
 
 ```cpp
-// Globals for holding the current reference song data
+// Globals for holding the current melody data references.
 int *playingNotes;
-int *playingLengths;
-int songLength;
-// Default tempo to 0 which means, use note length value as raw milliseconds
-byte activeTempoBPM = 0;
+int *playingLengths;                                                            
+byte playingTempoBPM = 135;
+int playingCount = 0;
 // flag to indicate to the main program loop whether a melody is in process
 // so it should execute the 'PlayNote()' function with the current melody parameters.
 bool melodyPlaying = false;
-// Holds the time of last tone played so timing of next note in melody can be determined
+// Holds the timestamp of last tone played so timing of next note in melody can be determined
 unsigned long lastNoteMillis = 0;
+// index of the current note to play of 'playing...' song.
 int melodyIndex = 0;
 // time in ms between beginning of last note and when next note should be played.
 int noteDelay = 0;
 
-int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM = 0){
+// Function to play the current note index of a melody using 'tone()'.
+// We want to pass all the variables instead of depending on their globality.
+int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
   int noteDuration;
-  // If tempo is zero then use length directly as ms duration
+  int noteLength = pgm_read_word(&songLengths[curNoteIdx]);
+  // If tempo = 0 then use note length directly as ms duration
   if(tempoBPM == 0){
-    noteDuration = pgm_read_word(&songLengths[curNoteIdx]);
+    noteDuration = noteLength;
   } else {
-    // Otherwise calculate duration from bpm:
+    // Otherwise calculate duration in ms from bpm:
     // (60,000ms/min)/Xbpm * 4beats/note * 1/notelength
-    noteDuration = (60000 / tempoBPM) * 4 * ( 1.0 / pgm_read_word(&songLengths[curNoteIdx]) );
+    // Make sure equation has a decimal or result will be incorrect integer math.
+    if (noteLength > 0){
+      noteDuration = (60000 / tempoBPM) * 4 * (1.0 / noteLength);
+    } else {
+      // If note length is negative, then it's dotted so add extra half length.
+      noteDuration = 1.5 * (60000 / tempoBPM) * 4 * (1 / abs(noteLength));
+    }
   }
-  // Mark time this note began
+  // Record millisecond timestamp at start of new note.
   lastNoteMillis = millis();
+  // Play note
   tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), noteDuration);
   melodyIndex++;
-
-  if(curNoteIdx == songLength - 1){
-    // When done turn play flag off and reset the play tracking variables.
+  // If we have reached the end of the melody array then
+  // flip playing flag off and reset tracking variables for next melody.
+  if(curNoteIdx == playingCount - 1){
     melodyPlaying = false;
-    noTone(buzzPin1);
     melodyIndex = 0;
     noteDelay = 0;
-    songLength = 0;
+    playingCount = 0;
+    noTone(buzzPin1);
   }
-  // Digital notes have no transition break so can sound unatural
+  // Buzzer notes have no transition time or strike impulse.
+  // So when played as written, each note sounds unaturally run together.
   // Making the time between notes slightly longer than the note will
-  // create a small break to make the melody sound more natural.
-  // the note's duration + 10% seems to work well:
+  // create a small break, giving the melody a more natural sound.
+  // Factoring + 5-10% seems to be enough.
   return noteDuration * 1.1;
+  //***this will make the true tempo slightly slower.
+  // So increase the song's set tempo from the music sheet to accomodate.
 }
 
 void loop() {
   if(melodyPlaying){
     if(millis() - lastNoteMillis >= noteDelay){
-      // songs like Knight rider duration is in ms are 'raw = true'
-      // songs like Take On Me use inverse notes 4 = 1/4note, 8=1/8th, etc.
-      // these are considered 'raw = false'. 
       noteDelay = PlayNote(playingNotes, playingLengths, melodyIndex, false);
     }
-  } else {
-    noTone(buzzPin1);
   }
+  
   --- other code ---
   // To play a song we set the flag to true and re-assign song pointer to desired tune.
   melodyPlaying = true;
@@ -417,7 +427,6 @@ const int takeOnMeNotes[] PROGMEM = {
   NOTE_A5, NOTE_A5, NOTE_A5, NOTE_E5, 0, NOTE_D5, 0, NOTE_FS5, 
   0, NOTE_FS5, 0, NOTE_FS5, 0
 };
-// The note duration, 8 = 8th note, 4 = quarter note, etc.
 const int takeOnMeLengths[] PROGMEM = {
   8, 8, 8, 8, 8, 8, 8, 8,
   8, 8, 8, 8, 8, 8, 8, 8,
