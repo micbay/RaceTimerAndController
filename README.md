@@ -1,14 +1,13 @@
 # **<span style="color:red;font-size:72px"> -- IN DRAFT -- </span>**
 
 # **Arduino Race Timer and Game Controller**
-This is an Arduino based project that implements a functional race game controller that can be used for timed racing games. In the present implementation it consists of a main LCD display with a keypad, for user input and menu selection, as well as an additional 8 digit LED lap timer display for each racer. Also with audio feedback and custom victory song for each racer.
+This is an Arduino based project that implements a functional race game controller that can be used for timed racing games. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
 
 In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate.  
 ![MainMenu](Images/MainMenu.png)  
 ![Wiring Diagram](Images/Demolayout_Adjusted.jpg)  
 ![Wiring Diagram](Images/ArduinoNanopPinOut_RealHardware.png)  
 ![Wiring Diagram](Images/Displays_DemoStartup.png)
-The software uses non-blocking techniques with port register interrupts to  but is a working reference that demonstrates how to interact with several common micro-controller peripherals in a non-blocking manne.
 
 The implementation shown here is immediately useable for 2 player racing games such as would be used in a 1/64 slot car set or drone race. However, the hardware included can handle up to 4 racers. In several places in the code we take advantage of knowing that there are only 2 racers. These aspects of the code would need to be rafactored into an object or array with iterating loops. Something similiar to how the lanes/racers are enabled in this 2-player embodiment.
 
@@ -26,8 +25,8 @@ All of the components are readily available and can be connected with basic jump
 - [Arduino Nano](https://www.arduino.cc/en/pmwiki.php?n=Main/ArduinoBoardNano) (or equivalent microntroller module)
 - [4 x 4 membrane keypad](https://duckduckgo.com/?q=4+x+4+membrane+keypad)
 - [LCD2004 4 row x 20 character display](https://duckduckgo.com/?q=LCD2004A+4+x+20+I2C+backpack), with [I2C backpack](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
-- 2 Chainable, [8-digit, 7-segment LED bar with integrated MAX7219](https://duckduckgo.com/?q=8-digit%2C+7-segment+LED+display)
-- Passive Buzzer or speaker
+- 2-4 Chainable, [8-digit, 7-segment LED bar with integrated MAX7219](https://duckduckgo.com/?q=8-digit%2C+7-segment+LED+display)
+- +5V Passive Buzzer or speaker
   - The 7-seg LEDs induced a hum on my buzzer, I used a diode on one lead to eliminate it.
 - 2-4 lap sensors/switches/buttons
 - 1 momentary button for in game pause and restart
@@ -60,9 +59,11 @@ All of the components are readily available and can be connected with basic jump
 
 ## **Power Supply (+5V)**  
 All devices in this build are powered from a +5V source. The displays should draw power from the source supply and not through the Arduino which cannot support enough current to run everything without flickering.
-
-> ***<span style="color:yellow"> Connect Arduino GND to external ground reference</span>** - Since this project must use an external power supply to get enough current for the dipslays; during development and programming, we will often have the USB plugged in as well. If we do not connect the Arduino GND to the power supply ground we run the risk of a reference mismatch that can cause intermittent errors, or the device to not work at all.  
-> If we were to find ourselves with the configuration shown here. It may appear to be ok on first look, but with the multi-meter we can see that there is a 1.9V differential between the two ground references when it should be around 0.*
+<style>
+  .yellow {color:yellow}
+</style>
+> ***<span class="yellow"> Connect Arduino GND to external ground reference</span>** - Like many projects with higher power demands, this one uses an external power supply to get enough current for the dipslays; during development and programming, we will often have the USB plugged in as well. If we do not connect the Arduino GND to the power supply ground we run the risk of a reference mismatch that can cause intermittent errors, or the device to not work at all.  
+> If we were to inadvertently find ourselves with the configuration shown here. It may appear to be ok on first look, but with the multi-meter we can see that there is a 1.9V differential between the two ground references when it should be reading close to 0.*
 > 
 > ![GroundLoop HIGH](Images/GroundLoop_VoltageHIGH_Edit.png)
 > Connecting our grounds to bring them to the same potential, as below, will eliminate the problem above.  
@@ -72,21 +73,26 @@ All devices in this build are powered from a +5V source. The displays should dra
 <br>
 
 # **Software Configuration**  
-In order to interact with our different peripherals, we will be making use of several existing [Arduino libraries](https://www.arduino.cc/reference/en/libraries/). Unless otherwise specified, these libraries can be downloaded the usual manner using the [Arduino Library Manager](https://docs.arduino.cc/software/ide-v1/tutorials/installing-libraries). Each library will be introduced with the hardware it's related to.  
-Otherwise all the custom code is in the main Arduino sketch file. The only additional files referenced are some .h files used to store the string and array constansts used to define notes and song tones.
+In order to interact with our different peripherals, this project uses several existing [Arduino libraries](https://www.arduino.cc/reference/en/libraries/). Unless otherwise specified, these libraries can be downloaded the usual manner using the [Arduino Library Manager](https://docs.arduino.cc/software/ide-v1/tutorials/installing-libraries). Each library will be introduced with the hardware it's related to.
+
+All custom project code is in the main Arduino sketch file. The only additional files referenced are some .h files used to store the string and array constants that define notes and song tones.
+
+The game controller code uses non-blocking techniques with port register interrupts on the lap detection sensor pins.
 
 <br>
 
 # **The Main Display (LCD2004 + I2C Backpack)**  
-LCD character displays are readily available in 2 or 4 rows, of 16 or 20 characters. A 4 row x 20 character LCD dispaly provides just enough space for a general menu interface that can be used to update settings, start a race, and review best lap result times.  
+For the main display that will provide the user interface menu options and game output we will use a 4 row x 20 character LCD display. LCD character displays are readily available in 2 or 4 rows, of 16 or 20 characters. A 4 row x 20 character LCD display is the biggest commonly available so we'll work with that. It's perfect for displaying 2 racer menu layouts, but for 3-4 racers menu design becomes much more complex as we can't fit data for 4 racers on the screen at the same time with menu options.
+
 > ***LCD Part Numbers:** these types of character LCDs usually follow a Part Number pattern of 'LCDccrr', where rr = number of rows, and cc = the number of characters wide it is. (ie. LCD2004 = 4rows of 20ch).*
 
-These displays can be controlled directly using 13 Arduino pins. However because this uses so many pins, it is common to add a small 'backpack' board that will allow us to control these via I2C instead. This reduces the number of signal pins from 13 to just 2. This addition is so common that most LCDs of this type, sold for use with Arduino, have an I2C backpack included.  
+This display can be controlled directly using 13 Arduino pins. However, it is common to add a small 'backpack' board that will allow us to control these via I2C instead. This reduces the number of signal pins from 13 to just 2. This addition is so prevalent that most LCDs of this type, sold for use with Arduino, have an I2C backpack included.
+
+[![I2C PinsImage](Images/LCD2004%20I2C%20backpack.png)](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
+
 > *Though a deeper understanding isn't necessary to use I2C in this project, one may find it helpful for troubleshooting, or if modifying the projcect hardware or software. These references can provide more details regarding I2C, and using the built-in Arduino 'Wire' library.*
 > - [I2C Basics](https://rheingoldheavy.com/i2c-basics/) 
 > - [The Arduino Wire Library](https://rheingoldheavy.com/arduino-wire-library/)
-
-[![I2C PinsImage](Images/LCD2004%20I2C%20backpack.png)](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
 
 ## **LCD Libraries and Initialization in Code:**  
 The libraries used to communicate with, and update, the LCD provides a pretty straighforward set of methods (i.e. API) that can be called to write strings, numbers, or turn on and off an input cursor on the display.  
@@ -122,7 +128,7 @@ void setup(){
   int status = lcd.begin(LCD_COLS, LCD_ROWS);
   // If display initialization fails, trigger onboard error LED if exists.
   if(status) hd44780::fatalError(status);
-  // Make sure display has no residual data and starts in a blank state
+  // Clear display of any residual data, ensure it starts in a blank state
   lcd.clear();
   --- other code ---
 }
@@ -132,8 +138,10 @@ void setup(){
 <br>
 
 # **Racer Lap Timers (8-digit, 7-seg LED Bar)**
-Each racer we will have a dedicated lap counter and timer display. We will need 3 digits for the lap count and 4 significant digits to display for the current lap time. This will allow up to 3 decimal places up to 10sec, 2 decimal places up to 1min, and 1 decimal place up to 10min.  
-We can use a single 8 digit LED bar to accomodate this need, for each racer.  
+Each lap sensor (also referred to as a lane or racer) has a dedicated lap counter and timer display. With a single 8 digit LED bar we can use the left 3 digits to display the lap count, the right 4 digits can display time, with a digit space in between. Because the decimal can be put on any digit, we treat the number digits as significant digits rather than a set value position.
+
+This will allow up to 3 decimal places for displaying times up to 10sec, 2 decimal places up to 1min, and 1 decimal place up to 10min and maintain the space between the lap count.s  
+ 
 Because the primary purpose of this display is to show numbers, a 7-segment LED is a perfect choice. As with the LCD, we could drive them directly from the Arduino, but the number of required pins is even worse. Each 7-segment digit has 1 LED for each segment and an 8th for a decimal LED, each requiring its own pin. This means a single 8 digit bar of 7-segment LEDs, for a single racer, requires 64 pins.  
 [![Arduino 7 Segment LED](Images/7-segment-led-display.png)](https://www.electroschematics.com/arduino-segment-display-counter/)
 
@@ -388,7 +396,7 @@ void loop() {
       noteDelay = PlayNote(playingNotes, playingLengths, melodyIndex, false);
     }
   }
-  
+
   --- other code ---
   // To play a song we set the flag to true and re-assign song pointer to desired tune.
   melodyPlaying = true;

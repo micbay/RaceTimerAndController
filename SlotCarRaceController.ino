@@ -206,9 +206,9 @@ byte lanesEnabledIdx = 0;
 // Array variable to hold lane state and property indexes
 // col0 is the idx of the text array for the display, col1 is its enabled bit flag value
 const byte lanesEnabled[3][2] = {
-  {0, 3},  // All           0x11111111
-  {1, 1},  // Lane 1 Only   0x00000001
-  {2, 2}   // Land 2 Only   0x00000010
+  {0, 3},  // All           3 = 0x11111111
+  {1, 1},  // Lane 1 Only   1 = 0x00000001
+  {2, 2}   // Land 2 Only   2 = 0x00000010
 };
 // we skip index 0 so that the lane # matches its laneEnabledMask index value
 // col idx 0 is the byte mask representing the lane number.
@@ -1116,10 +1116,12 @@ int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
 // Initialize hardware and establish software initial state
 void setup(){
   // --- SETUP SERIAL ------------------------
-  // NOTE: Serial port is only used in debugging at the moment.
-  // The hile loop waits for the serial connection to be established
-  // before moving on so we don't miss anything. If the Arduion seems to
-  // 'hang', this may be the culprit if there is a connection issue.
+  /*
+  NOTE: Serial port is only used in debugging at the moment.
+  The while loop waits for the serial connection to be established
+  before moving on so we don't miss anything. If the Arduion seems to
+  'hang', this may be the culprit if there is a connection issue.
+  */
   // Open port and wait for connection before proceeding.
   Serial.begin(9600);
   while(!Serial);
@@ -1129,7 +1131,7 @@ void setup(){
 	int status = lcd.begin(LCD_COLS, LCD_ROWS);
   // If display initialization fails, trigger onboard error LED if exists.
 	if(status) hd44780::fatalError(status);
-  // Make sure display has no residual data and starts in a blank state
+  // Clear display of any residual data, ensure it starts in a blank state
   lcd.clear();
 
   // --- SETUP LED 7-SEG, 8-DIGIT MAX7219 LED BARS ------
@@ -1140,7 +1142,7 @@ void setup(){
     /*The MAX72XX is in power-saving mode on startup*/
     lc.shutdown(deviceID, false);
     // intensity range from 0-15, higher = brighter
-    lc.setIntensity(deviceID, 8);
+    lc.setIntensity(deviceID, 1);
     // Blank the LED digits
     lc.clearDisplay(deviceID);
   }
