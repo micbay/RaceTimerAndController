@@ -697,7 +697,7 @@ void PrintText(const char textToWrite[], const displays display, const byte writ
     } // END LCD case
     break;
     // For writing to LED display
-    // Note that 7-seg cannot display 'M's, 'X's, 'W'x, or 'V's
+    // Note that 7-seg cannot display 'K', 'W', 'M', 'X's, 'W'x, or 'V's
     case led1Disp: case led2Disp: {
       if (clear) lc.clearDisplay(display - 1);
       for (byte i = cursorStartPos; i <= cursorEndPos; i++){
@@ -1098,7 +1098,7 @@ int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
     melodyIndex = 0;
     noteDelay = 0;
     playingCount = 0;
-    noTone(buzzPin1);
+    // noTone(buzzPin1);
   }
   // Buzzer notes have no transition time or strike impulse.
   // So when played as written, each note sounds unaturally run together.
@@ -1134,12 +1134,10 @@ void setup(){
   // Clear display of any residual data, ensure it starts in a blank state
   lcd.clear();
 
-  // --- SETUP LED 7-SEG, 8-DIGIT MAX7219 LED BARS ------
-  //we have already set the number of devices when we created the 'lc' object
-  int devices = lc.getDeviceCount();
-  //we have to init all devices in a loop
-  for(int deviceID = 0; deviceID < devices; deviceID++) {
-    /*The MAX72XX is in power-saving mode on startup*/
+  // --- SETUP LED 7-SEG, 8-DIGIT MAX7219 LED Globals ------
+  // Initialize all the displays
+  for(int deviceID = 0; deviceID < LED_BAR_COUNT; deviceID++) {
+    // The MAX72XX is in power-saving mode on startup
     lc.shutdown(deviceID, false);
     // intensity range from 0-15, higher = brighter
     lc.setIntensity(deviceID, 1);
@@ -1170,13 +1168,8 @@ void setup(){
   PrintText(Racers[racer1], led1Disp, 7, 8);
   PrintText(Racers[racer2], led2Disp, 7, 8);
   // Serial.println(currentMenu);
+
   // melodyPlaying = true;
-
-  // playingNotes = takeOnMeNotes;
-  // playingLengths = takeOnMeLengths;
-  // playingCount = takeOnMeCount;
-  // playingTempoBPM = takeOnMeTempo;
-
   playingNotes = marioUnderworldNotes;
   playingLengths = marioUnderworldLengths;
   playingCount = marioUnderworldCount;

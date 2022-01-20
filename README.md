@@ -59,10 +59,8 @@ All of the components are readily available and can be connected with basic jump
 
 ## **Power Supply (+5V)**  
 All devices in this build are powered from a +5V source. The displays should draw power from the source supply and not through the Arduino which cannot support enough current to run everything without flickering.
-<style>
-  .yellow {color:yellow}
-</style>
-> ***<span class="yellow"> Connect Arduino GND to external ground reference</span>** - Like many projects with higher power demands, this one uses an external power supply to get enough current for the dipslays; during development and programming, we will often have the USB plugged in as well. If we do not connect the Arduino GND to the power supply ground we run the risk of a reference mismatch that can cause intermittent errors, or the device to not work at all.  
+
+> ***<span style="color:yellow"> Connect Arduino GND to external ground reference</span>** - Like many projects with higher power demands, this one uses an external power supply to get enough current for the dipslays; during development and programming, we will often have the USB plugged in as well. If we do not connect the Arduino GND to the power supply ground we run the risk of a reference mismatch that can cause intermittent errors, or the device to not work at all.  
 > If we were to inadvertently find ourselves with the configuration shown here. It may appear to be ok on first look, but with the multi-meter we can see that there is a 1.9V differential between the two ground references when it should be reading close to 0.*
 > 
 > ![GroundLoop HIGH](Images/GroundLoop_VoltageHIGH_Edit.png)
@@ -138,23 +136,39 @@ void setup(){
 <br>
 
 # **Racer Lap Timers (8-digit, 7-seg LED Bar)**
-Each lap sensor (also referred to as a lane or racer) has a dedicated lap counter and timer display. With a single 8 digit LED bar we can use the left 3 digits to display the lap count, the right 4 digits can display time, with a digit space in between. Because the decimal can be put on any digit, we treat the number digits as significant digits rather than a set value position.
+This race controller is intended to support up to 4 racers. For each racer we have a dedicated lap sensor, tracking laps, and associated with that lap sensor is a dedicated display showing the racer's active lap number and running lap time.
 
-This will allow up to 3 decimal places for displaying times up to 10sec, 2 decimal places up to 1min, and 1 decimal place up to 10min and maintain the space between the lap count.s  
- 
-Because the primary purpose of this display is to show numbers, a 7-segment LED is a perfect choice. As with the LCD, we could drive them directly from the Arduino, but the number of required pins is even worse. Each 7-segment digit has 1 LED for each segment and an 8th for a decimal LED, each requiring its own pin. This means a single 8 digit bar of 7-segment LEDs, for a single racer, requires 64 pins.  
+The display must be able to fit a 3 digit lap count and a lap time with up to 4 significant digits. This lap time digit width, we can support a display precision of at least 1 sec up to a 1 hour lap time, and as small as 1ms for lap times under 10 seconds.
+
+***NOTE: Display precision has no impact on the precision of the recorded lap time. Laps of all durations will be captured with millisecond precision (0.000 sec).***
+
+> 4 significant digits, sliding lap time display precision
+> | Lap Time Range | Most Precise Display Format |
+> |---|--|
+> | time < 10 sec | 0.000 - 9.999 |
+> | 10 sec <= time < 1 min |10.00 - 59.99 |
+> | 1 min <= time < 10 min | 1.00.0 - 9.59.9 |
+> | 10 min <= time < 1 hour | 10.00 - 59.59|
+
+Because the primary purpose of this display is to show numbers, a 7-segment LED is a perfect, low budget choice. A 7-seg LED digit is pretty much just 8 standard LEDs arranged as a digit with a decimal.
+
+As with the LCD, we could drive each LED directly from the Arduino, but the number of required pins is even worse. Each of the 8 LEDs that make up a single 7-segment digit would need its own pin. This means 7 digits x 8 LEDs is 56 pins just to drive the LEDs for a single racer.
+
 [![Arduino 7 Segment LED](Images/7-segment-led-display.png)](https://www.electroschematics.com/arduino-segment-display-counter/)
 
 ## **The MAX7219 Serial LED Driver:**
 ### **Use Serial LED Driver to Minimize Pin Count**  
-Luckily, our pin problem can be overcome by using a chip like the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), which can drive up to 64 LEDs while requiring only 3 signal pins from the Arduino. As such, it's common to find pre-assembled LED bars having 4, or 8, 7-segment digits, with an integrated MAX7219 such as shown here. Each racer will r  
-![8-digit 7-Seg LED](Images/MAX7219,%208-digit%207-seg%20LED%20Bar.png)  
+Luckily, our pin problem can be overcome by using a chip like the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), which can drive up to 64 LEDs while requiring only 3 signal pins from the Arduino. As such, it's common to find pre-assembled LED bars having 4, or 8, 7-segment digits, with an integrated MAX7219 such as shown here. We'll use one of these 8 digit MAX7219 LED packages for each racer.
+
+![8-digit 7-Seg LED](Images/MAX7219,%208-digit%207-seg%20LED%20Bar.png)
+
 ### **Chain The Lap Timer Displays**  
-Another feature of the MAX7219, that makes these LED bars a good choice for this application, is the ability to cascade (i.e. daisy chain) a number of them together. By taking advantage of the MAX7219's no-op register we can update any digit of any of the racer's LED bars using the same 3 signal pins from the Arduino. The LED driver library will handle the implementation details regarding this, so it's not really necessary to understand more than we can connect them together and address any given digit individually.  
+Another feature of the MAX7219, that makes these LED bars a good choice for this application, is the ability to cascade (i.e. daisy chain) a number of them together. By taking advantage of the MAX7219's no-op register we can update any digit of any of the racer's LED bars using the same 3 signal pins from the Arduino. The LED driver library will handle the implementation details regarding this, so it's not really necessary to understand more than we can connect them together and address any given digit individually.
+
 ![MAX7219 LED Cascade](Images/LED_MAX7219_Cascade.png)
 
 ### **Noise Sensitivity**  
-The MAX7219 can sensitive to noise on its power input. If the power lines are clean there will likely not be an issue, however, the MAXIM documentation on using the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), strongly recommends using a [bypass filter](https://www.electronicdesign.com/power-management/power-supply/article/21808839/3-ways-to-reduce-powersupply-noise), consisting of a 10&mu;F (polarized, electrolytic) and 100nF (i.e. 0.1&mu;F, #104) capacitors across the input voltage into the MAX7219 and ground.
+The MAX7219 can be particularly sensitive to noise on its power input. If the power lines are clean there will likely not be an issue, however, the MAXIM documentation on using the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), strongly recommends using a [bypass filter](https://www.electronicdesign.com/power-management/power-supply/article/21808839/3-ways-to-reduce-powersupply-noise), consisting of a 10&mu;F (polarized, electrolytic) and 100nF (i.e. 0.1&mu;F, #104) capacitors across the input voltage into the MAX7219 and ground.
  
 |Bypass Diagram| Capacitor Diagram Symbol Review|
 |:---:|:---:|
@@ -163,6 +177,7 @@ The MAX7219 can sensitive to noise on its power input. If the power lines are cl
 <br>
 
 ## LED LIibraries and Initialization in Code:  
+To drive our LED race timers, we will make use of the `LedControl` library which is specifically designed to operate these kinds of display packages. Similar to the LCD, this library allows us to update any given display digit with a straightforward write number or character API.
 - [LedControl](https://www.arduino.cc/reference/en/libraries/ledcontrol/) - library supports MAX7219 & MAX7221 LED displayseed for the LED bars.
 
 Declaration and Setup of LED dispalys in `SlotCarRaceController.ino`
@@ -170,7 +185,7 @@ Declaration and Setup of LED dispalys in `SlotCarRaceController.ino`
 // library for 7-seg LED Bars
 #include <LedControl.h>
 
-// ***** 7-Seg 8-digit LED Bars *****
+// ***** 7-Seg 8-digit LED Globals *****
 const byte PIN_TO_LED_DIN = 2;
 const byte PIN_TO_LED_CS = 3;
 const byte PIN_TO_LED_CLK = 4;
@@ -182,7 +197,70 @@ const byte LED_DIGITS = 8;
 LedControl lc = LedControl(PIN_TO_LED_DIN, PIN_TO_LED_CLK, PIN_TO_LED_CS, LED_BAR_COUNT);
 
 
+void setup() {
+  --- some other code ---
+  
+  // --- SETUP LED 7-SEG, 8-DIGIT MAX7219 LED BARS ------
+  // Initialize all the displays
+  for(int deviceID = 0; deviceID < LED_BAR_COUNT; deviceID++) {
+    // The MAX72XX is in power-saving mode on startup
+    lc.shutdown(deviceID, false);
+    // intensity range from 0-15, higher = brighter
+    lc.setIntensity(deviceID, 1);
+    // Blank the LED digits
+    lc.clearDisplay(deviceID);
+  }
+
+  --- some other code ---
+}
+--- remaining program ---
 ```
+
+## **LED Display Character Writing**  
+Though the primary purpose of the racer's lap displays is to show running lap counts and times, we also need to be able to identify the which display is being used by which racer. The most direct way to do this is to write their racer name to their corresponding LED display. The side effect of doing this is that 7-seg displays cannot display all characters, and in most cases, of the characters that can be displayed, often only a lower case or upper case option is available.
+> 7-segment displays cannot draw any version of the following characters  
+> 'K', 'W', 'M', 'X's, 'W'x, or 'V's
+### **Customization of the LedControl Character Library**  
+I've modified the character table used by the installed version of the `LedControl` library to make it more understandable and added several missing, but functional characters.
+| Code Value: `B0abcdefg` | Edited `charTable[]` to update `LedControl.h` with more characters. |
+|---|--|
+| <img style="width:400px" src="Images/7-seg-digit-mapping-Edemo.png" /> | This table is how the `LedControl` library determines what segments to display when the code calls for a particular character. <br> The requested character's [ASCII Value](https://www.ascii-code.com/) determines the index of the array, `charTable[]`, that has the code value indicating what segments to light up to draw the character. <br> For example, if we want to draw a capital 'E', it's ACII value is `69`. If we go to `charTable[69]`, we find the code value **`B01001111`**.  <br> Following the format, `B0abcdefg`, this value instructs segments a, d, e, f and g to turn on. <br> We can edit the code values in this table to change how a character is drawn or make new characters. |  
+
+```cpp
+const static byte charTable [] PROGMEM  = {
+  //00  0         1         2          3        4         5         6         7
+    B01111110,B00110000,B01101101,B01111001,B00110011,B01011011,B01011111,B01110000,
+  //08  8         9         0         b          c        d         E         F
+    B01111111,B01111011,B01110111,B00011111,B00001101,B00111101,B01001111,B01000111,
+    B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,
+    B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,
+  //32                                                                        '
+    B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000010,
+  //40                                                    -
+    B00000000,B00000000,B00000000,B00000000,B10000000,B00000001,B10000000,B00000000,
+  //48  0         1         2          3        4         5         6         7
+    B01111110,B00110000,B01101101,B01111001,B00110011,B01011011,B01011111,B01110000,
+  //56  8         9
+    B01111111,B01111011,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,
+  //64            A         B         C       D->d        E         F         G
+    B00000000,B01110111,B01111111,B01001110,B00111101,B01001111,B01000111,B01011110,
+  //72  H         I         J         K         L         M         N         O
+    B00110111,B00000110,B01111100,B00000000,B00001110,B00000000,B00010101,B01111110,
+  //80  P       Q->q      R->r        S       T->t        U         V         W
+    B01100111,B01110011,B00000101,B01011011,B00001111,B00111110,B00000000,B00000000,
+  //88  X         Y         Z         K                                       _
+    B00000000,B00111011,B01101101,B00000000,B00000000,B00000000,B00000000,B00001000,
+  //96          a->A        b         c         d        e        f->F        g
+    B00000000,B01110111,B00011111,B00001101,B00111101,B01101111,B01000111,B01111011,
+  //104 h         i         j         k         l         m         n         o
+    B00010111,B00000100,B00111100,B00000000,B00000110,B00000000,B00010101,B00011101,
+  //112 p         q         r       s->S        t         u         v        w
+    B01100111,B01110011,B00000101,B01011011,B00001111,B00011100,B00000000,B00000000,
+  //120 x         y       z->z
+    B00000000,B00111011,B01101101,B00000000,B00000000,B00000000,B00000000,B00000000
+};
+```
+
 
 <br>
 
@@ -378,7 +456,6 @@ int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
     melodyIndex = 0;
     noteDelay = 0;
     playingCount = 0;
-    noTone(buzzPin1);
   }
   // Buzzer notes have no transition time or strike impulse.
   // So when played as written, each note sounds unaturally run together.
@@ -408,16 +485,29 @@ void loop() {
 }
 ```
 
-> ## **Transcribing *'Take On Me'* Into Playable Arrays**
-> To illustrate the process, we will transcribe the intro to Take On Me by Aha! Here are the first 12 meausres (bar 1 repeated twice, and 2nd bar) of the sheet music.
+## **Example Transcribing *'Take On Me'* Into Playable Arrays**
+To illustrate the process, we will transcribe the intro to Take On Me by Aha! Here are the first 12 meausres (bar 1 repeated twice, and 2nd bar) of the sheet music.
 
-> ![Take On Me Sheet](Images/TakeOnMeIntro_SheetMusic.png)
+![Take On Me Sheet](Images/TakeOnMeIntro_SheetMusic.png)
 
-> Looking at the beginning of the staff
+Looking at the first measure we see that the key signature is for the key of A Major. This means that all F5, C5, and G5 notes are sharp, as is indicated by the key signature sharp symbols on those lines.
+![Take On Me Key Sig](Images/TOnMe_KeySignature.png)
 
+In addition to our notes and note lengths we also see the tempo is 'Fast', which on our chart is around 120-168, by ear it sound around 150 bpm, but since we add a break with each note we bump it up by 10% so around 165 is probably good.  
+This first measure give us everything we need to make our melody variables.
+```cpp
+const int takeOnMeNotes[] = {
+  NOTE_FS5, NOTE_FS5, NOTE_D5, NOTE_B4, 0, NOTE_B4, 0, NOTE_E5
+};
+const int takeOnMeLengths[] = {
+  8, 8, 8, 8, 8, 8, 8, 8
+};
+const int takeOnMeTempo = 165;
+const int takeOnMeCount = sizeof(takeOnMeNotes)/sizeof(int); 
+```
 
+Finishing the rest of the notes in the intro we get a full trancription of the sheet snippet.
 
-> Transcribed 'Take On Me' melody snippet from `melodies_prog.h`
 ```cpp
 const int takeOnMeNotes[] PROGMEM = {
   NOTE_FS5, NOTE_FS5, NOTE_D5, NOTE_B4, 0, NOTE_B4, 0, NOTE_E5,
@@ -451,6 +541,7 @@ const int takeOnMeLengths[] PROGMEM = {
   8, 8, 8, 8, 8, 8, 8, 8,
   8, 8, 8, 8, 2
 };
+const int takeOnMeTempo = 165;
 const int takeOnMeCount = sizeof(takeOnMeNotes)/sizeof(int);
 ```
 <br>
@@ -484,4 +575,24 @@ TODO
 // Library to support storing/accessing constant variables in PROGMEM
 #include <avr/pgmspace.h>
 ```
+
+
+
+
+
+
+
+<br>
+
+# **Race Controller Operation**
+
+*Live lap times display up to deci-seconds, however, it really doesn't make any practical sense to do this. Nothing changing faster than 0.1sec is discernable in real time. In an odd twist in this project, the display update timing is such that the .0X place appears to be incrementing slowly, but the 0.X digit makes it clear this is an illusion.*
+![two decimals](Images/Racer_Display_ssxx.png)
+
+> The finished lap time is captured to the millisecond.
+![three decimals](Images/Racer_Display_ssxxx.png)
+
+
+
+
 
