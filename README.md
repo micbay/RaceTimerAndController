@@ -223,12 +223,12 @@ Though the primary purpose of the racer's lap displays is to show running lap co
 
 However, a side effect of using 7-seg displays is that they cannot display all characters, and in most cases, of the characters that can be displayed, often only a lower case or upper case option is available. 
 > *7-segment displays cannot draw any version of the following characters*  
-> 'K', 'W', 'M', 'X's, 'W'x, or 'V's*
+> 
 
 ### **Customization of the `LedControl` Character Library**  
-The `LedControl` library, as it is downloaded, is missing some writable letters. To add them or to change how existing writable characters are written, we can edit the libraries character table that contains the MAX7219 code value.
+The `LedControl` library, as it is downloaded, is missing some writable letters. To add them or to change how existing writable characters are written, we can edit the libraries character table that contains the code value representing the segments to be displayed.
 
-Normally it is not best practice to directly edit librarly files because next time they are updated these changes will get overwritten. However, in this case, Arduino libraries are rarely updated and it is not a difficult change to re-implement vs the hassle of making our own version of the library.
+Normally it is not best practice to directly edit library files because next time they are updated these changes will get overwritten. However, in this case, Arduino libraries are rarely updated and it is not a difficult change to re-implement vs the hassle of making our own version of the library.
 
 > ***Finding Arduino Library Files***  
 > Built-in libraries that are installed as part of the IDE, are found in the Arduino IDE installation folder in a sub-directory called `libraries`. On windows this is in:  
@@ -249,7 +249,7 @@ Normally it is not best practice to directly edit librarly files because next ti
 > **Replace 'userid' with appropriate windows user profile name
 > ```
 
-To edit the displayed character shape, we can edit the code value of the corresponding index of the `charTable[]` array found in `LedControl.h`.
+To edit the displayed character shape, we can edit the code value of the corresponding index of the `charTable[]` array found in `LedControl.h`. We could also use any of the unwrittable characters as an alias for our own character, such as changing 'M' (i.e. ASCII 77) to be `B01001001`, to draw a triple bar symbol when an 'M' character is commanded.
 
 | Code Value: `B0abcdefg` | Edit `charTable[]` to update `LedControl.h` with more characters. |
 |---|--|

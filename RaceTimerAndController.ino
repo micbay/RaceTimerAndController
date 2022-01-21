@@ -9,13 +9,13 @@
 //-------------------
 
 // Enable if using Note-Lengths Array method of playing Arduino sounds
-//-------------------
-// Defines the note constants that make up a melodie's Notes[] array.
-#include <pitches.h>
-// File of songs/melodies defined using Note & Lengths array.
-// Because these arrays are stored in PROGMEM we must also include 'avr/pgmspace.h' to access them.
-#include "melodies_prog.h"
-//-------------------
+// //-------------------
+// // Defines the note constants that make up a melodie's Notes[] array.
+// #include <pitches.h>
+// // File of songs/melodies defined using Note & Lengths array.
+// // Because these arrays are stored in PROGMEM we must also include 'avr/pgmspace.h' to access them.
+// #include "melodies_prog.h"
+// //-------------------
 
 // Library to support storing/accessing constant variables in PROGMEM
 #include <avr/pgmspace.h>
@@ -268,12 +268,12 @@ bool entryFlag;
 // there is not easy way to determine the number of elements,
 // so we use a constant to set the length.
 // This must be maintained manually to match Racers[] actual content below
-byte const racerCount = 9;
-// For 7-seg displays there are no W's, M's, X's, K's, or V's
-const char* Racers[racerCount] = {
-  "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020", "The OG", "5318008"
+byte const racerListSize = 9;
+// 7-seg digits cannot display W's, M's, X's, K's, or V's
+const char* Racers[racerListSize] = {
+  "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020_longer", "The OG", "5318008"
 };
-const char* victorySong[racerCount] = {
+const char* victorySong[racerListSize] = {
   starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter
 };
 // byte nameCursorPos = 8;
@@ -285,7 +285,7 @@ byte nameEndPos = 19;
 // this frees up significant RAM. In this case, using progmem to replace
 // these few const char* arrays, reduced RAM used by globals, by 10%.
 // The character buffer needs to be as large as largest string to be used.
-// Since our longest row of characters is on the LCD we use its row length.
+// Since our longest row of characters is on the LCD we use its column count.
 char buffer[LCD_COLS];
 
 const char Main0[] PROGMEM = "A| Select Racers";
@@ -533,11 +533,17 @@ void PrintNumbers(const unsigned long numberIN, const byte width, const byte end
 }
 
 
-// Input time in ms; clockEndPos is the index of where the last digit of the clock should go.
-// This index is always considered left to right, and starting with 0.
-// The function will flip index internally if needed for a right to left indexed display.
-// The MAX7219 LED bars are such displays where, internally, digit idx 0 is the far right digit.
-// Using this function with LED bar, to have clock end at far right input clockEndPos 7, not 0.
+// timeMillis
+//    - Input time in ms
+// clockEndPos
+//    - Is the index of display row, where the last digit of the clock should go.
+//    This index is always considered left to right, and starting with 0.
+//    The function will flip index internally if needed for a right to left indexed display.
+//    For the MAX7219 LED bars, natively, the digit idx 0 is the far right digit.
+//    However, when using this function with a MAX7219 LED bar,
+//    to have clock end at far right, input clockEndPos 7, not 0.
+// printWidth
+//    - Valid values 'H', 'M', or 'S' indicating highest 
 void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displays display, byte line = 0, bool leadingZs = false) {
   unsigned long ulHour;
   unsigned long ulMin;
@@ -546,7 +552,7 @@ void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displ
   unsigned long ulCent;
   unsigned long ulMill;
   SplitTime(timeMillis, ulHour, ulMin, ulSec, ulDec, ulCent, ulMill);
-  //Calculate and adjust start position affected by number of decimal seconds digits requested
+  // Calculate and adjust start position affected by number of decimal seconds digits requested
   // We use the endPos of the hours as the start endPos of the whole clock print.
   unsigned long decimalSec;
   byte decimalWidth;
@@ -944,7 +950,7 @@ bool IsBitSet(byte b, byte pos) {
 // If the new lap time is faster than any existing time, it takes its place,
 // pushing the subsequent times down by 1, dropping the last time off the list.
 void UpdateFastestLap(unsigned long fastestTimes[], unsigned int fastestLaps[][2], const int lap, const unsigned long newLapTime, const byte racer, const byte arrayLength){
-  Serial.println("ENTERED FASTEST");
+  // Serial.println("ENTERED FASTEST");
   for (byte i = 0; i < arrayLength; i++){
     // Starting from beginning of list, compare new time with existing times.
     // If new lap time is faster, hold its place, and shift bested, and remaining times down.
@@ -1002,7 +1008,7 @@ void lcdPrintResults(unsigned long fastestTimes[], unsigned int fastestLaps[][2]
       if (fastestTimes[resultsMenuIdx + i] > 60000) {
         PrintText("60+", lcdDisp, 10, 3, false, i + 1, false);
       } else {
-        PrintClock(fastestTimes[resultsMenuIdx + i], 12, Sm, lcdDisp, i + 1);
+        PrintClock(fastestTimes[resultsMenuIdx + i], 11, Sm, lcdDisp, i + 1);
       }
       // clear racer name space of any previous characters
       lcdClearLine(1 + i, 13);
@@ -1050,7 +1056,7 @@ void ResetRace(){
   InitializeRacerArrays();
 }
 
-// ------------NOT USED-------------
+// ------------BELOW NOT USED-------------
 // // *** This section for using Note and Lengths arrays for songs
 // // Globals for holding the current melody data references.
 // int *playingNotes;
@@ -1110,7 +1116,7 @@ void ResetRace(){
 //   //***this will make the true tempo slightly slower.
 //   // So increase the song's set tempo from the music sheet to accomodate.
 // }
-
+// -------------ABOVE NOT USED-------------------
 
 // *********************************************
 // ***************** SETUP *********************
@@ -1124,8 +1130,8 @@ void setup(){
   'hang', this may be the culprit if there is a connection issue.
   */
   // Open port and wait for connection before proceeding.
-  Serial.begin(9600);
-  while(!Serial);
+  // Serial.begin(9600);
+  // while(!Serial);
   // --- SETUP LCD DIPSLAY -----------------------------
   // Initialize LCD with begin() which will return zero on success.
   // Non-zero failure status codes are defined in <hd44780.h>
@@ -1321,7 +1327,7 @@ void loop(){
                 // if lane is enabled it wil be > 0
                 if(lanes[1][1]){
                   // clear line to remove extra ch from long names replaced by shorter ones
-                  racer1 = IndexList(racer1, racerCount, key == 'A', racer2);
+                  racer1 = IndexList(racer1, racerListSize, key == 'A', racer2);
                   PrintText(Racers[racer1], lcdDisp, nameEndPos, 12, false, 1);
                   PrintText(Racers[racer1], led1Disp, 7, 8);
                   // Play racers victory song
@@ -1334,7 +1340,7 @@ void loop(){
                 // if lane is enabled it wil be > 0
                 if(lanes[2][1]){
                   // clear line to remove extra ch from long names replaced by shorter ones
-                  racer2 = IndexList(racer2, racerCount, key == 'D', racer1);
+                  racer2 = IndexList(racer2, racerListSize, key == 'D', racer1);
                   PrintText(Racers[racer2], lcdDisp, nameEndPos, 12, false, 3);
                   PrintText(Racers[racer2], led2Disp, 7, 8);
                   // Play racers victory song
@@ -1710,7 +1716,7 @@ void loop(){
     } // END of Paused state
     default:{
       // if the state becomes unknown then default back to 'Menu'
-      Serial.println("Entered default state");
+      // Serial.println("Entered default state");
       state = Menu;
       break;
     }
@@ -1815,8 +1821,8 @@ int lcdEnterNumber(int digits, int maxValue, int line, int cursorPos){
         cursorPos++;
         digits--;
         inputNumber[digits] = keyIN - '0';
-        Serial.println("inputNumber digit");
-        Serial.println(inputNumber[digits]);
+        // Serial.println("inputNumber digit");
+        // Serial.println(inputNumber[digits]);
         break;
       }
       default:

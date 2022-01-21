@@ -75,10 +75,6 @@ const int cScaleTempo = 85;
 
 
 
-
-
-
-//Mario main theme melody
 const int marioMainThemeNotes[] PROGMEM = {
   NOTE_E7, NOTE_E7, 0, NOTE_E7,
   0, NOTE_C7, NOTE_E7, 0,
@@ -106,7 +102,6 @@ const int marioMainThemeNotes[] PROGMEM = {
   0, NOTE_E7, 0, NOTE_C7,
   NOTE_D7, NOTE_B6, 0, 0
 };
-//Mario main them tempo
 const int marioMainThemeLengths[] PROGMEM = {
   12, 12, 12, 12,
   12, 12, 12, 12,
@@ -138,7 +133,6 @@ const int marioMainThemeTempo = 130;
 
 
 
-//Underworld melody
 const int marioUnderworldNotes[] PROGMEM = {
   NOTE_C4, NOTE_C5, NOTE_A3, NOTE_A4,
   NOTE_AS3, NOTE_AS4, 0,
@@ -160,7 +154,6 @@ const int marioUnderworldNotes[] PROGMEM = {
   NOTE_AS3, NOTE_A3, NOTE_GS3,
   0, 0, 0
 };
-//Underwolrd tempo
 const int marioUnderworldLengths[] PROGMEM = {
   12, 12, 12, 12,
   12, 12, 6,
@@ -187,7 +180,6 @@ const int marioUnderworldTempo = 130;
 
 
 
-// The melody array 
 const int takeOnMeNotes[] PROGMEM = {
   NOTE_FS5, NOTE_FS5, NOTE_D5, NOTE_B4, 0, NOTE_B4, 0, NOTE_E5,
   0, NOTE_E5, 0, NOTE_E5, NOTE_GS5, NOTE_GS5, NOTE_A5, NOTE_B5, 
@@ -204,7 +196,6 @@ const int takeOnMeNotes[] PROGMEM = {
   NOTE_A5, NOTE_A5, NOTE_A5, NOTE_E5, 0, NOTE_D5, 0, NOTE_FS5, 
   0, NOTE_FS5, 0, NOTE_FS5, 0
 };
-// The note duration, 8 = 8th note, 4 = quarter note, etc.
 const int takeOnMeLengths[] PROGMEM = {
   8, 8, 8, 8, 8, 8, 8, 8,
   8, 8, 8, 8, 8, 8, 8, 8,
