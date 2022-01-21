@@ -1055,7 +1055,7 @@ void ResetRace(){
 // // Globals for holding the current melody data references.
 // int *playingNotes;
 // int *playingLengths;                                                            
-// byte playingTempoBPM = 135;
+// int playingTempoBPM = 135;
 // int playingCount = 0;
 // // flag to indicate to the main program loop whether a melody is in process
 // // so it should execute the 'PlayNote()' function with the current melody parameters.

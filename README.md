@@ -100,7 +100,7 @@ The libraries used to communicate with, and update, the LCD provides a pretty st
   - [hd44780](https://www.arduino.cc/reference/en/libraries/hd44780/) - Of the many available, we have chosen `hd44780` as our LCD display driver and API.  
     - `hd44780_I2Cexp.h` - Because we are using an LCD with an I2C backpack we need to also include the *hd44780_I2Cexp.h* io class which is installed with the *hd44780* library.
 
-Declaration and Setup of LCD dispaly in `SlotCarRaceController.ino`
+Declaration and Setup of LCD dispaly in `RaceTimerAndController.ino`
 ```cpp
 // The 'Wire' library is for I2C, and is included in the Arduino installation.
 // Specific implemntation is determined by the board selected in Arduino IDE.
@@ -182,7 +182,7 @@ The MAX7219 can be particularly sensitive to noise on its power input. If the po
 To drive our LED race timers, we will make use of the `LedControl` library which is specifically designed to operate these kinds of display packages. Similar to the LCD, this library allows us to update any given display digit with a straightforward write number or character API.
 - [LedControl](https://www.arduino.cc/reference/en/libraries/ledcontrol/) - library supports MAX7219 & MAX7221 LED displays for the LED bars.
 
-Declaration and Setup of LED dispalys in `SlotCarRaceController.ino`
+Declaration and Setup of LED dispalys in `RaceTimerAndController.ino`
 ```cpp
 // library for 7-seg LED Bars
 #include <LedControl.h>
@@ -219,15 +219,41 @@ void setup() {
 ```
 
 ## **LED Display Character Writing**  
-Though the primary purpose of the racer's lap displays is to show running lap counts and times, we also need to be able to identify the which display is being used by which racer. The most direct way to do this is to write their racer name to their corresponding LED display. The side effect of doing this is that 7-seg displays cannot display all characters, and in most cases, of the characters that can be displayed, often only a lower case or upper case option is available. 
-> 7-segment displays cannot draw any version of the following characters  
-> 'K', 'W', 'M', 'X's, 'W'x, or 'V's
+Though the primary purpose of the racer's lap displays is to show running lap counts and times, we also need to be able to identify the which display is being used by which racer. The most direct way to do this is to write the racer name to the corresponding LED display on startup and racer selection.
+
+However, a side effect of using 7-seg displays is that they cannot display all characters, and in most cases, of the characters that can be displayed, often only a lower case or upper case option is available. 
+> *7-segment displays cannot draw any version of the following characters*  
+> 'K', 'W', 'M', 'X's, 'W'x, or 'V's*
+
 ### **Customization of the `LedControl` Character Library**  
-The `LedControl` library, as it is downloaded, is missing some writable letters. To add them or to change how existing writable characters are written, we can edit the `charTable[]` array found in `LedCtonrol.h`.
+The `LedControl` library, as it is downloaded, is missing some writable letters. To add them or to change how existing writable characters are written, we can edit the libraries character table that contains the MAX7219 code value.
+
+Normally it is not best practice to directly edit librarly files because next time they are updated these changes will get overwritten. However, in this case, Arduino libraries are rarely updated and it is not a difficult change to re-implement vs the hassle of making our own version of the library.
+
+> ***Finding Arduino Library Files***  
+> Built-in libraries that are installed as part of the IDE, are found in the Arduino IDE installation folder in a sub-directory called `libraries`. On windows this is in:  
+> - *Note that `Wire` is special and not located here.*
+> ```
+> Built-in:
+> C:\Program Files (x86)\Arduino\libraries
+> ```  
+> Add-on libraries, the ones installed via the library manager, such as `LedControl.h`, are found in the set sketchbook folder, the same folder sketches are put, (this folder is called 'Arduino', not 'sketchbook').  
+> By default, on windows, this is found in the user's `Documents` folder:
+> ```
+> Add-ons:
+> C:\Users\userid\Documents\Arduino\libraries
+> 
+> LedControl.h is found in:
+> C:\Users\userid\Documents\Arduino\libraries\LedControl\src
+> 
+> **Replace 'userid' with appropriate windows user profile name
+> ```
+
+To edit the displayed character shape, we can edit the code value of the corresponding index of the `charTable[]` array found in `LedControl.h`.
 
 | Code Value: `B0abcdefg` | Edit `charTable[]` to update `LedControl.h` with more characters. |
 |---|--|
-| <img style="width:400px" src="Images/7-seg-digit-mapping-Edemo.png" /> | The requested character's [ASCII Value](https://www.ascii-code.com/) determines the index of the array, `charTable[]`, that has the code value, indicating which segments to light up, to draw the character. <br> For example, to set what is drawn when instructing the LED to draw a capital 'E', we look up its ASCII value, which is `69`. Then go to the value at `charTable[69]`, and set the code value to **`B01001111`**.  <br> Following the format, `B0abcdefg`, this instructs segments a, d, e, f, and g to turn on. |
+| <img style="width:400px" src="Images/7-seg-digit-mapping-Edemo.png" /> | The requested character's [ASCII Value](https://www.ascii-code.com/) determines the index of the array, `charTable[]`, that has the code value, indicating which segments to light up, to draw the character. <br> For example, to set what is drawn when instructing the LED to draw a capital 'E', we look up its ASCII value, which is `69`. Then go to the value at `charTable[69]`, and set the code value to **`B01001111`**.  <br> Following the format, `B0abcdefg`, this will instruct segments a, d, e, f, and g to turn on. |
 
 ```cpp
 const static byte charTable [] PROGMEM  = {
@@ -293,8 +319,11 @@ void Beep() {
 To play a melody, we need to play a series of tones corresponding to the appropriate musical notes. Presented here are two common methods of coding and playing non-blocking audio melodies on the Arduino.
 
 ## **Method 1: `Notes[]` & `Lengths[]` Arrays ( `pitches.h` )**  
-This is probably the most commonly used approach, and is the most versatile way to use `tone()` to play a melody. In this approach we will represent the musical notes that make up a melody, using two arrays, one array to hold the note frequencies, `Notes[]`, and one to hold the note lengths, `Lengths[]`, which will be used to determine each note's tone duration.
+This is probably the most commonly used approach, as it is the most direct way to use `tone()` to play a melody. It is also the most versatile because there are no limits to the values used.
 
+In this approach we will represent the musical notes that make up a melody, using two arrays, one array to hold the note frequencies, `Notes[]`, and one to hold the note lengths, `Lengths[]`, which will be used to determine each note's tone duration.
+
+> ***Music Theory***  
 > *Though most of the necessary concepts will be reviewed herein, some existing understanding of basic music structure and notation will be extremely helpful in grasping how playing melodies works.*  
 > *Here are some resources to review or learn about musical notation and structure:*  
 > - *[Musical Note Names: Organizing the Notes](https://www.allaboutmusictheory.com/piano-keyboard/music-note-names/)* - understanding 'C4', 'C5', etc.
@@ -321,17 +350,18 @@ A portion of `pitches.h` is shown here, defining C in octave 4 (aka middle C) = 
 #define NOTE_DS4 311
 ```
 
-> ***The #define directive:** - In the `pitches.h` files, we are using the [`#define` preprocessor directive](https://www.ibm.com/docs/en/zos/2.3.0?topic=directives-define-directive). This is a macro definition (e.g. `#define NOTE_C4 262`) that contains an identifier (e.g. `NOTE_C4`), and a replacement token-string, (e.g. `262`).  
+> ***The #define directive:**  
+> In the `pitches.h` files, we are using the [`#define` preprocessor directive](https://www.ibm.com/docs/en/zos/2.3.0?topic=directives-define-directive). This is a macro definition syntax (e.g. `#define NOTE_C4 262`) that contains an identifier (e.g. `NOTE_C4`), and a replacement token-string, (e.g. `262`).  
 > Just before the code is actually compiled, a preprocessor will replace all instances, in code, of the identifier, with the replacement token-string. In the case of `pitches.h` it will replace a given note id with the integer frequency in Hz. This is to be distinguished from using a constant variable.*
 
-Using the notes defined in `pitches.h`, we can now build an array of the notes that make up a melody. For example, we can take the basic C-Major Scale:
+Using the notes defined in `pitches.h`, we can build an array of the notes that make up a melody. For example, we can take the basic C-Major Scale:
 
  C • D • E • F • G • A • B:
 
 ![C Major Scale](Images/C_Major_Scale.png)
 
 and record it in a `Notes[]` array, as such:
-> Storing in `PROGMEM` is optional
+- *Storing in `PROGMEM` is optional*
 ```cpp
 const int cMajorScaleNotes[] PROGMEM = {
   NOTE_C4, NOTE_D4, NOTE_E4, NOTE_F4, NOTE_G4, NOTE_A4, NOTE_B4
@@ -372,7 +402,8 @@ How long a beat lasts in real time is established by the tempo of the melody in 
 This indicates the tempo is 70bpm:
 
 ![bmp quarternote](Images/bpmq.png)  
-Usually however, instead of a numerical bpm, an Italian term desribing the tempo is used which can be interpreted into bpm and duration as such: ([Music Note Length Calculator](https://rechneronline.de/musik/note-length.php))
+Usually however, instead of a numerical bpm, an Italian term (sometimes French, German, or English) describing the speed, or tempo, is used.  
+This table interprets these terms into bpm and duration: ([Music Note Length Calculator](https://rechneronline.de/musik/note-length.php))
 | Tempo       | Speed                     |bpm         | ms/beat      |
 | ----------- | --------------------------|----------- | :-----------:|
 | Larghissimo | very, very, slow          |20 or lower | \> 3000      |
@@ -388,13 +419,13 @@ Usually however, instead of a numerical bpm, an Italian term desribing the tempo
 | Presto      | extremely fast            |168 to 200  | 357 - 300    |
 | Prestissimo | even faster than Presto   |200 and up  | < 300        |
 
-To account for tempo we could use the same tempo for everything and hard code it into the `Play()` function, but it's easy enough to be flexible and let each song have its own tempo variable.
+To account for tempo we could use the same tempo for everything and hard code it into the `PlayNote()` function, but it's easy enough to be flexible and let each song have its own tempo variable.
 
 ```cpp
 const int cMajorScaleTemp = 120;
 ```
 
-Lastly, because in C++ it can be challenging to know how many elements are in an array if using pointers and passing them into functions, it's worth turning it into a constant right away and storing as a `count` variable. This will be used by the play function to determine when the melody is over.
+Lastly, because in C++ it can be challenging to know how many elements are in an array, if using pointers and passing them into functions, it's worth generating a `count` variable right away for referencing the array size. This will be used by the play function to determine when the melody is over.
 
 So the final, full melody definition consists of 2 integer arrays, and 2 integer constants.
 
@@ -414,7 +445,7 @@ const int cMajorScaleCount = sizeof(cScaleNotes)/sizeof(int);
 ## **Playing the Melody Arrays**
 Now that we have a melody transcribed into an array of frequencies and durations, in order to play it we need to cycle through the arrays, playing each note in time. Because we want to be able to do other things while the song is playing we will need to track passing time so we know when to play the next note.
 
-Because we have many songs to play we'll create a set of global reference variables that we can use to point to different song data variables. We use pointers to the data arrays instead of a temporary copy, to save memory, and because we have songs of different sizes.
+Because we have many songs to play we'll create a set of global reference variables that we can use to point to different song data variables. We use pointers to the data arrays instead of a passing copies, to save memory, and because we have songs of different sizes.
 
 ```cpp
 // Globals for holding the current melody data references.
@@ -554,7 +585,7 @@ const int takeOnMeTempo = 165;
 const int takeOnMeCount = sizeof(takeOnMeNotes)/sizeof(int);
 ```
 ## **Sources of tone() Array Melodies**
-[robsoncouto/arduino-songs](https://www.smssolutions.net/tutorials/smart/rtttl/) is probably the biggest library of songs in this format. These are written as a single array of interwoven note, length, note, length, pattern. However, they can be quickly be converted into the 2 array format, used in this project, by making a copy and using search replace each note or duration with nothing.
+[robsoncouto/arduino-songs](https://www.smssolutions.net/tutorials/smart/rtttl/) is probably the biggest library of songs in this format. These are written as a single array of interwoven note, length, note, length, pattern. However, they can be quickly be converted into the 2 array format, used in this project, by making a copy and using search-replace to replace a few notes and durations with nothing.
 
 Otherwise, most available melodies in this format are one-off single song projects and must be searched for individually.
 

@@ -134,7 +134,7 @@ const int marioMainThemeLengths[] PROGMEM = {
   12, 12, 12, 12,
 };
 const int marioMainThemeCount = sizeof(marioMainThemeNotes)/sizeof(int);
-const byte marioMainThemeTempo = 130;
+const int marioMainThemeTempo = 130;
 
 
 
@@ -183,7 +183,7 @@ const int marioUnderworldLengths[] PROGMEM = {
   3, 3, 3
 };
 const int marioUnderworldCount = sizeof(marioUnderworldNotes)/sizeof(int);
-const byte marioUnderworldTempo = 130;
+const int marioUnderworldTempo = 130;
 
 
 
@@ -222,7 +222,7 @@ const int takeOnMeLengths[] PROGMEM = {
   8, 8, 8, 8, 2
 };
 const int takeOnMeCount = sizeof(takeOnMeNotes)/sizeof(int);
-const byte takeOnMeTempo = 160;
+const int takeOnMeTempo = 160;
 
 
 
@@ -347,7 +347,7 @@ const int knightRiderLengths[] PROGMEM = {
   250, 125, 125, 250, 250, 40, 250, 500
 };
 const int knightRiderCount = sizeof(knightRiderNotes)/sizeof(int);
-const byte knightRiderTempo = 0;
+const int knightRiderTempo = 0;
 
 
 
@@ -398,7 +398,7 @@ const int gameOfThronesLengths[] PROGMEM = {
   16, 16, 4,  4, 16, 16,
 };
 const int gameOfThronesCount = sizeof(gameOfThronesNotes)/sizeof(int);
-const byte gameOfThronesTempo = 110;
+const int gameOfThronesTempo = 110;
 
 
 
