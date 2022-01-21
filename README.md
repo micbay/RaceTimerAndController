@@ -1,3 +1,5 @@
+Download repository into a local folder with the same name as the contained `.ino` to use as an Arduino sketch.
+
 # **<span style="color:red;font-size:72px"> -- IN DRAFT -- </span>**
 
 # **Arduino Race Timer and Lap Gate Controller**
@@ -63,10 +65,10 @@ All devices in this build are powered from a +5V source. The displays should dra
 > ***<span style="color:yellow"> Connect Arduino GND to external ground reference </span>** - Like many projects with higher power demands, this one uses an external power supply to get enough current for the dipslays; during development and programming, we will often have the USB plugged in as well. If we do not connect the Arduino GND to the power supply ground we run the risk of a reference mismatch that can cause intermittent errors, or the device to not work at all.  
 > If we were to inadvertently find ourselves with the configuration shown here. It may appear to be ok on first look, but with the multi-meter we can see that there is a 1.9V differential between the two ground references when it should be reading close to 0.*
 > 
-> ![GroundLoop HIGH](Images/GroundLoop_VoltageHIGH_Edit.png)
+> ![GroundLoop HIGH](Images/MismatchedGroundRef_HIGH.png)
 > Connecting our grounds to bring them to the same potential, as below, will eliminate the problem above.  
 > 
-> ![Connected Grounds](Images/GroundLoop_VoltageLOW.png)
+> ![Connected Grounds](Images/MismatchedGroundRef_LOW.png)
  
 <br>
 
