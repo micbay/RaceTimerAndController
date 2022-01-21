@@ -60,7 +60,7 @@ All of the components are readily available and can be connected with basic jump
 ## **Power Supply (+5V)**  
 All devices in this build are powered from a +5V source. The displays should draw power from the source supply and not through the Arduino which cannot support enough current to run everything without flickering.
 
-> ***<span style="color:yellow"> Connect Arduino GND to external ground reference</span>** - Like many projects with higher power demands, this one uses an external power supply to get enough current for the dipslays; during development and programming, we will often have the USB plugged in as well. If we do not connect the Arduino GND to the power supply ground we run the risk of a reference mismatch that can cause intermittent errors, or the device to not work at all.  
+> ***<span style="color:yellow"> Connect Arduino GND to external ground reference </span>** - Like many projects with higher power demands, this one uses an external power supply to get enough current for the dipslays; during development and programming, we will often have the USB plugged in as well. If we do not connect the Arduino GND to the power supply ground we run the risk of a reference mismatch that can cause intermittent errors, or the device to not work at all.  
 > If we were to inadvertently find ourselves with the configuration shown here. It may appear to be ok on first look, but with the multi-meter we can see that there is a 1.9V differential between the two ground references when it should be reading close to 0.*
 > 
 > ![GroundLoop HIGH](Images/GroundLoop_VoltageHIGH_Edit.png)
@@ -80,7 +80,7 @@ The game controller code uses non-blocking techniques with port register interru
 <br>
 
 # **The Main Display (LCD2004 + I2C Backpack)**  
-For the main display that will provide the user interface menu options and game output we will use a 4 row x 20 character LCD display. LCD character displays are readily available in 2 or 4 rows, of 16 or 20 characters. A 4 row x 20 character LCD display is the biggest commonly available so we'll work with that. It's perfect for displaying 2 racer menu layouts, but for 3-4 racers menu design becomes much more complex as we can't fit data for 4 racers on the screen at the same time with menu options.
+For the main display that provides the user interface menu options and game output, we are using a 4 row x 20 character LCD display. LCD character displays are readily available in 2 or 4 rows, of 16 or 20 characters. A 4 row x 20 character LCD display is the biggest commonly available so we'll work with that. It's perfect for displaying 2 racer menu layouts, but for 3-4 racers menu design becomes much more complex as we can't fit data for 4 racers on the screen at the same time, along with menu options.
 
 > ***LCD Part Numbers:** these types of character LCDs usually follow a Part Number pattern of 'LCDccrr', where rr = number of rows, and cc = the number of characters wide it is. (ie. LCD2004 = 4rows of 20ch).*
 
@@ -136,9 +136,9 @@ void setup(){
 <br>
 
 # **Racer Lap Timers (8-digit, 7-seg LED Bar)**
-This race controller is intended to support up to 4 racers. For each racer we have a dedicated lap sensor, tracking laps, and associated with that lap sensor is a dedicated display showing the racer's active lap number and running lap time.
+This race controller is intended to support up to 4 racers. For each racer we have a dedicated lap sensor for tracking laps. Associated with that lap sensor is a dedicated display showing the racer's active lap number and running lap time.
 
-The display must be able to fit a 3 digit lap count and a lap time with up to 4 significant digits. This lap time digit width, we can support a display precision of at least 1 sec up to a 1 hour lap time, and as small as 1ms for lap times under 10 seconds.
+The display must be able to fit a 3 digit lap count and a lap time with up to 4 significant digits. With this lap time digit width, we can support a display precision of at least 1 sec up to a 1 hour lap time, and as small as 1ms for lap times under 10 seconds.
 
 ***NOTE: Display precision has no impact on the precision of the recorded lap time. Laps of all durations will be captured with millisecond precision (0.000 sec).***
 
@@ -176,9 +176,9 @@ The MAX7219 can be particularly sensitive to noise on its power input. If the po
 
 <br>
 
-## LED LIibraries and Initialization in Code:  
+## LED Libraries and Initialization in Code:  
 To drive our LED race timers, we will make use of the `LedControl` library which is specifically designed to operate these kinds of display packages. Similar to the LCD, this library allows us to update any given display digit with a straightforward write number or character API.
-- [LedControl](https://www.arduino.cc/reference/en/libraries/ledcontrol/) - library supports MAX7219 & MAX7221 LED displayseed for the LED bars.
+- [LedControl](https://www.arduino.cc/reference/en/libraries/ledcontrol/) - library supports MAX7219 & MAX7221 LED displays for the LED bars.
 
 Declaration and Setup of LED dispalys in `SlotCarRaceController.ino`
 ```cpp
@@ -206,7 +206,7 @@ void setup() {
     // The MAX72XX is in power-saving mode on startup
     lc.shutdown(deviceID, false);
     // intensity range from 0-15, higher = brighter
-    lc.setIntensity(deviceID, 1);
+    lc.setIntensity(deviceID, 8);
     // Blank the LED digits
     lc.clearDisplay(deviceID);
   }
@@ -217,14 +217,15 @@ void setup() {
 ```
 
 ## **LED Display Character Writing**  
-Though the primary purpose of the racer's lap displays is to show running lap counts and times, we also need to be able to identify the which display is being used by which racer. The most direct way to do this is to write their racer name to their corresponding LED display. The side effect of doing this is that 7-seg displays cannot display all characters, and in most cases, of the characters that can be displayed, often only a lower case or upper case option is available.
+Though the primary purpose of the racer's lap displays is to show running lap counts and times, we also need to be able to identify the which display is being used by which racer. The most direct way to do this is to write their racer name to their corresponding LED display. The side effect of doing this is that 7-seg displays cannot display all characters, and in most cases, of the characters that can be displayed, often only a lower case or upper case option is available. 
 > 7-segment displays cannot draw any version of the following characters  
 > 'K', 'W', 'M', 'X's, 'W'x, or 'V's
-### **Customization of the LedControl Character Library**  
-I've modified the character table used by the installed version of the `LedControl` library to make it more understandable and added several missing, but functional characters.
-| Code Value: `B0abcdefg` | Edited `charTable[]` to update `LedControl.h` with more characters. |
+### **Customization of the `LedControl` Character Library**  
+The `LedControl` library, as it is downloaded, is missing some writable letters. To add them or to change how existing writable characters are written, we can edit the `charTable[]` array found in `LedCtonrol.h`.
+
+| Code Value: `B0abcdefg` | Edit `charTable[]` to update `LedControl.h` with more characters. |
 |---|--|
-| <img style="width:400px" src="Images/7-seg-digit-mapping-Edemo.png" /> | This table is how the `LedControl` library determines what segments to display when the code calls for a particular character. <br> The requested character's [ASCII Value](https://www.ascii-code.com/) determines the index of the array, `charTable[]`, that has the code value indicating what segments to light up to draw the character. <br> For example, if we want to draw a capital 'E', it's ACII value is `69`. If we go to `charTable[69]`, we find the code value **`B01001111`**.  <br> Following the format, `B0abcdefg`, this value instructs segments a, d, e, f and g to turn on. <br> We can edit the code values in this table to change how a character is drawn or make new characters. |  
+| <img style="width:400px" src="Images/7-seg-digit-mapping-Edemo.png" /> | The requested character's [ASCII Value](https://www.ascii-code.com/) determines the index of the array, `charTable[]`, that has the code value, indicating which segments to light up, to draw the character. <br> For example, to set what is drawn when instructing the LED to draw a capital 'E', we look up its ASCII value, which is `69`. Then go to the value at `charTable[69]`, and set the code value to **`B01001111`**.  <br> Following the format, `B0abcdefg`, this instructs segments a, d, e, f, and g to turn on. |
 
 ```cpp
 const static byte charTable [] PROGMEM  = {
@@ -256,7 +257,7 @@ const static byte charTable [] PROGMEM  = {
     B00010111,B00000100,B00111100,B00000000,B00000110,B00000000,B00010101,B00011101,
   //112 p         q         r       s->S        t         u         v        w
     B01100111,B01110011,B00000101,B01011011,B00001111,B00011100,B00000000,B00000000,
-  //120 x         y       z->z
+  //120 x         y       z->Z
     B00000000,B00111011,B01101101,B00000000,B00000000,B00000000,B00000000,B00000000
 };
 ```
@@ -266,7 +267,7 @@ const static byte charTable [] PROGMEM  = {
 
 # **Playing Audio**  
 ## **Arduino [tone()](https://www.arduino.cc/reference/en/language/functions/advanced-io/tone/)**
-Playing simple beeps and boops on the Arduino can be done with a single call to the built in Arduino `tone()` function. Here we use `tone()` in a wrapper function, `Beep()` that we can call when we want to play a feedback sound, such as when a keypad button is pressed.
+Playing simple beeps and boops on the Arduino can be done with a single call to the built-in Arduino `tone()` function. Here we use `tone()` in a wrapper function, `Beep()`, that we can call when we want to play a feedback sound, such as when a keypad button is pressed.
 
 ```cpp
 // A3 is a built in Arduino pin identifier
@@ -279,11 +280,11 @@ void Beep() {
 ```
 
 > *Notes regarding playing sounds using Arduino `tone()`.*
-> - *The requested `tone()` plays in parallel once it is called, therefore it does NOT block the code loop while playing out the duration of a note.*
+> - *The requested `tone()` plays in parallel once it is called, therefore it does not block the code loop while playing out the duration of a note.*
 > - *`tone()` uses the same timer as pins 3 and 11. Therefore, one cannot `analogWrite()` or PWM on those pins while `tone()` is playing.*
 > - *It is not possible to play the `tone()` function on two pins at the same time. Any in process tones must be stopped before starting a tone on a different pin.*  
 > - *The minimum tone that can be generated is `31Hz`. A lower value can be submitted without error, but it won't play lower than `31Hz`.*
-> - *The maximum frequency for UNO and most common boards is `65535Hz`.*  
+> - *The maximum frequency for UNO-nano class boards is `65535Hz`.*  
 > - *The audible range for most people is `20Hz-20kHz`.*
 
 ## **Songs & Melodies**
@@ -343,7 +344,7 @@ The length of a note, or rest, in music is measured in number of beats and recor
 
 Ultimately we will need a millisecond integer value, to input as the duration of a note, to play a `tone()`. However, it is more musically natural, and more versatile to capture the intended note length in the `Lengths[]` array. This allows the same song data to be played at different tempos, using the same code.
 
-Most often, we find note length in a `Lengths[]` array using the following notation:
+Most often, we find note length in a `Lengths[]` array using just the note length divisor value, as such:
 
 - `1` = whole note
 - `2` = half note
@@ -385,11 +386,15 @@ Usually however, instead of a numerical bpm, an Italian term desribing the tempo
 | Presto      | extremely fast            |168 to 200  | 357 - 300    |
 | Prestissimo | even faster than Presto   |200 and up  | < 300        |
 
-To account for tempo we could use the same tempo for everything and hard code it into the `Play()` function, but it's easy enough to be flexible and let each song have its own tempo.
+To account for tempo we could use the same tempo for everything and hard code it into the `Play()` function, but it's easy enough to be flexible and let each song have its own tempo variable.
 
-Finally, because in C++ it can be challenging to know how many elements are in an array if using pointers and passing them into functions it's worth turning it into a constant right away and use a `count` variable. This will be used by the play function to determine when the melody is over.
+```cpp
+const int cMajorScaleTemp = 120;
+```
 
-The result is, 2 arrays, and 2 integer constants that will fully define each melody.
+Lastly, because in C++ it can be challenging to know how many elements are in an array if using pointers and passing them into functions, it's worth turning it into a constant right away and storing as a `count` variable. This will be used by the play function to determine when the melody is over.
+
+So the final, full melody definition consists of 2 integer arrays, and 2 integer constants.
 
 ```cpp
 const int cMajorScaleNotes[] PROGMEM = {
@@ -399,15 +404,15 @@ const int cMajorScaleLengths[] PROGMEM = {
   4, 4, 4, 4, 4, 4, 4
 };
 // tempo in beats per minute
-const int cMajorScaleTempo = 60;
+const int cMajorScaleTempo = 120;
 // getting note count for easy reference later
 const int cMajorScaleCount = sizeof(cScaleNotes)/sizeof(int); 
 ```
 
 ## **Playing the Melody Arrays**
-Now that we have a melody transcribed into an array of frequencies and durations, in order to play it we need to cycle through the arrays playing each note in time. Because we want to be able to do other things while the song is playing we will need to track passing time so we know when to play the next note.
+Now that we have a melody transcribed into an array of frequencies and durations, in order to play it we need to cycle through the arrays, playing each note in time. Because we want to be able to do other things while the song is playing we will need to track passing time so we know when to play the next note.
 
-Because we have many songs to play we'll create a set of global reference variables that we can use to point to different song data variables. We use pointers to the data arrays instead of a temporary copy, to save memory, and because we have songs of different sizes. Managing dynamic array sizing is an uncessary, memory fragmenting, challenge.
+Because we have many songs to play we'll create a set of global reference variables that we can use to point to different song data variables. We use pointers to the data arrays instead of a temporary copy, to save memory, and because we have songs of different sizes.
 
 ```cpp
 // Globals for holding the current melody data references.
@@ -427,6 +432,7 @@ int noteDelay = 0;
 
 // Function to play the current note index of a melody using 'tone()'.
 // We want to pass all the variables instead of depending on their globality.
+// This function returns, in ms, how long to wait before playing following note.
 int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
   int noteDuration;
   int noteLength = pgm_read_word(&songLengths[curNoteIdx]);
@@ -493,8 +499,9 @@ To illustrate the process, we will transcribe the intro to Take On Me by Aha! He
 Looking at the first measure we see that the key signature is for the key of A Major. This means that all F5, C5, and G5 notes are sharp, as is indicated by the key signature sharp symbols on those lines.
 ![Take On Me Key Sig](Images/TOnMe_KeySignature.png)
 
-In addition to our notes and note lengths we also see the tempo is 'Fast', which on our chart is around 120-168, by ear it sound around 150 bpm, but since we add a break with each note we bump it up by 10% so around 165 is probably good.  
-This first measure give us everything we need to make our melody variables.
+In addition to our notes and note lengths we also see the tempo is 'Fast', which on our chart is around 120-168, by ear it sound around 150 bpm, but since we add a break with each note we bump it up by 10% so around 165 is probably good.
+
+This first measure gives us everything we need to make our melody variables and populate the first notes.
 ```cpp
 const int takeOnMeNotes[] = {
   NOTE_FS5, NOTE_FS5, NOTE_D5, NOTE_B4, 0, NOTE_B4, 0, NOTE_E5
@@ -544,43 +551,83 @@ const int takeOnMeLengths[] PROGMEM = {
 const int takeOnMeTempo = 165;
 const int takeOnMeCount = sizeof(takeOnMeNotes)/sizeof(int);
 ```
+## **Sources of tone() Array Melodies**
+[robsoncouto/arduino-songs](https://www.smssolutions.net/tutorials/smart/rtttl/) is probably the biggest library of songs in this format. These are written as a single array of interwoven note, length, note, length, pattern. However, they can be quickly be converted into the 2 array format, used in this project, by making a copy and using search replace each note or duration with nothing.
+
+Otherwise, most available melodies in this format are one-off single song projects and must be searched for individually.
+
 <br>
 
 ---  
 
-## Method 2: Ringtone RTTTL Format  
-At one time when ringtones were
+## **Method 2: Ringtone RTTTL Format**  
+RTTTL stands for Ring Tone Text Transfer Language which is a string based format developed by Nokia that can be interpreted and played as a ringtone. This format is no longer used by phones, but there exist libaries of thousands of songs encoded using it, on the internet, making it the preferred method for this project.
 
-## Libraries and Aduio Data Files  
-TODO
+### **The RTTTL String**  
+The RTTTL string is made up of 3 parts seperated by colons ':'
+
+![RTTTL](Images/RTTTL%20Format.png)
+
+  - **Title** - up to 100, [ISO-8859-1](https://www.mobilefish.com/tutorials/character_encoding/character_encoding_quickguide_iso8859_1.html) characters allowed.
+  - **Parameters**  
+    ```
+    d = duration (default = 4 if not present)
+      Allowed values
+        1 = whole note
+        2 = half note
+        4 = quarter note
+        8 = eighth note
+        16 = sixteenth note
+        32 = thirty-second note
+
+    o = octave (default = 6 if not present)
+      Allowed Values = 4, 5, 6, or 7
+    
+    b = tempo, beats per minute (default = 63bpm)
+      Allowed Values = 25, 28, 31, 35, 40, 45, 50, 56, 63, 70, 80, 90, 100, 112, 125, 140, 160, 180, 200, 225, 250, 285, 320, 355, 400, 450, 500, 565, 635, 715, 800 and 900
+    ```
+  - **Notes** - the last part of the RTTTL string is a comma seperated list of encoded notes using a duration-note-octave and optional dot, pattern.
+    ```
+    Tone Pattern: duration-note-octave(.)
+    . an optional dotted note is 1.5 x duration
+    p = pause
+    if no duration or octave, use default
+
+    Examples:
+    8f#5 = 1/8th note of F sharp, in the 5th octave
+    d4 = default note length, of D, in the 4th octave
+    8p = 1/8th note, rest 
+    8b = 1/8th note, of B, in default octave
+    4e5. = 3/8th note, of E, in the 5th octave
+    ```
+
+## **Playing RTTTL Strings**  
+To play RTTTL strings we can use the [PlayRtttl](https://github.com/ArminJo/PlayRtttl) library. This library can be used to play in a non-blocking manner, but must be called/checked-on every program loop.
 ```cpp
-// Enable if using RTTL type song/melody data for playing sounds
-//-------------------
 // library for playing RTTTL song types
 #include <PlayRtttl.h>
 // file of RTTTL song definition strings.
 // Because these strings are stored in PROGMEM we must also include 'avr/pgmspace.h' to access them.
 #include "RTTTL_songs.h"
-//-------------------
-
-// Enable if using Note-Lengths Array method of playing Arduino sounds
-//-------------------
-// // Defines the note constants that make up a melodie's Notes[] array.
-// #include <pitches.h>
-// // File of songs/melodies defined using Note & Lengths array.
-// // Because these arrays are stored in PROGMEM we must also include 'avr/pgmspace.h' to access them.
-// #include "melodies_prog.h"
-//-------------------
 
 // Library to support storing/accessing constant variables in PROGMEM
 #include <avr/pgmspace.h>
+
+const char takeOnMe[] PROGMEM = "takeOnMe1:d=8,o=5,b=160:f#,f#,d,b4,p,b4,p,e,p,e,p,e,g#,g#,a,b";
+
+void loop(){
+  // to start playing an RTTL encoded song
+  startPlayRtttlPGM(buzzPin1, takeOnMe);
+  // Must call this function every loop to keep song playing
+  updatePlayRtttl();
+  // to stop an song in process use the stop function
+  stopPlayRtttl();
+}
 ```
-
-
-
-
-
-
+## **Sources of tone() Array Melodies**  
+- [Online List of RTTTL Online Sources](https://www.srtware.com/index.php?/ringtones/findringtones.php)
+- [Picaxe Ringtone Download](https://picaxe.com/rtttl-ringtones-for-tune-command/) - RTTTL zip downloads 10,000+ songs
+- [dglaude/xmas.py](https://gist.github.com/dglaude/71525a07f5e24888a3f098fba3abf29b) - RTTTL christmas songs
 
 <br>
 

@@ -274,7 +274,7 @@ const char* Racers[racerCount] = {
   "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020", "The OG", "5318008"
 };
 const char* victorySong[racerCount] = {
-  starWarsImperialMarch, TakeOnMe, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter
+  starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter
 };
 // byte nameCursorPos = 8;
 // sets screen cursor position names on the racer select menu
@@ -1050,65 +1050,66 @@ void ResetRace(){
   InitializeRacerArrays();
 }
 
+// ------------NOT USED-------------
+// // *** This section for using Note and Lengths arrays for songs
+// // Globals for holding the current melody data references.
+// int *playingNotes;
+// int *playingLengths;                                                            
+// byte playingTempoBPM = 135;
+// int playingCount = 0;
+// // flag to indicate to the main program loop whether a melody is in process
+// // so it should execute the 'PlayNote()' function with the current melody parameters.
+// bool melodyPlaying = false;
+// // Holds the timestamp of last tone played so timing of next note in melody can be determined
+// unsigned long lastNoteMillis = 0;
+// // index of the current note to play of 'playing...' song.
+// int melodyIndex = 0;
+// // time in ms between beginning of last note and when next note should be played.
+// int noteDelay = 0;
 
-// *** This section for using Note and Lengths arrays for songs
-// Globals for holding the current melody data references.
-int *playingNotes;
-int *playingLengths;                                                            
-byte playingTempoBPM = 135;
-int playingCount = 0;
-// flag to indicate to the main program loop whether a melody is in process
-// so it should execute the 'PlayNote()' function with the current melody parameters.
-bool melodyPlaying = false;
-// Holds the timestamp of last tone played so timing of next note in melody can be determined
-unsigned long lastNoteMillis = 0;
-// index of the current note to play of 'playing...' song.
-int melodyIndex = 0;
-// time in ms between beginning of last note and when next note should be played.
-int noteDelay = 0;
-
-// Function to play the current note index of a melody using 'tone()'.
-// We want to pass all the variables instead of depending on their globality.
-int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
-  int noteDuration;
-  int noteLength = pgm_read_word(&songLengths[curNoteIdx]);
-  // If tempo = 0 then use note length directly as ms duration
-  if(tempoBPM == 0){
-    noteDuration = noteLength;
-  } else {
-    // Otherwise calculate duration in ms from bpm:
-    // (60,000ms/min)/Xbpm * 4beats/note * 1/notelength
-    // Make sure equation has a decimal or result will be incorrect integer math.
-    if (noteLength > 0){
-      noteDuration = (60000 / tempoBPM) * 4 * (1.0 / noteLength);
-    } else {
-      // If note length is negative, then it's dotted so add extra half length.
-      noteDuration = 1.5 * (60000 / tempoBPM) * 4 * (1 / abs(noteLength));
-    }
-  }
-  // Record millisecond timestamp at start of new note.
-  lastNoteMillis = millis();
-  // Play note
-  tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), noteDuration);
-  melodyIndex++;
-  // If we have reached the end of the melody array then
-  // flip playing flag off and reset tracking variables for next melody.
-  if(curNoteIdx == playingCount - 1){
-    melodyPlaying = false;
-    melodyIndex = 0;
-    noteDelay = 0;
-    playingCount = 0;
-    // noTone(buzzPin1);
-  }
-  // Buzzer notes have no transition time or strike impulse.
-  // So when played as written, each note sounds unaturally run together.
-  // Making the time between notes slightly longer than the note will
-  // create a small break, giving the melody a more natural sound.
-  // Factoring + 5-10% seems to be enough.
-  return noteDuration * 1.1;
-  //***this will make the true tempo slightly slower.
-  // So increase the song's set tempo from the music sheet to accomodate.
-}
+// // Function to play the current note index of a melody using 'tone()'.
+// // We want to pass all the variables instead of depending on their globality.
+// // This function returns, in ms, how long to wait before playing following note.
+// int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
+//   int noteDuration;
+//   int noteLength = pgm_read_word(&songLengths[curNoteIdx]);
+//   // If tempo = 0 then use note length directly as ms duration
+//   if(tempoBPM == 0){
+//     noteDuration = noteLength;
+//   } else {
+//     // Otherwise calculate duration in ms from bpm:
+//     // (60,000ms/min)/Xbpm * 4beats/note * 1/notelength
+//     // Make sure equation has a decimal or result will be incorrect integer math.
+//     if (noteLength > 0){
+//       noteDuration = (60000 / tempoBPM) * 4 * (1.0 / noteLength);
+//     } else {
+//       // If note length is negative, then it's dotted so add extra half length.
+//       noteDuration = 1.5 * (60000 / tempoBPM) * 4 * (1 / abs(noteLength));
+//     }
+//   }
+//   // Record millisecond timestamp at start of new note.
+//   lastNoteMillis = millis();
+//   // Play note
+//   tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), noteDuration);
+//   melodyIndex++;
+//   // If we have reached the end of the melody array then
+//   // flip playing flag off and reset tracking variables for next melody.
+//   if(curNoteIdx == playingCount - 1){
+//     melodyPlaying = false;
+//     melodyIndex = 0;
+//     noteDelay = 0;
+//     playingCount = 0;
+//     // noTone(buzzPin1);
+//   }
+//   // Buzzer notes have no transition time or strike impulse.
+//   // So when played as written, each note sounds unaturally run together.
+//   // Making the time between notes slightly longer than the note will
+//   // create a small break, giving the melody a more natural sound.
+//   // Factoring + 5-10% seems to be enough.
+//   return noteDuration * 1.1;
+//   //***this will make the true tempo slightly slower.
+//   // So increase the song's set tempo from the music sheet to accomodate.
+// }
 
 
 // *********************************************
@@ -1170,15 +1171,14 @@ void setup(){
   // Serial.println(currentMenu);
 
   // melodyPlaying = true;
-  playingNotes = marioUnderworldNotes;
-  playingLengths = marioUnderworldLengths;
-  playingCount = marioUnderworldCount;
-  playingTempoBPM = marioUnderworldTempo;
+  // playingNotes = marioUnderworldNotes;
+  // playingLengths = marioUnderworldLengths;
+  // playingCount = marioUnderworldCount;
+  // playingTempoBPM = marioUnderworldTempo;
   
-  // Initiates a non-blocking play of melody using 'PlayRtttl' library
-  // startPlayRtttlPGM(buzzPin1, spyHunter);
-  // startPlayRtttlPGM(buzzPin1, reveille);
-  // startPlayRtttlPGM(buzzPin1, gameOfThrones);
+  // Startup song
+  startPlayRtttlPGM(buzzPin1, reveille);
+
 }
 
 void loop(){
@@ -1187,17 +1187,17 @@ void loop(){
   // Serial.println("R2Lap count MAIN");
   // Serial.println(r2LapCount);
   updatePlayRtttl();
-  if(melodyPlaying){
-    if(millis() - lastNoteMillis >= noteDelay){
-    // stop generation of square wave triggered by 'tone()'.
-    // This is not required as all tones should stop at end of duration.
-    // However, we do it just to make sure it 
-      // noTone(buzzPin1);
-      noteDelay = PlayNote(playingNotes, playingLengths, melodyIndex, playingTempoBPM);
-    }
-  } else {
-    // noTone(buzzPin1);
-  }
+  // ----- enable if using melody arrays ----------
+  // if(melodyPlaying){
+  //   if(millis() - lastNoteMillis >= noteDelay){
+  //   // stop generation of square wave triggered by 'tone()'.
+  //   // This is not required as all tones should stop at end of duration.
+  //   // However, we do it just to make sure it 
+  //     // noTone(buzzPin1);
+  //     noteDelay = PlayNote(playingNotes, playingLengths, melodyIndex, playingTempoBPM);
+  //   }
+  // }
+  // --------------------------------
   switch (state) {
     // Serial.println("Entered Stat Switch");
     // In the 'Menu' state the program is focused on looking for keypad input

@@ -20,6 +20,9 @@ const char outrun[] PROGMEM = "outrun_magic:d=4,o=5,b=160:f6,d#6,8g#.6,f6,d#6,8c
 
 const char takeOnMe1[] PROGMEM = "takeOnMe1:d=4,o=4,b=160:8f#5,8f#5,8f#5,8d5,8p,8b,8p,8e5,8p,8e5,8p,8e5,8g#5,8g#5,8a5,8b5,8a5,8a5,8a5,8e5,8p,8d5,8p,8f#5,8p,8f#5,8p,8f#5,8e5,8e5,8f#5,8e5,8f#5,8f#5,8f#5,8d5,8p,8b,8p,8e5,8p,8e5,8p,8e5,8g#5,8g#5,8a5,8b5,8a5,8a5,8a5,8e5,8p,8d5,8p,8f#5,8p,8f#5,8p,8f#5,8e5,8e5,8f#5,8e5";
 
+const char takeOnMeMB[] PROGMEM = "takeOnMe1:d=8,o=5,b=160:f#,f#,d,b4,p,b4,p,e,p,e,p,e,g#,g#,a,b,a,a,a,e,p,d,p,f#,p,f#,p,f#,e,e,f#,e,f#,f#,d,b4,p,b4,p,e,p,e,p,e,g#,g#,a,b,a,a,a,e,p,d,p,f#,p,f#,p,f#,e,e,f#,e,f#,f#,d,b4,p,b4,p,e,p,e,p,e,g#,g#,a,b,a,a,a,e,p,d,p,f#,p,f#,p,f#";
+
+
 const char airWolfTheme[] PROGMEM = "airWolfTheme:d=4,o=6,b=100:e5,16a5,16b5,16d,e,16g,16f_,16d,e,16g,16f_,16d,e,8d,16f_,b5,a5,8g5,16a5,8f_5,16d5,g5,16c,16d,16f,g,16c,16b,16f,g,16c,16b,16f,g,8f,16a,d,c,8b5,16d,8a5,16f5,g5,16c,16d,16f,g,16c,16b,16f";
 
 const char galaga[] PROGMEM = "Galaga:d=4,o=5,b=125:8g4,32c,32p,8d,32f,32p,8e,32c,32p,8d,32a,32p,8g,32c,32p,8d,32f,32p,8e,32c,32p,8g,32b,32p,8c6,32a#,32p,8g#,32g,32p,8f,32d#,32p,8d,32a#4,32p,8a#,32c6,32p,8a#,32g,32p,16a,16f,16d,16g,16e,16d";
