@@ -1,6 +1,6 @@
 # **<span style="color:red;font-size:72px"> -- IN DRAFT -- </span>**
 
-# **Arduino Race Timer and Game Controller**
+# **Arduino Race Timer and Lap Gate Controller**
 This is an Arduino based project that implements a functional race game controller that can be used for timed racing games. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
 
 In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate.  
