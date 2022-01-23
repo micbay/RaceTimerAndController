@@ -125,7 +125,7 @@ races raceType = Standard;
 // Variable for the number of laps to win standard race type
 int raceLaps = 5;
 // Race time for a Timed race type, most laps before time runs out wins.
-// We create a clock time array to hold converted values for easy display update.
+// Create a clock time array to hold converted values for easy display update.
 // raceSetTime[1] holds Min, raceSetTime[0] holds Sec, settable from menu.
 const byte defMin = 0;
 const byte defSec = 30;
@@ -152,8 +152,8 @@ int r1LapCount = 0;
 int r2LapCount = 0;
 // Fastest laps table col0 = lap#, col1 = laptime in ms
 const byte fastLapsQSize = 10;
-// We use two arrays, kept in sync to track fastest laps.
-// one array of longs to hold the time and an int array of the lap# and racer id.
+// Using two arrays, kept in sync, to track fastest laps.
+// One array of longs to hold the time, and an int array of the lap# and racer id.
 // This is to save on memory over a single 2D long array.
 unsigned int r1FastestLaps[ fastLapsQSize ][2] = {};
 unsigned long r1FastestTimes[ fastLapsQSize ] = {};
@@ -841,7 +841,7 @@ void UpdateLaneState(byte enabledIndex, bool updateDisplay = false) {
   for (byte i = 1; i <= laneCount; i++){
     // Idx1 of lanesEnabled is the byte mask representing the enabled lanes.
     // Idx0 of a lanes[i] element is its byte mask, index 1 is its current enabled state. 
-    if((lanes[i][0] & lanesEnabled[enabledIndex][1]) > 0) lanes[i][1] = StandBy;
+    if((lanes[i][0] && lanesEnabled[enabledIndex][1]) > 0) lanes[i][1] = StandBy;
     else lanes[i][1] = Off;
     if (updateDisplay){
       if (i == 1){
@@ -1574,7 +1574,7 @@ void loop(){
     case Race:{
       curMillis = millis();
       // initialize variables for preStart timing loop first cycle only
-      if (entryFlag & preStart) {
+      if (entryFlag && preStart) {
         // preStartCountDown is in seconds so we convert to millis
         curRaceTime = preStartCountDown * 1000;
         lastTickMillis = curMillis;
@@ -1584,7 +1584,7 @@ void loop(){
         entryFlag = false;
       }
       // initialize variables for race timing loop first cycle only
-      if (entryFlag & !preStart) {
+      if (entryFlag && !preStart) {
         curRaceTime = 0;
         lastTickMillis = curMillis;
         raceStartMillis = curMillis;
@@ -1627,7 +1627,7 @@ void loop(){
             lastTickMillis = curMillis;
           }
           // In last 3 seconds send countdown to LEDs
-          if (curRaceTime < 2999 & (curRaceTime/1000 + 1) != ledCountdownTemp) {
+          if (curRaceTime < 2999 && (curRaceTime/1000 + 1) != ledCountdownTemp) {
             // we add 1 because it should change on start of the digit not end
             ledCountdownTemp = curRaceTime/1000 + 1;
             ledWriteDigits(ledCountdownTemp);
@@ -1733,7 +1733,7 @@ void loop(){
             }
           }
           // Update LCD with absolute race time and racer lap logs
-          PrintClock(curRaceTime, RACE_CLK_POS, 5, 0, lcdDisp, 0, true);
+          PrintClock(curRaceTime, RACE_CLK_POS, 10, 1, lcdDisp, 0, true);
           lastTickMillis = curMillis;
         } // END of if(displayTick) block
 
