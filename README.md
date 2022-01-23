@@ -222,8 +222,8 @@ void setup() {
 Though the primary purpose of the racer's lap displays is to show running lap counts and times, we also need to be able to identify the which display is being used by which racer. The most direct way to do this is to write the racer name to the corresponding LED display on startup and racer selection.
 
 However, a side effect of using 7-seg displays is that they cannot display all characters, and in most cases, of the characters that can be displayed, often only a lower case or upper case option is available. 
-> *7-segment displays cannot draw any version of the following characters*  
-> 
+> *7-segment displays cannot draw any version of the following characters:*  
+> W's, M's, X's, K's, or V's
 
 ### **Customization of the `LedControl` Library's Character Table**  
 The `LedControl` library, as it is downloaded, is missing some writable letters. To add them or to change how existing writable characters are written, we can edit the libraries character table that contains the code value representing the segments to be displayed.
@@ -385,6 +385,10 @@ Most often, we find note length in a `Lengths[]` array using just the note lengt
 - `16` = 1/16th note
 - etc.
 
+Negative numbers are used to represent dot notes which are 1.5 * note length.
+- `-1` = 1 + 1/2 = 3/2 note
+- `-2` = 1/2 + 1/4 = 3/4 note
+
 All of the notes in our C-Major Scale are quarter notes, so using the note length notation, we can finish our C-major Scale arrays as follows:
 
 ```cpp
@@ -448,11 +452,12 @@ Now that we have a melody transcribed into an array of frequencies and durations
 Because we have many songs to play we'll create a set of global reference variables that we can use to point to different song data variables. We use pointers to the data arrays instead of a passing copies, to save memory, and because we have songs of different sizes.
 
 ```cpp
+// *** This section for using Note and Lengths arrays for songs
 // Globals for holding the current melody data references.
 int *playingNotes;
 int *playingLengths;                                                            
-byte playingTempoBPM = 135;
-int playingCount = 0;
+int playingTempoBPM = 135;
+int playingMelodySize = 0;
 // flag to indicate to the main program loop whether a melody is in process
 // so it should execute the 'PlayNote()' function with the current melody parameters.
 bool melodyPlaying = false;
@@ -467,8 +472,10 @@ int noteDelay = 0;
 // We want to pass all the variables instead of depending on their globality.
 // This function returns, in ms, how long to wait before playing following note.
 int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
+
   int noteDuration;
   int noteLength = pgm_read_word(&songLengths[curNoteIdx]);
+
   // If tempo = 0 then use note length directly as ms duration
   if(tempoBPM == 0){
     noteDuration = noteLength;
@@ -480,30 +487,31 @@ int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
       noteDuration = (60000 / tempoBPM) * 4 * (1.0 / noteLength);
     } else {
       // If note length is negative, then it's dotted so add extra half length.
-      noteDuration = 1.5 * (60000 / tempoBPM) * 4 * (1 / abs(noteLength));
+      noteDuration = 1.5 * (60000 / tempoBPM) * 4 * (1.0 / abs(noteLength));
     }
   }
+
   // Record millisecond timestamp at start of new note.
   lastNoteMillis = millis();
-  // Play note
-  tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), noteDuration);
+  // The played notes have no transition time or strike impulse.
+  // Played as written, each note sounds unaturally flat and run together.
+  // Adding a small break between notes makes the melody sound better.
+  // This can be done by slightly shortening the tone played vs the song temp.
+  // or making the gap between notes slightly longer than the note length.
+  // In which case the actual tempo will be slightly slower than the set tempo.
+  // Here we'll factor the played tone down by 10% and keeping the tempo as set.
+  // Play note:
+  tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), .9*noteDuration);
   melodyIndex++;
   // If we have reached the end of the melody array then
   // flip playing flag off and reset tracking variables for next melody.
-  if(curNoteIdx == playingCount - 1){
+  if(melodyIndex == playingMelodySize){
     melodyPlaying = false;
     melodyIndex = 0;
     noteDelay = 0;
-    playingCount = 0;
+    playingMelodySize = 0;
   }
-  // Buzzer notes have no transition time or strike impulse.
-  // So when played as written, each note sounds unaturally run together.
-  // Making the time between notes slightly longer than the note will
-  // create a small break, giving the melody a more natural sound.
-  // Factoring + 5-10% seems to be enough.
-  return noteDuration * 1.1;
-  //***this will make the true tempo slightly slower.
-  // So increase the song's set tempo from the music sheet to accomodate.
+  return noteDuration;
 }
 
 void loop() {
@@ -518,7 +526,8 @@ void loop() {
   melodyPlaying = true;
   playingNotes = takeOnMeNotes;
   playingLengths = takeOnMeLengths;
-  songLength = takeOnMeCount;
+  playingMelodySize = takeOnMeCount;
+  playingTempoBPM = takeOnMeTempo;
 
   --- other code ---
 }
@@ -532,7 +541,7 @@ To illustrate the process, we will transcribe the intro to Take On Me by Aha! He
 Looking at the first measure we see that the key signature is for the key of A Major. This means that all F5, C5, and G5 notes are sharp, as is indicated by the key signature sharp symbols on those lines.
 ![Take On Me Key Sig](Images/TOnMe_KeySignature.png)
 
-In addition to our notes and note lengths we also see the tempo is 'Fast', which on our chart is around 120-168 bpm, by ear it sound around 150 bpm, but since we add a 10% break with each note, we bump it up by 10% so around 165 is probably good.
+In addition to our notes and note lengths we also see the tempo is 'Fast', which on our chart is around 120-168 bpm, listening it sounds on the fast end of that scale, so something around 160 bpm, is probably good.
 
 This first measure gives us everything we need to make our melody variables and populate the first notes.
 ```cpp
@@ -542,8 +551,8 @@ const int takeOnMeNotes[] = {
 const int takeOnMeLengths[] = {
   8, 8, 8, 8, 8, 8, 8, 8
 };
-const int takeOnMeTempo = 165;
-const int takeOnMeCount = sizeof(takeOnMeNotes)/sizeof(int); 
+const int takeOnMeTempo = 160;
+const int takeOnMeSize = sizeof(takeOnMeNotes)/sizeof(int); 
 ```
 
 Finishing the rest of the notes in the intro we get a full trancription of the sheet snippet.
@@ -581,8 +590,8 @@ const int takeOnMeLengths[] PROGMEM = {
   8, 8, 8, 8, 8, 8, 8, 8,
   8, 8, 8, 8, 2
 };
-const int takeOnMeTempo = 165;
-const int takeOnMeCount = sizeof(takeOnMeNotes)/sizeof(int);
+const int takeOnMeTempo = 160;
+const int takeOnMeSize = sizeof(takeOnMeNotes)/sizeof(int);
 ```
 ## **Sources of tone() Array Melodies**
 [robsoncouto/arduino-songs](https://www.smssolutions.net/tutorials/smart/rtttl/) is probably the biggest library of songs in this format I found. These are written as a single array of interwoven note, length, note, length, pattern. However, they can be quickly be converted into the 2 array format, used in this project, by making a copy and using search-replace to replace a few, often repeated notes and durations with nothing.

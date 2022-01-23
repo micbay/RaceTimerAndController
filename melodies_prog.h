@@ -16,16 +16,16 @@
 //      8 = eighth note
 //      16 = sixteenth note, etc.
 //    mySongNameTempo is a constant 0-255 of the beats per minute to play melody
-//    mySongNameCount holds the number of notes in the melody for easy reference
+//    mySongNameSize holds the number of notes in the melody for easy reference
 
-// TEMPLATE for MELODY VARIABLES, COPY - PASTE - EDIT
+// *** TEMPLATE for MELODY VARIABLES, COPY - PASTE - EDIT ***
 // const int zzzNotes[] PROGMEM = {
 
 // };
 // const int zzzLengths[] PROGMEM = {
   
 // };
-// const int zzzCount = sizeof(zzzNotes)/sizeof(int);
+// const int zzzSize = sizeof(zzzNotes)/sizeof(int);
 // const int zzzTempo = 135;
 
 
@@ -36,7 +36,7 @@ const int testMelodyNotes[] PROGMEM = {
 const int testMelodyLengths[] PROGMEM = {
   4, 8, 8, 4, 4, 4, 4, 4
 };
-const int testMelodyCount = sizeof(testMelodyNotes)/sizeof(int);
+const int testMelodySize = sizeof(testMelodyNotes)/sizeof(int);
 const int testMelodyTempo = 85;
 
 
@@ -59,7 +59,7 @@ const int imperialMarchLengths[] PROGMEM = {
   4, 4, 4, -8, 16,
   4, -8, 16, 2,
 };
-const int imperialMarchCount = sizeof(imperialMarchNotes)/sizeof(int);
+const int imperialMarchSize = sizeof(imperialMarchNotes)/sizeof(int);
 const int imperialMarchTempo = 135;
 
 
@@ -70,7 +70,7 @@ const int cScaleNotes[] PROGMEM = {
 const int cScaleLengths[] PROGMEM = {
   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
 };
-const int cScaleCount = sizeof(cScaleNotes)/sizeof(int);
+const int cScaleSize = sizeof(cScaleNotes)/sizeof(int);
 const int cScaleTempo = 85;
 
 
@@ -128,7 +128,7 @@ const int marioMainThemeLengths[] PROGMEM = {
   12, 12, 12, 12,
   12, 12, 12, 12,
 };
-const int marioMainThemeCount = sizeof(marioMainThemeNotes)/sizeof(int);
+const int marioMainThemeSize = sizeof(marioMainThemeNotes)/sizeof(int);
 const int marioMainThemeTempo = 130;
 
 
@@ -175,7 +175,7 @@ const int marioUnderworldLengths[] PROGMEM = {
   10, 10, 10,
   3, 3, 3
 };
-const int marioUnderworldCount = sizeof(marioUnderworldNotes)/sizeof(int);
+const int marioUnderworldSize = sizeof(marioUnderworldNotes)/sizeof(int);
 const int marioUnderworldTempo = 130;
 
 
@@ -212,7 +212,7 @@ const int takeOnMeLengths[] PROGMEM = {
   8, 8, 8, 8, 8, 8, 8, 8,
   8, 8, 8, 8, 2
 };
-const int takeOnMeCount = sizeof(takeOnMeNotes)/sizeof(int);
+const int takeOnMeSize = sizeof(takeOnMeNotes)/sizeof(int);
 const int takeOnMeTempo = 160;
 
 
@@ -337,7 +337,7 @@ const int knightRiderLengths[] PROGMEM = {
   250, 125, 125, 1500,
   250, 125, 125, 250, 250, 40, 250, 500
 };
-const int knightRiderCount = sizeof(knightRiderNotes)/sizeof(int);
+const int knightRiderSize = sizeof(knightRiderNotes)/sizeof(int);
 const int knightRiderTempo = 0;
 
 
@@ -388,7 +388,7 @@ const int gameOfThronesLengths[] PROGMEM = {
   -4, -4,
   16, 16, 4,  4, 16, 16,
 };
-const int gameOfThronesCount = sizeof(gameOfThronesNotes)/sizeof(int);
+const int gameOfThronesSize = sizeof(gameOfThronesNotes)/sizeof(int);
 const int gameOfThronesTempo = 110;
 
 

@@ -1162,7 +1162,7 @@ void ResetRace(){
 // int *playingNotes;
 // int *playingLengths;                                                            
 // int playingTempoBPM = 135;
-// int playingCount = 0;
+// int playingMelodySize = 0;
 // // flag to indicate to the main program loop whether a melody is in process
 // // so it should execute the 'PlayNote()' function with the current melody parameters.
 // bool melodyPlaying = false;
@@ -1177,8 +1177,10 @@ void ResetRace(){
 // // We want to pass all the variables instead of depending on their globality.
 // // This function returns, in ms, how long to wait before playing following note.
 // int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
+
 //   int noteDuration;
 //   int noteLength = pgm_read_word(&songLengths[curNoteIdx]);
+
 //   // If tempo = 0 then use note length directly as ms duration
 //   if(tempoBPM == 0){
 //     noteDuration = noteLength;
@@ -1190,31 +1192,31 @@ void ResetRace(){
 //       noteDuration = (60000 / tempoBPM) * 4 * (1.0 / noteLength);
 //     } else {
 //       // If note length is negative, then it's dotted so add extra half length.
-//       noteDuration = 1.5 * (60000 / tempoBPM) * 4 * (1 / abs(noteLength));
+//       noteDuration = 1.5 * (60000 / tempoBPM) * 4 * (1.0 / abs(noteLength));
 //     }
 //   }
+
 //   // Record millisecond timestamp at start of new note.
 //   lastNoteMillis = millis();
-//   // Play note
-//   tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), noteDuration);
+//   // The played notes have no transition time or strike impulse.
+//   // Played as written, each note sounds unaturally flat and run together.
+//   // Adding a small break between notes makes the melody sound better.
+//   // This can be done by slightly shortening the tone played vs the song temp.
+//   // or making the gap between notes slightly longer than the note length.
+//   // In which case the actual tempo will be slightly slower than the set tempo.
+//   // Here we'll factor the played tone down by 10% and keeping the tempo as set.
+//   // Play note:
+//   tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), .9*noteDuration);
 //   melodyIndex++;
 //   // If we have reached the end of the melody array then
 //   // flip playing flag off and reset tracking variables for next melody.
-//   if(curNoteIdx == playingCount - 1){
+//   if(melodyIndex == playingMelodySize){
 //     melodyPlaying = false;
 //     melodyIndex = 0;
 //     noteDelay = 0;
-//     playingCount = 0;
-//     // noTone(buzzPin1);
+//     playingMelodySize = 0;
 //   }
-//   // Buzzer notes have no transition time or strike impulse.
-//   // So when played as written, each note sounds unaturally run together.
-//   // Making the time between notes slightly longer than the note will
-//   // create a small break, giving the melody a more natural sound.
-//   // Factoring + 5-10% seems to be enough.
-//   return noteDuration * 1.1;
-//   //***this will make the true tempo slightly slower.
-//   // So increase the song's set tempo from the music sheet to accomodate.
+//   return noteDuration;
 // }
 // -------------ABOVE NOT USED-------------------
 
@@ -1275,13 +1277,14 @@ void setup(){
   PrintText(Racers[racer1], led1Disp, 7, 8);
   PrintText(Racers[racer2], led2Disp, 7, 8);
   // Serial.println(currentMenu);
-
-  // melodyPlaying = true;
-  // playingNotes = marioUnderworldNotes;
-  // playingLengths = marioUnderworldLengths;
-  // playingCount = marioUnderworldCount;
-  // playingTempoBPM = marioUnderworldTempo;
   
+  // Startup test song when using melody arrays.
+  // melodyPlaying = true;
+  // playingNotes = takeOnMeNotes;
+  // playingLengths = takeOnMeLengths;
+  // playingMelodySize = takeOnMeSize;
+  // playingTempoBPM = takeOnMeTempo;
+
   // Startup song
   startPlayRtttlPGM(buzzPin1, reveille);
 
