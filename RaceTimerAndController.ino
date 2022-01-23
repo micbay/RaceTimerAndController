@@ -148,8 +148,8 @@ byte racer1 = 0;
 byte racer2 = 1;
 // Variable to track current lap being timed.
 // Note that the current lap count may often be 1 greater than the lap of interest.
-int r1LapCount = 0;
-int r2LapCount = 0;
+volatile int r1LapCount = 0;
+volatile int r2LapCount = 0;
 // Fastest laps table col0 = lap#, col1 = laptime in ms
 const byte fastLapsQSize = 10;
 // Using two arrays, kept in sync, to track fastest laps.
@@ -166,8 +166,8 @@ unsigned long topFastestTimes[ 2 * fastLapsQSize ] = {};
 // (lapCount % lapMillisQSize) = idx, will always be 0 <= idx < lapMillisQSize
 // DO NOT SET lapMillisQSize < 3
 const byte lapMillisQSize = 5;
-unsigned long r1LastXMillis [ lapMillisQSize ] = {};
-unsigned long r2LastXMillis [ lapMillisQSize ] = {};
+volatile unsigned long r1LastXMillis [ lapMillisQSize ] = {};
+volatile unsigned long r2LastXMillis [ lapMillisQSize ] = {};
 // flag to alert results menu whether the race data is garbage or not
 bool raceDataExists = false;
 
@@ -181,8 +181,8 @@ unsigned long curRaceTime;
 unsigned long r1CurLapTime;
 unsigned long r2CurLapTime;
 // used to store millis() timestamp at start of current lap for each racer
-unsigned long r1LapStartMillis;
-unsigned long r2LapStartMillis;
+volatile unsigned long r1LapStartMillis;
+volatile unsigned long r2LapStartMillis;
 // The millis() timestamp of last display update.
 unsigned long lastTickMillis;
 // Interval in milliseconds that the clock displays are updated.
@@ -224,8 +224,8 @@ byte lanes[laneCount + 1][3] = {
 // 0 = update display with racer's current lap and running time.
 // 1 = write last finished lap, and its logged time, to racer's LED.
 // 2 = hold the last finished lap info on display until flash time is up.
-byte lane1LapFlash = 0;
-byte lane2LapFlash = 0;
+volatile byte lane1LapFlash = 0;
+volatile byte lane2LapFlash = 0;
 const int flashDisplayTime = 1500;
 // millis() timestamp at start of current flash period
 unsigned long flash1StartMillis;
@@ -878,6 +878,19 @@ void SetLanePins(bool EnableInterrupt){
   }
 }
 
+// unsigned long micros() {
+//     unsigned long m;
+//     extern volatile unsigned long timer0_overflow_count;
+//     uint8_t oldSREG = SREG, t;
+//     cli();
+//     m = timer0_overflow_count;
+//     t = TCNT0;
+//     if ((TIFR0 & _BV(TOV0)) && (t < 255))
+//         m++;
+//     SREG = oldSREG;
+//     return ((m << 8) + t) * (64 / clockCyclesPerMicrosecond());
+// }
+
 // Because the software is single threaded any poling method used
 // to detect lap triggers can only check one pin at a time.
 // This creates a potential that simultaneous triggers would cause
@@ -906,7 +919,7 @@ void clearPCI(byte pin) {
   // Clear any outstanding interrupt
   PCIFR  |= bit (digitalPinToPCICRbit(pin));
   // Disable interrupts on pin,
-  // using a logical & with the bitwise not (~) of the bitmask for the pin
+  // using a logical AND (&) with the bitwise NOT (~) of the bitmask for the pin
   *digitalPinToPCMSK(pin) &= ~bit (digitalPinToPCMSKbit(pin));
   // Serial.println("clearPCI");
   // Serial.println(*digitalPinToPCMSK(pin), BIN);
@@ -917,13 +930,18 @@ void clearPCI(byte pin) {
 
 // debounceTime (ms), time within which not to accept additional signal input
 const int debounceTime = 1000;
-
+volatile long timeTest[15];
+volatile int timeTestCount = 0;
 // ISR is a special Arduino Macro or routine that handles interrupts ISR(vector, attributes)
 // PCINT1_vect handles pin change interrupt for the pin block A0-A5, represented in bit0-bit5
 // The execution time of this function should be as fast as possible as
 // interrupts are disabled while inside it.
 ISR (PCINT1_vect) {
+  // Note that millis() does not execute inside the ISR().
+  // It can be called and used, but it is not continuing to increment.
   unsigned long logMillis = millis();
+  // micros() is used for assessing the ISR execution time.
+  unsigned long logMicros = micros();
   // We have setup the lap triggers and Pause button as inputs.
   // This means the pins have been set to HIGH, indicated by a 1 on its register bit.
   // When a button is pressed, or sensor triggered, it should bring the pin LOW.
@@ -1014,6 +1032,12 @@ ISR (PCINT1_vect) {
           SetLanePins(false);
           // Reset lanes to the default Enabled laneState, 'StandBy'.
           UpdateLaneState(lanesEnabledIdx);
+          
+          for(int i = 0; i < 20; i++){
+            Serial.println("Time test");
+            Serial.println(timeTest[i]);
+          }
+          timeTestCount = 0;
         }
         break;
         // if already paused then return to race
@@ -1037,6 +1061,12 @@ ISR (PCINT1_vect) {
       } // END switch
     } // END debounce if
   } // END of Pause button PINC2 detect
+
+  if (!IsBitSet(PINC, 3)) {}
+  if (!IsBitSet(PINC, 4)) {}
+
+  timeTest[timeTestCount] = micros() - logMicros;
+  timeTestCount++;
 } // END of ISR()
 
 // Function returns true if the bit at the, 'pos', postion of a byte is 1,
@@ -1286,8 +1316,8 @@ void setup(){
   // playingTempoBPM = takeOnMeTempo;
 
   // Startup song
-  startPlayRtttlPGM(buzzPin1, reveille);
-
+  // startPlayRtttlPGM(buzzPin1, reveille);
+  Beep();
 }
 
 void loop(){
