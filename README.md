@@ -225,7 +225,7 @@ However, a side effect of using 7-seg displays is that they cannot display all c
 > *7-segment displays cannot draw any version of the following characters*  
 > 
 
-### **Customization of the `LedControl` Character Library**  
+### **Customization of the `LedControl` Library's Character Table**  
 The `LedControl` library, as it is downloaded, is missing some writable letters. To add them or to change how existing writable characters are written, we can edit the libraries character table that contains the code value representing the segments to be displayed.
 
 Normally it is not best practice to directly edit library files because next time they are updated these changes will get overwritten. However, in this case, Arduino libraries are rarely updated and it is not a difficult change to re-implement vs the hassle of making our own version of the library.
@@ -532,7 +532,7 @@ To illustrate the process, we will transcribe the intro to Take On Me by Aha! He
 Looking at the first measure we see that the key signature is for the key of A Major. This means that all F5, C5, and G5 notes are sharp, as is indicated by the key signature sharp symbols on those lines.
 ![Take On Me Key Sig](Images/TOnMe_KeySignature.png)
 
-In addition to our notes and note lengths we also see the tempo is 'Fast', which on our chart is around 120-168, by ear it sound around 150 bpm, but since we add a break with each note we bump it up by 10% so around 165 is probably good.
+In addition to our notes and note lengths we also see the tempo is 'Fast', which on our chart is around 120-168 bpm, by ear it sound around 150 bpm, but since we add a 10% break with each note, we bump it up by 10% so around 165 is probably good.
 
 This first measure gives us everything we need to make our melody variables and populate the first notes.
 ```cpp
@@ -585,7 +585,7 @@ const int takeOnMeTempo = 165;
 const int takeOnMeCount = sizeof(takeOnMeNotes)/sizeof(int);
 ```
 ## **Sources of tone() Array Melodies**
-[robsoncouto/arduino-songs](https://www.smssolutions.net/tutorials/smart/rtttl/) is probably the biggest library of songs in this format. These are written as a single array of interwoven note, length, note, length, pattern. However, they can be quickly be converted into the 2 array format, used in this project, by making a copy and using search-replace to replace a few notes and durations with nothing.
+[robsoncouto/arduino-songs](https://www.smssolutions.net/tutorials/smart/rtttl/) is probably the biggest library of songs in this format I found. These are written as a single array of interwoven note, length, note, length, pattern. However, they can be quickly be converted into the 2 array format, used in this project, by making a copy and using search-replace to replace a few, often repeated notes and durations with nothing.
 
 Otherwise, most available melodies in this format are one-off single song projects and must be searched for individually.
 

@@ -115,17 +115,15 @@ enum races {
 };
 // used to define desired clock time width when written to display;
 enum clockWidth {
-  H,    // 00:00:00.0
-  M,    // 00:00.0
-  Sd,   // 00.0
-  Sc,   // 00.00
-  Sm    // 00.000
+  S = 2,    // 00
+  M = 4,    // 00:00
+  H = 6,    // 00:00:00
 };
 
 //*** Variables and defaults for USER SET, RACE PROPERTIES
 races raceType = Standard;
 // Variable for the number of laps to win standard race type
-int raceLaps = 8;
+int raceLaps = 5;
 // Race time for a Timed race type, most laps before time runs out wins.
 // We create a clock time array to hold converted values for easy display update.
 // raceSetTime[1] holds Min, raceSetTime[0] holds Sec, settable from menu.
@@ -290,7 +288,7 @@ char buffer[LCD_COLS];
 
 const char Main0[] PROGMEM = "A| Select Racers";
 const char Main1[] PROGMEM = "B| Change Settings";
-const char Main2[] PROGMEM = "C| Select a Race";
+const char Main2[] PROGMEM = "C| Start a Race";
 const char Main3[] PROGMEM = "D| See Results";
 const char* const MainText[4] PROGMEM = {
   Main0,
@@ -367,6 +365,7 @@ const char* Start = {"Start"};
 // This means this function will be updating those variables from the higher scope directly.
 void SplitTime(unsigned long msIN, unsigned long &ulHour, unsigned long &ulMin, unsigned long &ulSec, unsigned long &ulDec, unsigned long &ulCent, unsigned long &ulMill) {
   // Calculate HH:MM:SS from millisecond count
+  // HH:MM:SS.000 --> ulHour:ulMin:ulSec.(0 = ulDec, 00 = ulCent, 000 = ulMill)
   ulMill = msIN % 1000;
   ulCent = msIN % 1000 / 10;
   ulDec = msIN % 1000 / 100;
@@ -471,6 +470,50 @@ byte IndexList(byte curIdx, byte listLength, bool cycleUp, byte otherRacer) {
 }
 
 
+
+// Returns the number of digits in an integer.
+int calcDigits(int number){
+  int digitCount = 0;
+  while (number != 0) {
+    // integer division will drop decimal
+    number = number/10;
+    digitCount++;
+  }
+  return digitCount;
+}
+
+
+// Used to write same character repeatedly from start to end position, inclusive.
+// This is primarily used to clear lines and space before writing an update to display.
+void writeSpanOfChars(displays disp, byte lineNumber = 0, byte posStart = 0, byte posEnd = LCD_COLS - 1, char printChar = ' ') {
+  switch(disp){
+    case lcdDisp:{
+      lcd.setCursor(posStart, lineNumber);
+      for(byte n = posStart; n <= posEnd; n++){
+        lcd.print(printChar);
+      }
+    }
+    break;
+    case led1Disp: case led2Disp: {
+      for(byte i = posStart; i <= posEnd; i++){
+        lc.setChar(disp-1, (LED_DIGITS - 1) - i, printChar, false);
+      }
+    }
+    break;
+    default:
+    break;
+  }
+}
+
+// function to write pre-start final countdown digits to LEDs
+void ledWriteDigits(byte digit) {
+  for (int j=0; j < LED_BAR_COUNT; j++){
+    writeSpanOfChars(displays(j+1), 0, 0, 7, char(digit));
+  }
+}
+
+
+
 // numberIn   --Any positive number to be printed to display
 // width      --The number of places/digits to be printed
 // endPosIdx  --The index of the character position that contains the final digit
@@ -533,149 +576,6 @@ void PrintNumbers(const unsigned long numberIN, const byte width, const byte end
 }
 
 
-// timeMillis
-//    - Input time in ms
-// clockEndPos
-//    - Is the index of display row, where the last digit of the clock should go.
-//    This index is always considered left to right, and starting with 0.
-//    The function will flip index internally if needed for a right to left indexed display.
-//    For the MAX7219 LED bars, natively, the digit idx 0 is the far right digit.
-//    However, when using this function with a MAX7219 LED bar,
-//    to have clock end at far right, input clockEndPos 7, not 0.
-// printWidth
-//    - Valid values 'H', 'M', or 'S' indicating highest 
-void PrintClock(ulong timeMillis, byte clockEndPos, clockWidth printWidth, displays display, byte line = 0, bool leadingZs = false) {
-  unsigned long ulHour;
-  unsigned long ulMin;
-  unsigned long ulSec;
-  unsigned long ulDec;
-  unsigned long ulCent;
-  unsigned long ulMill;
-  SplitTime(timeMillis, ulHour, ulMin, ulSec, ulDec, ulCent, ulMill);
-  // Calculate and adjust start position affected by number of decimal seconds digits requested
-  // We use the endPos of the hours as the start endPos of the whole clock print.
-  unsigned long decimalSec;
-  byte decimalWidth;
-  byte hourEndPos;
-  switch(printWidth){
-    break;
-    case Sc:
-      decimalSec = ulCent;
-      decimalWidth = 2;
-      hourEndPos = clockEndPos - 9;
-    break;
-    case Sm:
-      decimalSec = ulMill;
-      decimalWidth = 3;
-      hourEndPos = clockEndPos - 10;
-    break;
-    default:
-      // if not cent or mill, all clock prints with seconds includes .0 by default
-      decimalSec = ulDec;
-      decimalWidth = 1;
-      hourEndPos = clockEndPos - 8;
-    break;
-  }
-
-  // Using a series of if statements for printWidth instead of a switch because of how the
-  // the cascading width variable falls through with options, it works better with ifs.
-  if (printWidth == H) {
-    // H 00:00:00.0
-    switch (display){
-      case lcdDisp: {
-        PrintNumbers(ulHour, 2, hourEndPos, display, leadingZs, line);
-        lcd.print(":");
-      }
-      break;
-      case led1Disp: led2Disp: {
-        PrintNumbers(ulHour, 2, clockEndPos - 5, display, leadingZs, 0, true);
-      }
-      break;
-      default:
-      break;
-    } // END of display switch
-    // All non-leading parts of the clock time should have leading zeros
-    leadingZs = true;
-    printWidth = M;
-  }
-
-  if (printWidth == M) {
-    // M 00:00.0
-    switch (display){
-      case lcdDisp: {
-        PrintNumbers(ulMin, 2, hourEndPos + 3, display, leadingZs, line);
-        lcd.print(":");
-      }
-      break;
-      case led1Disp: case led2Disp: {
-        PrintNumbers(ulMin, 2, clockEndPos - 3, display, leadingZs, 0, true);
-      }
-      break;
-      default:
-      break;
-    } // END of display switch
-    // All non-leading parts of the clock time should have leading zeros
-    leadingZs = true;
-    // the default decimal is deci-seconds ie 00.0
-    printWidth = Sd;
-  }
-  /* This final if is probably not necessary if all clocks end in S as we already evaluate the same options at the beginning to set the value for decimalSec.
-  Any adjustments to code that changes seconds, like adding a no decimal option should be made at that point.
-  However, keeping the if sets up for the preferred next update which adds the option of no decimal S & decimal with M & H, ie: S, Md, Mc, Mm, Hd, Hc, Hm.
-  If width starts with Seconds then there is the option to display .0d, .00c, or .000m
-  */
-  if (printWidth == Sd || printWidth == Sc || printWidth == Sm) {
-    // Sd 00.0,   Sc 00.00,   Sm 00.000
-    switch (display){
-      case lcdDisp: {
-        PrintNumbers(ulSec, 2, hourEndPos + 6, display, leadingZs, line, true);
-        lcd.print(decimalSec);
-      } // END lcdDisp case
-      break;
-      case led1Disp: case led2Disp: {
-        PrintNumbers(ulSec, 2, clockEndPos - decimalWidth, display, leadingZs, 0, true);
-        PrintNumbers(decimalSec, decimalWidth, clockEndPos, display, true);
-        // lc.setDigit(display - 1, (LED_DIGITS-1) - clockEndPos, decimalSec, false);
-      } // END of ledDips cases
-      break;
-      default:
-      break;
-    } // END of display switch
-  }
-} // END PrintClock()
-
-
-int calcDigits(int number){
-  int digitCount = 0;
-  while (number != 0) {
-    // integer division will drop decimal
-    number = number/10;
-    digitCount++;
-  }
-  return digitCount;
-}
-
-
-// Clear screen on given line from start to end position, inclusive.
-// The defalut is to clear the whole line.
-void lcdClearLine(byte lineNumber, byte posStart = 0, byte posEnd = LCD_COLS - 1) {
-  lcd.setCursor(posStart, lineNumber);
-  for(byte n = posStart; n <= posEnd; n++){
-    lcd.print(" ");
-  }
-}
-
-
-// function to write pre-start final countdown digits to LEDs
-void ledWriteDigits(byte digit) {
-  for (int j=0; j < LED_BAR_COUNT; j++){
-    for (int i=0; i < LED_DIGITS; i++){
-      lc.setDigit(j, i, digit, false);
-    }
-  }
-}
-
-
 // This function prints the input text, to the indicated display, at the indicated position.
 void PrintText(const char textToWrite[], const displays display, const byte writeSpaceEndPos, const byte width = LED_DIGITS, bool rightJust = false, const byte line = 0, bool clear = true) {
   // Even if text is right justified, available space is filled starting with 1st character.
@@ -694,7 +594,7 @@ void PrintText(const char textToWrite[], const displays display, const byte writ
     // For writing to LCD display
     case lcdDisp: {
       // for clearing we want to clear the whole space so we don't use adjusted endPos.
-      if (clear) lcdClearLine(line, cursorStartPos, writeSpaceEndPos);
+      if (clear) writeSpanOfChars(lcdDisp, line, cursorStartPos, writeSpaceEndPos);
       for (byte i = cursorStartPos; i <= cursorEndPos; i++){
         lcd.setCursor(i, line);
         lcd.print(textToWrite[textIndex]);
@@ -718,11 +618,216 @@ void PrintText(const char textToWrite[], const displays display, const byte writ
   } // END display switch
 }
 
+
+// timeMillis
+//    - Time in ms to be printed as a clock time to given display.
+// clockEndPos
+//    - The index of display row, where the last digit of the clock should go.
+//    This index is always considered left to right, and starting with 0.
+//    The function will flip index internally if needed for a right to left indexed display.
+//    For the MAX7219 LED bars, natively, the digit idx 0 is the far right digit.
+//    However, when using this function with a MAX7219 LED bar,
+//    to have clock end at far right, input clockEndPos 7, not 0.
+// printWidth
+//    - The number of character spaces available to print time, including ':' and '.'
+// precision
+//    - The number of decimal places desired. (allowed: 1 = 0.0, 2 = 0.00, or 3 = 0.000)
+// display
+//    - display enum indicating display to write clock time to.
+// line
+//    - The line on the display to write to, if display only has 1 line, use any#.
+// leadingZs
+//    - Indicates if leading time block should have a leading zero.
+//    If true, 3,903,000 = 1hr 5min 3sec = 01:05:03.precision
+//
+// Precision will automatically be dropped to make room until a whole digit
+// is dropped, at which point the time exceeds the width available,
+// and an 'E' will be written to notify view width has been exceeded.
+// NOTE: An 'E' does not affect that actual timing which can go on for about 49 days.
+void PrintClock(ulong timeMillis, byte clockEndPos, byte printWidth, byte precision, displays display, byte line = 0, bool leadingZs = false) {
+
+  // Clear clock space on display
+  // Must account for end position being included in the printWidth total.
+  writeSpanOfChars(display, line, clockEndPos - printWidth + 1, clockEndPos);
+
+  clockWidth nextTimeBlock = H;
+  int maxPrecision = 0;
+  byte neededWidth = 0;
+
+  // Based on the time value, and width of display area (printWidth),
+  // calculate how many decimal places can be accomodated.
+  // Because the LCD requires a character space for ':' and '.',
+  // we must adjust the required width accordingly.
+  //
+  // if t < 10sec
+  // 0.0
+  if(timeMillis < 10000){
+    nextTimeBlock = S;
+    maxPrecision = (display == lcdDisp ? printWidth-2 : printWidth-1);
+    neededWidth = 1;
+  } else
+  // if 10sec <= t < 1min
+  // 00
+  if (timeMillis < 60000){
+    nextTimeBlock = S;
+    maxPrecision = (display == lcdDisp ? printWidth-3 : printWidth-2);
+    neededWidth = 2;
+  } else
+  // if 1min <= t < 10min
+  // 0:00
+  if (timeMillis < 600000){
+    nextTimeBlock = M;
+    maxPrecision = (display == lcdDisp ? printWidth-5 : printWidth-3);
+    neededWidth = (display == lcdDisp ? 4 : 3);
+  } else
+  // if 10min <= t < 1hr
+  // 00:00
+  if (timeMillis < 3600000){
+    nextTimeBlock = M;
+    maxPrecision = (display == lcdDisp ? printWidth-6 : printWidth-4);
+    neededWidth = (display == lcdDisp ? 5 : 4);
+  } else
+  // if 1hr <= t < 10hr
+  // 0:00:00
+  if (timeMillis < 30600000){
+    nextTimeBlock = H;
+    maxPrecision = (display == lcdDisp ? printWidth-8 : printWidth-5);
+    neededWidth = (display == lcdDisp ? 7 : 5);
+  } else
+  // if 10hr <= t < 24hr
+  // 00:00:00
+  if (timeMillis < 86,400,000){
+    nextTimeBlock = H;
+    maxPrecision = (display == lcdDisp ? printWidth-9 : printWidth-6);
+    neededWidth = (display == lcdDisp ? 8 : 6);
+  } else {
+  // if 24hr <= t
+  // over max clock limit of 24 hrs.
+  if (timeMillis >= 86,400,000)
+    maxPrecision = -1;
+  }
+
+  // A negative maxPrecision means we don't have space to print the time.
+  if (maxPrecision < 0){
+
+    PrintText("E", display, clockEndPos, printWidth, true, line, display == lcdDisp ? true : false);
+
+  } else {
+    unsigned long ulHour;
+    unsigned long ulMin;
+    unsigned long ulSec;
+    unsigned long ulDec;
+    unsigned long ulCent;
+    unsigned long ulMill;
+    // Convert millisecond time into its individual time blocks.
+    SplitTime(timeMillis, ulHour, ulMin, ulSec, ulDec, ulCent, ulMill);
+
+    unsigned long decimalSec;
+    byte hourEndPos;
+
+    // if requested precision is higher than available max, use max.
+    precision = maxPrecision < precision ? maxPrecision : precision;
+    // LCD must add character space for colons and decimal place.
+    hourEndPos = (display == lcdDisp ?
+                  clockEndPos - (6 + precision + (precision > 0 ? 1 : 0)) :
+                  clockEndPos - (4 + precision)
+                  );
+
+    // If leading zeros are requested but there is no space turn them off.
+    // If LCD, with precision, subtract additional 1 for the decimal position.
+    if( (printWidth - precision - neededWidth - ((display==lcdDisp && precision>0)?1:0)) <= 0 ){
+      leadingZs = false;
+    }
+    // Serial.println("leading Zs");
+    // Serial.println(leadingZs);
+    // Serial.println(printWidth - precision - neededWidth);
+
+    // Set which precision time block to use based on available precision. 
+    switch(precision){
+      case 1:
+        decimalSec = ulDec;
+      break;
+      case 2:
+        decimalSec = ulCent;
+      break;
+      case 3:
+        decimalSec = ulMill;
+      break;
+      default:
+        decimalSec = NULL;
+      break;
+    }
+
+    if (nextTimeBlock == H) {
+      // H 00:00:00
+      switch (display){
+        case lcdDisp: {
+          PrintNumbers(ulHour, 2, hourEndPos, display, leadingZs, line);
+          lcd.print(":");
+        }
+        break;
+        case led1Disp: led2Disp: {
+          PrintNumbers(ulHour, 2, hourEndPos, display, leadingZs, 0, true);
+        }
+        break;
+        default:
+        break;
+      } // END of display switch
+      // All non-leading parts of the clock time should have leading zeros
+      leadingZs = true;
+      // Move on to print Minutes.
+      nextTimeBlock = M;
+    }
+
+    if (nextTimeBlock == M) {
+      // M 00:00
+      switch (display){
+        case lcdDisp: {
+          PrintNumbers(ulMin, 2, hourEndPos + 3, display, leadingZs, line);
+          lcd.print(":");
+        }
+        break;
+        case led1Disp: case led2Disp: {
+          PrintNumbers(ulMin, 2, hourEndPos + 2, display, leadingZs, 0, true);
+        }
+        break;
+        default:
+        break;
+      } // END of display switch
+      // All non-leading parts of the clock time should have leading zeros
+      leadingZs = true;
+      // Move on to print seconds
+      nextTimeBlock = S;
+    }
+
+    if (nextTimeBlock == S) {
+      // S 00.(000)
+      switch (display){
+        case lcdDisp: {
+          PrintNumbers(ulSec, 2, hourEndPos + 6, display, leadingZs, line, precision > 0);
+          if(precision > 0) lcd.print(decimalSec);
+        }
+        break;
+        case led1Disp: case led2Disp: {
+          PrintNumbers(ulSec, 2, hourEndPos + 4, display, leadingZs, 0, precision > 0);
+          if(precision > 0) PrintNumbers(decimalSec, precision, clockEndPos, display);
+        }
+        break;
+        default:
+        break;
+      } // END of display switch
+    } // END of if 'S'
+
+  } // END if 'X' Else
+
+} // END PrintClock()
+
+
 void DrawPreStartScreen(){
   lcd.clear();
   lcd.setCursor(0,1);
   lcd.print("Your Race Starts in:");
-  PrintClock(curRaceTime, PRESTART_CLK_POS, Sd, lcdDisp, 2);
+  PrintClock(curRaceTime, PRESTART_CLK_POS, 4, 1, lcdDisp, 2);
   // if lanes are not off, then update screen
   if(lanes[1][1] > 0) PrintText(Racers[racer1], led1Disp, 7, 8, false);
   if(lanes[2][1] > 0) PrintText(Racers[racer2], led2Disp, 7, 8, false);
@@ -1004,16 +1109,11 @@ void lcdPrintResults(unsigned long fastestTimes[], unsigned int fastestLaps[][2]
       // then print lap
       PrintNumbers(fastestLaps[resultsMenuIdx + i][0], 3, 5, lcdDisp, true, i + 1, false);
       // Print the lap time
-      // if the laptime exceeds 60 then just print '60+'
-      if (fastestTimes[resultsMenuIdx + i] > 60000) {
-        PrintText("60+", lcdDisp, 10, 3, false, i + 1, false);
-      } else {
-        PrintClock(fastestTimes[resultsMenuIdx + i], 11, Sm, lcdDisp, i + 1);
-      }
+      PrintClock(fastestTimes[resultsMenuIdx + i], 12, 6, 3, lcdDisp, i + 1);
       // clear racer name space of any previous characters
-      lcdClearLine(1 + i, 13);
+      writeSpanOfChars(lcdDisp, 1 + i, 13);
       // then print racer
-      PrintText(Racers[fastestLaps[resultsMenuIdx + i][1]], lcdDisp, 19, 7, true, i + 1, false);
+      PrintText(Racers[fastestLaps[resultsMenuIdx + i][1]], lcdDisp, 19, 6, true, i + 1, false);
     } else {
       // we want to set the index back one so it doesn't keep scrolling in empty space
       resultsMenuIdx = (resultsMenuIdx -1) >= 0 ? resultsMenuIdx - 1 : 0;
@@ -1130,8 +1230,8 @@ void setup(){
   'hang', this may be the culprit if there is a connection issue.
   */
   // Open port and wait for connection before proceeding.
-  // Serial.begin(9600);
-  // while(!Serial);
+  Serial.begin(9600);
+  while(!Serial);
   // --- SETUP LCD DIPSLAY -----------------------------
   // Initialize LCD with begin() which will return zero on success.
   // Non-zero failure status codes are defined in <hd44780.h>
@@ -1190,8 +1290,6 @@ void setup(){
 void loop(){
   // Serial.println("MAIN LOOP START");
   // Serial.println(state);
-  // Serial.println("R2Lap count MAIN");
-  // Serial.println(r2LapCount);
   updatePlayRtttl();
   // ----- enable if using melody arrays ----------
   // if(melodyPlaying){
@@ -1427,9 +1525,9 @@ void loop(){
                   if (resultsSubMenu) arrayMax = fastLapsQSize;
                   else arrayMax = fastLapsQSize * 2;
                   // clear line to remove extra ch from long names replace by short ones
-                  lcdClearLine(1);
-                  lcdClearLine(2);
-                  lcdClearLine(3);
+                  writeSpanOfChars(lcdDisp, 1);
+                  writeSpanOfChars(lcdDisp, 2);
+                  writeSpanOfChars(lcdDisp, 3);
                   if (key == 'A' && resultsMenuIdx > 0) resultsMenuIdx--;
                   // we subtract 3 because there are two rows printed after tracked index
                   if (key == 'B' && resultsMenuIdx < arrayMax-2) resultsMenuIdx++;
@@ -1501,7 +1599,7 @@ void loop(){
           // update racer's current lap total on LCD
           PrintNumbers(r1LapCount == 0 ? 0 : r1LapCount - 1, 3, 11, lcdDisp, true, 2);
           // update racer's current best lap time to LCD
-          if(r1LapCount > 0) PrintClock(r1FastestTimes[0], 19, Sm, lcdDisp, 2);
+          if(r1LapCount > 0) PrintClock(r1FastestTimes[0], 19, 7, 3, lcdDisp, 2);
           PrintText(Start, led1Disp, 7, 8, true, 0, false);
         }
         if(lanes[2][1] > 0){
@@ -1510,7 +1608,7 @@ void loop(){
           // update racer's current lap total on lcd (0 if start, current if restart)
           PrintNumbers(r2LapCount == 0 ? 0 : r2LapCount - 1, 3, 11, lcdDisp, true, 3);
           // update racer's current best lap time to lcd
-          if(r2LapCount > 0) PrintClock(r2FastestTimes[0], 19, Sm, lcdDisp, 3);
+          if(r2LapCount > 0) PrintClock(r2FastestTimes[0], 19, 7, 3, lcdDisp, 3);
           PrintText(Start, led2Disp, 7, 8, true, 0, false);
         }
         // this act enables the racer to trigger first lap
@@ -1525,7 +1623,7 @@ void loop(){
           // update LCD on each tick
           if (curMillis - lastTickMillis > displayTick){
             curRaceTime = curRaceTime - displayTick;
-            PrintClock(curRaceTime, PRESTART_CLK_POS, Sc, lcdDisp, 2);
+            PrintClock(curRaceTime, PRESTART_CLK_POS, 4, 2, lcdDisp, 2);
             lastTickMillis = curMillis;
           }
           // In last 3 seconds send countdown to LEDs
@@ -1572,20 +1670,15 @@ void loop(){
               // we do this here to keep it interruptable and out of the lap trigger intrrupt funct.
               // the current lap is the live lap so we need to subtract 1 from lapcount
               UpdateFastestLap(r1FastestTimes, r1FastestLaps, r1LapCount - 1, r1LapTimeToLog, racer1, fastLapsQSize);
-              // UpdateFastestLap(topFastestTimes, topFastestLaps, r1LapCount - 1, r1LapTimeToLog, racer1, 2 * fastLapsQSize);
               lc.clearDisplay( led1Disp - 1 );
               // print the just completed lap # to left side of racer's  LED
               PrintNumbers(r1LapCount - 1, 3, 2, led1Disp);
               // print the lap time of just completed lap to right side of racer's LED
-              if (r1LapTimeToLog > 60000){
-                PrintClock(r1LapTimeToLog, 7, M, led1Disp);
-              } else {
-                PrintClock(r1LapTimeToLog, 7, Sm, led1Disp);
-              }
+              PrintClock(r1LapTimeToLog, 7, 4, 3, led1Disp);
               // update racer's current lap total on LCD
               PrintNumbers(r1LapCount - 1, 3, 11, lcdDisp, true, 2);
               // update racer's current best lap time to LCD
-              PrintClock(r1FastestTimes[0], 19, Sm, lcdDisp, 2);
+              PrintClock(r1FastestTimes[0], 19, 7, 3, lcdDisp, 2);
               // record the timestamp at which this flash period is starting at
               flash1StartMillis = curMillis;
               // set the flash state to 2 = hold until flash period time is over
@@ -1599,12 +1692,8 @@ void loop(){
             if (lanes[1][1] == Active) {
               lc.clearDisplay(led1Disp - 1);
               PrintNumbers(r1LapCount, 3, 2, led1Disp);
-              // if over 60 seconds use minutes format
-              if (r1CurLapTime > 60000){
-                PrintClock(r1CurLapTime, 7, M, led1Disp);
-              } else {
-                PrintClock(r1CurLapTime, 7, Sc, led1Disp, 0, true);
-              }
+              PrintClock(r1CurLapTime, 7, 4, 1, led1Disp, 0, true);
+
             }
           }
 
@@ -1620,15 +1709,11 @@ void loop(){
               // print the just completed lap # to left side of racer's  LED
               PrintNumbers(r2LapCount - 1, 3, 2, led2Disp);
               // print the lap time of just completed lap to right side of racer's LED
-              if (r2LapTimeToLog > 60000){
-                PrintClock(r2LapTimeToLog, 7, M, led2Disp);
-              } else {
-                PrintClock(r2LapTimeToLog, 7, Sm, led2Disp);
-              }
+              PrintClock(r2LapTimeToLog, 7, 4, 3, led2Disp);
               // update racer's current lap total on lcd
               PrintNumbers(r2LapCount - 1, 3, 11, lcdDisp, true, 3);
               // update racer's current best lap time to lcd
-              PrintClock(r2FastestTimes[0], 19, Sm, lcdDisp, 3);
+              PrintClock(r2FastestTimes[0], 19, 7, 3, lcdDisp, 3);
               // record the timestamp at which this flash period is starting at
               flash2StartMillis = curMillis;
               // set the flash state to 2 = hold until flash period time is over
@@ -1641,17 +1726,14 @@ void loop(){
             // if the lane is in use then start displaying live lap time again
             if (lanes[2][1] == Active) {
               lc.clearDisplay(led2Disp - 1);
+              // Print current lap
               PrintNumbers(r2LapCount, 3, 2, led2Disp);
-              // if over 60 seconds use minutes format
-              if (r2CurLapTime > 60000){
-                PrintClock(r2CurLapTime, 7, M, led2Disp);
-              } else {
-                PrintClock(r2CurLapTime, 7, Sc, led2Disp, 0, true);
-              }
+              // Print running lap time
+              PrintClock(r2CurLapTime, 7, 4, 1, led2Disp, 0, true);
             }
           }
           // Update LCD with absolute race time and racer lap logs
-          PrintClock(curRaceTime, RACE_CLK_POS, M, lcdDisp, 0, true);
+          PrintClock(curRaceTime, RACE_CLK_POS, 5, 0, lcdDisp, 0, true);
           lastTickMillis = curMillis;
         } // END of if(displayTick) block
 
