@@ -603,7 +603,7 @@ Otherwise, most available melodies in this format are one-off single song projec
 ---  
 
 ## **Method 2: Ringtone RTTTL Format**  
-RTTTL stands for Ring Tone Text Transfer Language which is a string based format developed by Nokia that can be interpreted and played as a ringtone. This format is no longer used by phones, but there exist libaries of thousands of songs encoded using it, on the internet, making it the preferred method for this project.
+RTTTL stands for Ring Tone Text Transfer Language which is a string based format developed by Nokia that can be interpreted and played as a ringtone. This format is no longer used by phones, but the internet has libaries of thousands of songs encoded with it. Making it the preferred method for this project.
 
 ### **The RTTTL String**  
 The RTTTL string is made up of 3 parts seperated by colons ':'
