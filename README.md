@@ -61,6 +61,7 @@ All of the components are readily available and can be connected with basic jump
 
 ## **Power Supply (+5V)**  
 All devices in this build are powered from a +5V source. The displays should draw power from the source supply and not through the Arduino which cannot support enough current to run everything without flickering.
+> ***Powering MAX7219 LED Bars** - Power for these can be daisy chained for the first 2 bars, but cascading 3 or more will require direct +5V supplies or there will be problems. Even with the bypass filter, chaining power doesn't seem to work very well beyond 2, 8-digit displays.*
 
 > ***<span style="color:yellow"> Connect Arduino GND to external ground reference </span>** - Like many projects with higher power demands, this one uses an external power supply to get enough current for the dipslays; during development and programming, we will often have the USB plugged in as well. If we do not connect the Arduino GND to the power supply ground we run the risk of a reference mismatch that can cause intermittent errors, or the device to not work at all.  
 > If we were to inadvertently find ourselves with the configuration shown here. It may appear to be ok on first look, but with the multi-meter we can see that there is a 1.9V differential between the two ground references when it should be reading close to 0.*
