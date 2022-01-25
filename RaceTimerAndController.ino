@@ -998,6 +998,11 @@ const int debounceTime = 1000;
 // The execution time of this function should be as fast as possible as
 // interrupts are disabled while inside it.
 ISR (PCINT1_vect) {
+  // we want to trim it to only the 1st 4 bits and we want to flip them so that 1 means triggered.
+  // First we flip them all with xor 0b11111111
+  // then trim off the high bits with & 0b00001111
+  // This leaves us with 1's in the triggered positions.
+  byte triggeredPins = ((PINC xor 0b11111111) & 0b00001111);
   // Note that millis() does not execute inside the ISR().
   // It can be called and used, but it is not continuing to increment.
   unsigned long logMillis = millis();
@@ -1011,74 +1016,127 @@ ISR (PCINT1_vect) {
 
   // Lane 1 positive trigger PINC = 0xXXXXXXX0
   // Lane 1 is on pin A0 which uses the first bit of the register, idx 0, of PINC Byte
-  if (!IsBitSet(PINC, 0)) {
-    // if it's the first log, it's the intial cross of start line
-    // if (r1LapCount == 0) {
-    // Lanes are in standby before initial start or when returning from Pause.
-    // The first trigger from standby should only set the lap start time
-    if (laneEnableStatus[1] == StandBy) {
-      laneEnableStatus[1] = Active;
-      // If the very first lap, then log and index
-      if(lapCount[1] == 0) {
-        lastXMillis[1] [0] = logMillis;
-        startMillis[1] = logMillis;
-        // only index the lapcount if initial start, not on pause restart
-        lapCount[1]++;
-      } else {
-        // If returning from Pause, we need to feed the new start time,
-        // into the pevious lap index spot, and not index the current lapcount.
-        // r1LastXMillis [(lapCount[1] - 1) % lapMillisQSize] = logMillis;
-        lastXMillis [1][(lapCount[1] - 1) % lapMillisQSize] = logMillis;
-        startMillis[1] = logMillis;
-      }
-      Beep();
-    } else if(laneEnableStatus[1] == Active) {
-      // Check that current sense time is outside of active debounce period, otherwise ignore it.
-      if((logMillis - lastXMillis [1][(lapCount[1]-1) % lapMillisQSize] ) > debounceTime){
-        flashStatus[1] = 1;
-        lastXMillis [1][lapCount[1] % lapMillisQSize] = logMillis;
-        startMillis[1] = logMillis;
-        lapCount[1]++;
+  // if (!IsBitSet(triggeredPins, 0)) {
+  //   // if it's the first log, it's the intial cross of start line
+  //   // if (r1LapCount == 0) {
+  //   // Lanes are in standby before initial start or when returning from Pause.
+  //   // The first trigger from standby should only set the lap start time
+  //   if (laneEnableStatus[1] == StandBy) {
+  //     laneEnableStatus[1] = Active;
+  //     // If the very first lap, then log and index
+  //     if(lapCount[1] == 0) {
+  //       lastXMillis[1] [0] = logMillis;
+  //       startMillis[1] = logMillis;
+  //       // only index the lapcount if initial start, not on pause restart
+  //       lapCount[1]++;
+  //     } else {
+  //       // If returning from Pause, we need to feed the new start time,
+  //       // into the pevious lap index spot, and not index the current lapcount.
+  //       lastXMillis [1][(lapCount[1] - 1) % lapMillisQSize] = logMillis;
+  //       startMillis[1] = logMillis;
+  //     }
+  //     Beep();
+  //   } else if(laneEnableStatus[1] == Active) {
+  //     // Check that current sense time is outside of active debounce period, otherwise ignore it.
+  //     if((logMillis - lastXMillis [1][(lapCount[1]-1) % lapMillisQSize] ) > debounceTime){
+  //       flashStatus[1] = 1;
+  //       lastXMillis [1][lapCount[1] % lapMillisQSize] = logMillis;
+  //       startMillis[1] = logMillis;
+  //       lapCount[1]++;
+  //       Beep();
+  //     }
+  //   }
+  //   // if not the first log or beyond debounce time then don't log the trigger
+  // }
+
+  // Prefer using a for loop, over a while loop, since we know a max cycle count.
+  for(byte i = 0; i < 4; i++){
+    // If digit is a 1 then process it
+    if(triggeredPins & 1){
+      // if it's the first log, it's the intial cross of start line
+      // if (r1LapCount == 0) {
+      // Lanes are in standby before initial start or when returning from Pause.
+      // The first trigger from standby should only set the lap start time
+      if (laneEnableStatus[ i + 1 ] == StandBy) {
+        laneEnableStatus[ i + 1 ] = Active;
+        // If the very first lap, then log and index
+        if(lapCount[ i + 1 ] == 0) {
+          lastXMillis[ i + 1 ] [0] = logMillis;
+          startMillis[ i + 1 ] = logMillis;
+          // only index the lapcount if initial start, not on pause restart
+          lapCount[ i + 1 ]++;
+        } else {
+          // If returning from Pause, we need to feed the new start time,
+          // into the pevious lap index spot, and not index the current lapcount.
+          lastXMillis [ i + 1 ][(lapCount[ i + 1 ] - 1) % lapMillisQSize] = logMillis;
+          startMillis[ i + 1 ] = logMillis;
+        }
         Beep();
+      } else if(laneEnableStatus[i + 1] == Active) {
+        // Check that current sense time is outside of active debounce period, otherwise ignore it.
+        if((logMillis - lastXMillis [i + 1][(lapCount[i + 1]-1) % lapMillisQSize] ) > debounceTime){
+          flashStatus[i + 1] = 1;
+          lastXMillis [i + 1][lapCount[i + 1] % lapMillisQSize] = logMillis;
+          startMillis[i + 1] = logMillis;
+          lapCount[i + 1]++;
+          Beep();
+        }
       }
+
     }
-    // if not the first log or beyond debounce time then don't log the trigger
-  }
+    // shift to the next bit
+    triggeredPins = triggeredPins >> 1;
+  } // END of, for loop, checking each digit, loop
+
+  // Serial.println("PCINT1_vect");
+  // Serial.println(PCINT1_vect);
+  // Serial.println("PINC");
+  // Serial.println(PINC);
+
+
+
   // Lane 2 positive trigger PINC = 0xXXXXXX0X
   // Lane 2 is on pin A1 which uses the 2nd bit of the register, idx 1, of PINC Byte
-  if (!IsBitSet(PINC, 1)) {
-    if (laneEnableStatus[2] == StandBy) {
-      laneEnableStatus[2] = Active;
-      // If the very first lap, then log and index
-      if(lapCount[2] == 0){
-        // r2LastXMillis [ lapCount[2] ] = logMillis;
+  // if (!IsBitSet(triggeredPins, 1)) {
+  //   if (laneEnableStatus[2] == StandBy) {
+  //     laneEnableStatus[2] = Active;
+  //     // If the very first lap, then log and index
+  //     if(lapCount[2] == 0){
+  //       lastXMillis [2][ lapCount[2] ] = logMillis;
+  //       startMillis[2] = logMillis;
+  //       // only index the lapcount if initial start, not on pause restart
+  //       lapCount[2]++;
+  //     } else {
+  //       // If returning from Pause, we need to feed the new start time,
+  //       // into the pevious lap index spot, and not index the current lapcount.
+  //       lastXMillis[2] [(lapCount[2] - 1) % lapMillisQSize] = logMillis;
+  //       startMillis[2] = logMillis;
+  //     }
+  //     Beep();
+  //   } else if (laneEnableStatus[2] == Active) {
+  //     if((logMillis - lastXMillis[2] [(lapCount[2]-1) % lapMillisQSize] ) > debounceTime){
+  //       flashStatus[2] = 1;
+  //       lastXMillis[2] [lapCount[2] % lapMillisQSize] = logMillis;
+  //       startMillis[2] = logMillis;
+  //       lapCount[2]++;
+  //       Beep();
+  //     }
+  //   }
+  // } // END of PINC, 1 aka lane/racer2 pin detect
 
-        lastXMillis [2][ lapCount[2] ] = logMillis;
-        
-        startMillis[2] = logMillis;
-        // only index the lapcount if initial start, not on pause restart
-        lapCount[2]++;
-      } else {
-        // If returning from Pause, we need to feed the new start time,
-        // into the pevious lap index spot, and not index the current lapcount.
-        // r2LastXMillis [(lapCount[2] - 1) % lapMillisQSize] = logMillis;
-        
-        lastXMillis[2] [(lapCount[2] - 1) % lapMillisQSize] = logMillis;
-
-        startMillis[2] = logMillis;
-      }
-      Beep();
-    } else if (laneEnableStatus[2] == Active) {
-      if((logMillis - lastXMillis[2] [(lapCount[2]-1) % lapMillisQSize] ) > debounceTime){
-        flashStatus[2] = 1;
-        lastXMillis[2] [lapCount[2] % lapMillisQSize] = logMillis;
-        startMillis[2] = logMillis;
-        lapCount[2]++;
-        Beep();
-      }
-    }
-  } // END of PINC, 1 aka lane/racer2 pin detect
 } // END of ISR()
+
+
+// Function returns true if the bit at the, 'pos', postion of a byte is 1,
+// otherwise it returns false.
+// In a Byte, position is from right to left, the far right bit is considered bit 1 at idx0.
+// EX. If function parameters are pos = 3 and b = 0x11111000
+//     the integer 1 = 0x00000001, if we left shift pos=3 places we get 0x00001000
+//     thus 0x11111000 & (0x00001000) = 0x00001000
+// Which is not zero, so the ex returns true, the indicated bit of the input Byte is set.
+bool IsBitSet(byte b, byte pos) {
+   return (b & (1 << pos)) != 0;
+}
 
 
 // Generic function to check if a button is pressed
@@ -1137,18 +1195,6 @@ void PauseRace(){
     } // END switch
   } // END debounce if
 
-}
-
-
-// Function returns true if the bit at the, 'pos', postion of a byte is 1,
-// otherwise it returns false.
-// In a Byte, position is from right to left, the far right bit is considered bit 1 at idx0.
-// EX. If function parameters are pos = 3 and b = 0x11111000
-//     the integer 1 = 0x00000001, if we left shift pos=3 places we get 0x00001000
-//     thus 0x11111000 & (0x00001000) = 0x00001000
-// Which is not zero, so the ex returns true, the indicated bit of the input Byte is set.
-bool IsBitSet(byte b, byte pos) {
-   return (b & (1 << pos)) != 0;
 }
 
 
@@ -1654,6 +1700,8 @@ void loop(){
                   // Index results menu to next racer.
                   // Currently does not skip 'disabled' data pages.
                   resultsMenuIdx = (resultsMenuIdx + 1) % (laneCount + 1);
+                  // Reset row index to 0 so new list starts at the top
+                  resultsRowIdx = 0;
                   UpdateResultsMenu();
                   // Serial.println("result idx");
                   // Serial.println(resultsRowIdx);
