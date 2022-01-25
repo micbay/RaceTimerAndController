@@ -149,15 +149,15 @@ byte raceSetTime[2] = {defSec, defMin};
 // raceSetTime in milliseconds, will be initialized in setup().
 unsigned long raceSetTimeMs;
 // pre-race countdown length in seconds, settable from menu
-byte preStartCountDown = 5;
+byte preStartCountDown = 2;
 // Flag to tell race timer if race time is going up or going down as in a time limit race.
 // Since the default race type is standard the default countingDown is false.
 bool countingDown = false;
 
 
 // Do not allow user to select same racer id for more than 1 lane.
-byte racer1 = 0;
-byte racer2 = 1;
+// byte racer1 = 0;
+// byte racer2 = 1;
 // Variable to track current lap being timed.
 // Note that the current lap count may often be 1 greater than the lap of interest.
 // volatile int r1LapCount = 0;
@@ -276,7 +276,7 @@ byte laneSensorPin[ laneCount + 1 ] = {
 byte laneRacer[ laneCount + 1 ] = {
   0, 1, 2, 0, 0
 };
-volatile byte LapFlashStatus[ laneCount + 1 ] = {
+volatile byte flashStatus[ laneCount + 1 ] = {
   0, 0, 0, 0, 0
 };
 
@@ -292,9 +292,9 @@ volatile byte LapFlashStatus[ laneCount + 1 ] = {
 // volatile byte lane1LapFlash = 0;
 // volatile byte lane2LapFlash = 0;
 
-volatile byte lapFlash[ laneCount + 1 ] = {
-  0, 0, 0, 0, 0
-};
+// volatile byte lapFlash[ laneCount + 1 ] = {
+//   0, 0, 0, 0, 0
+// };
 
 const int flashDisplayTime = 1500;
 // millis() timestamp at start of current flash period
@@ -696,7 +696,7 @@ void PrintNumbers(const unsigned long numberIN, const byte width, const byte end
 
 
 // This function prints the input text, to the indicated display, at the indicated position.
-void PrintText(const char textToWrite[], const displays display, const byte writeSpaceEndPos, const byte width = LED_DIGITS, bool rightJust = false, const byte line = 0, bool clear = true) {
+void PrintText(const char textToWrite[LCD_COLS], const displays display, const byte writeSpaceEndPos, const byte width = LED_DIGITS, bool rightJust = false, const byte line = 0, bool clear = true) {
   // Even if text is right justified, available space is filled starting with 1st character.
   // Need to track the character index seperately from display digit position.
   byte const textLength = strlen(textToWrite);
@@ -1143,7 +1143,7 @@ ISR (PCINT1_vect) {
       // }
 
       if((logMillis - lastXMillis [1][(lapCount[1]-1) % lapMillisQSize] ) > debounceTime){
-        lapFlash[1] = 1;
+        flashStatus[1] = 1;
         lastXMillis [1][lapCount[1] % lapMillisQSize] = logMillis;
         startMillis[1] = logMillis;
         lapCount[1]++;
@@ -1188,7 +1188,7 @@ ISR (PCINT1_vect) {
       //   Beep();
       // }
       if((logMillis - lastXMillis[2] [(lapCount[2]-1) % lapMillisQSize] ) > debounceTime){
-        lapFlash[2] = 1;
+        flashStatus[2] = 1;
         lastXMillis[2] [lapCount[2] % lapMillisQSize] = logMillis;
         startMillis[2] = logMillis;
         // Serial.println("R2 Lap Count 1++");
@@ -1304,11 +1304,15 @@ void UpdateFastestLap(unsigned long timesArray[], unsigned int lapsArray[], cons
       for (byte j = arrayLength - 1; j > i; j--){
         timesArray[j] = timesArray[j-1];
         lapsArray[j] = lapsArray[j-1];
+        if(topTimes) topFastestRacers[j] = topFastestRacers[j-1];
         // lapsArray[j][1] = lapsArray[j-1][1];
       }
       // Then replace old, bested lap time, with new, faster lap and time.
       timesArray[i] = newLapTime;
       lapsArray[i] = lap;
+      // It's not being consistent to reference this one array globally.
+      // but in this case it cheaper to do this and use a 'topTimes' flag
+      // than carry an extra array argument for the corner case.
       if(topTimes) topFastestRacers[i] = racer;
       // for (int k = 0; k < arrayLength; k++){
       //   Serial.println("UpdateFastest End");
@@ -1339,12 +1343,9 @@ void CompileTopFastest(){
   // for each racer/lane, compare their top laps to over all top laps and insert as appropriate.
   for (byte i = 1; i <= laneCount; i++) {
     for (byte j = 0; j < fastestQSize; j++) {
-      UpdateFastestLap(topFastestTimes, topFastestLaps, fastestLaps[i][j], fastestTimes[i][j], laneRacer[i],  fastestQSize);
+      UpdateFastestLap(topFastestTimes, topFastestLaps, fastestLaps[i][j], fastestTimes[i][j], laneRacer[i],  fastestQSize, true);
     }
   }
-
-
-
 }
 
 // Prints given results array to lcd display
@@ -1362,8 +1363,9 @@ void lcdPrintResults(unsigned long fastestTimes[], unsigned int fastestLaps[], i
       // clear racer name space of any previous characters
       writeSpanOfChars(lcdDisp, 1 + i, 13);
       // then print racer
-      if(resultsRowIdx == 0){
-        PrintText(Racers[laneRacer[resultsRowIdx]], lcdDisp, 19, 6, true, i + 1, false);
+      // if idx = 0 then it's the top results and has racer names with the lap times.
+      if(resultsMenuIdx == 0){
+        PrintText(Racers[topFastestRacers[resultsRowIdx + i]], lcdDisp, 19, 6, true, i + 1, false);
       }
     } else {
       // we want to set the index back one so it doesn't keep scrolling in empty space
@@ -1385,8 +1387,12 @@ void UpdateResultsMenu() {
     break;
     case 1 ... laneCount: {
       lcd.clear();
-      char headerString = (resultsMenuIdx - '0') + " RESULTS";
-      PrintText(strcat("C | RACER ", headerString), lcdDisp, 18, 19, false, 0);
+      PrintText("C | RACER ", lcdDisp, 19, 20, false, 0);
+      // Print Racer Lane #
+      PrintNumbers(resultsMenuIdx, 1, 10, lcdDisp, false, 0);
+      // Print Racer Name
+      PrintText(Racers[laneRacer[resultsMenuIdx]], lcdDisp, 19, 9, true);
+      // PrintText("test", lcdDisp, 18, 19, true, 0);
       // lcdPrintResults(r1FastestTimes, r1FastestLaps, lapCount[1]);
       lcdPrintResults(fastestTimes[resultsMenuIdx], fastestLaps[resultsMenuIdx], lapCount[resultsMenuIdx] < fastestQSize ? lapCount[resultsMenuIdx] : fastestQSize);
     }
@@ -1404,10 +1410,14 @@ void UpdateResultsMenu() {
 
 
 void ResetRace(){
-  lapCount[1] = 0;
-  lapCount[2] = 0;
-  lapFlash[1] = 0;
-  lapFlash[2] = 0;
+  // lapCount[1] = 0;
+  // lapCount[2] = 0;
+  // lapFlash[1] = 0;
+  // lapFlash[2] = 0;
+  for (byte i = 1; i <= laneCount; i++) {
+    lapCount[i] = 0;
+    flashStatus[i] = 0;
+  }
   // UpdateLaneState(lanesEnabledIdx);
   InitializeRacerArrays();
 }
@@ -1940,8 +1950,8 @@ void loop(){
         // if tick has passed, then update displays
         if (curMillis - lastTickMillis >  displayTick){
           // A lap Flash is triggered by the completion of a lap, it's 'resting' value is 0
-          if (lapFlash[1] > 0) {
-            if (lapFlash[1] == 1) {
+          if (flashStatus[1] > 0) {
+            if (flashStatus[1] == 1) {
               raceDataExists = true;
               unsigned long r1LapTimeToLog;
               // r1LapTimeToLog = r1LastXMillis [(lapCount[1]-1) % lapMillisQSize] - r1LastXMillis [(lapCount[1]-2) % lapMillisQSize];
@@ -1965,10 +1975,10 @@ void loop(){
               // record the timestamp at which this flash period is starting at
               flashStartMillis[1] = curMillis;
               // set the flash state to 2 = hold until flash period time is over
-              lapFlash[1] = 2;
+              flashStatus[1] = 2;
             } else { // flash status = 2 which means it's been written and still active
               // if flash time is up, set flag to zero ending display of last lap
-              if (curMillis - flashStartMillis[1] > flashDisplayTime) lapFlash[1] = 0;
+              if (curMillis - flashStartMillis[1] > flashDisplayTime) flashStatus[1] = 0;
             }
           } else { // lane flash status = 0, or inactive
             // if the lane is in use then start displaying live lap time again
@@ -1980,8 +1990,8 @@ void loop(){
             }
           }
 
-          if (lapFlash[2] > 0) {
-            if (lapFlash[2] == 1) {
+          if (flashStatus[2] > 0) {
+            if (flashStatus[2] == 1) {
               raceDataExists = true;
               unsigned long r2LapTimeToLog;
               // r2LapTimeToLog = r2LastXMillis [(lapCount[2]-1) % lapMillisQSize] - r2LastXMillis [(lapCount[2]-2) % lapMillisQSize];
@@ -2004,10 +2014,10 @@ void loop(){
               // record the timestamp at which this flash period is starting at
               flashStartMillis[2] = curMillis;
               // set the flash state to 2 = hold until flash period time is over
-              lapFlash[2] = 2;
+              flashStatus[2] = 2;
             } else { // flash status = 2 which means it's been written and still active
               // if flash time is up, set flag to zero ending display of last lap
-              if (curMillis - flashStartMillis[2] > flashDisplayTime) lapFlash[2] = 0;
+              if (curMillis - flashStartMillis[2] > flashDisplayTime) flashStatus[2] = 0;
             }
           } else { // lane flash status = 0, or inactive
             // if the lane is in use then start displaying live lap time again
