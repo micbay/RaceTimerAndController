@@ -162,6 +162,12 @@ byte racer2 = 1;
 // Note that the current lap count may often be 1 greater than the lap of interest.
 volatile int r1LapCount = 0;
 volatile int r2LapCount = 0;
+
+volatile int lapCount[laneCount + 1] = {
+  0, 0, 0, 0, 0
+};
+
+
 // Fastest laps table col0 = lap#, col1 = laptime in ms
 const byte fastLapsQSize = 10;
 // Using two arrays, kept in sync, to track fastest laps.
@@ -180,6 +186,10 @@ unsigned long topFastestTimes[ 2 * fastLapsQSize ] = {};
 const byte lapMillisQSize = 5;
 volatile unsigned long r1LastXMillis [ lapMillisQSize ] = {};
 volatile unsigned long r2LastXMillis [ lapMillisQSize ] = {};
+
+// volatile unsigned long lastXMillis[laneCount + 1] [ lapMillisQSize ] = {};
+
+
 // flag to alert results menu whether the race data is garbage or not
 bool raceDataExists = false;
 
@@ -229,7 +239,7 @@ const byte lanesEnabled[3][2] = {
 };
 
 // The bit mask representing the active lanes, defaults lanes 1 & 2 enabled.
-byte lanesEnabled2 = 0b00000011;
+byte enabledLanes = 0b00000011;
 
 
 // Use first array element as empty reserve, this also allows idx to match lane #.
@@ -273,10 +283,17 @@ volatile byte LapFlashStatus[ laneCount + 1 ] = {
 
 volatile byte lane1LapFlash = 0;
 volatile byte lane2LapFlash = 0;
+
+volatile byte lapFlash[ laneCount + 1 ] = {
+  0, 0, 0, 0, 0
+};
+
 const int flashDisplayTime = 1500;
 // millis() timestamp at start of current flash period
 unsigned long flash1StartMillis;
 unsigned long flash2StartMillis;
+
+unsigned long flashStartMillis[ laneCount + 1 ];
 
 // index of top lap time to display in results window
 // keep this an int so it can be signed. A negative is the trigger to loop index
@@ -903,8 +920,8 @@ void DrawPreStartScreen(){
   lcd.print("Your Race Starts in:");
   PrintClock(currentTime[0], PRESTART_CLK_POS, 4, 1, lcdDisp, 2);
   // if lanes are not off, then update screen
-  if(laneEnableStatus[1] > 0) PrintText(Racers[racer1], led1Disp, 7, 8, false);
-  if(laneEnableStatus[2] > 0) PrintText(Racers[racer2], led2Disp, 7, 8, false);
+  if(laneEnableStatus[1] > 0) PrintText(Racers[laneRacer[1]], led1Disp, 7, 8, false);
+  if(laneEnableStatus[2] > 0) PrintText(Racers[laneRacer[2]], led2Disp, 7, 8, false);
 }
 
 
@@ -934,26 +951,29 @@ void DrawPreStartScreen(){
 
 
 // Toggle status of given lane mask and update status array.
+// This also then must update the racer name between 'DISABLED' and an initial racer.
 void ToggleLaneEnable(byte laneNumber){
   // Serial.println("number pressed");
   // Serial.println(laneNumber);
-  // First update the lane status
+  // First update the Enabled Lanes Mask
   // if lane pressed is 0, disable all the lanes
-  bool wasSet = lanesEnabled2 & laneMask[laneNumber];
+  bool wasSet = enabledLanes & laneMask[laneNumber];
   if(laneNumber == 0){
-    lanesEnabled2 = 0b00000000;
+    enabledLanes = 0b00000000;
     // set all racer names to idx 0, aka 'DISABLED'
     for (byte i = 1; i <= laneCount; i++){
-      laneRacer[laneNumber] = 0;
-    } 
+      laneRacer[i] = 0;
+    }
+    wasSet = true;
   } else {
     // Toggle enabled lanes bit for indicated lane.
-    lanesEnabled2 = lanesEnabled2 xor laneMask[laneNumber];
+    enabledLanes = enabledLanes xor laneMask[laneNumber];
   }
+
   // Update the status array
   for (byte i = 1; i <= laneCount; i++){
     // if parentheses are not around the bitwise & expression the ternery operate incorrectly.
-    laneEnableStatus[i] = ((lanesEnabled2 & laneMask[i]) > 0) ? StandBy : Off;
+    laneEnableStatus[i] = ((enabledLanes & laneMask[i]) > 0) ? StandBy : Off;
   }
   if(wasSet){
     // If lane had been on then, it's off now and the racer name should be to 0, aka 'DISABLED'
@@ -1057,7 +1077,8 @@ ISR (PCINT1_vect) {
   // It can be called and used, but it is not continuing to increment.
   unsigned long logMillis = millis();
   // micros() is used for assessing the ISR execution time.
-  unsigned long logMicros = micros();
+  // unsigned long logMicros = micros();
+
   // We have setup the lap triggers and Pause button as inputs.
   // This means the pins have been set to HIGH, indicated by a 1 on its register bit.
   // When a button is pressed, or sensor triggered, it should bring the pin LOW.
@@ -1073,27 +1094,27 @@ ISR (PCINT1_vect) {
     if (laneEnableStatus[1] == StandBy) {
       laneEnableStatus[1] = Active;
       // If the very first lap, then log and index
-      if(r1LapCount == 0) {
-        r1LastXMillis [ r1LapCount ] = logMillis;
+      if(lapCount[1] == 0) {
+        r1LastXMillis [ lapCount[1] ] = logMillis;
         startMillis[1] = logMillis;
         // only index the lapcount if initial start, not on pause restart
-        r1LapCount++;
+        lapCount[1]++;
       } else {
         // If returning from Pause, we need to feed the new start time,
         // into the pevious lap index spot, and not index the current lapcount.
-        r1LastXMillis [(r1LapCount - 1) % lapMillisQSize] = logMillis;
+        r1LastXMillis [(lapCount[1] - 1) % lapMillisQSize] = logMillis;
         startMillis[1] = logMillis;
       }
       Beep();
     } else if(laneEnableStatus[1] == Active) {
       // Check that current sense time is outside of active debounce period, otherwise ignore it.
-      if((logMillis - r1LastXMillis [(r1LapCount-1) % lapMillisQSize] ) > debounceTime){
-        lane1LapFlash = 1;
-        r1LastXMillis [r1LapCount % lapMillisQSize] = logMillis;
+      if((logMillis - r1LastXMillis [(lapCount[1]-1) % lapMillisQSize] ) > debounceTime){
+        lapFlash[1] = 1;
+        r1LastXMillis [lapCount[1] % lapMillisQSize] = logMillis;
         startMillis[1] = logMillis;
         // Serial.println("R1 Lap Count 1++");
-        // Serial.println(r1LapCount);
-        r1LapCount++;
+        // Serial.println(lapCount[1]);
+        lapCount[1]++;
         Beep();
       }
     }
@@ -1105,35 +1126,30 @@ ISR (PCINT1_vect) {
     if (laneEnableStatus[2] == StandBy) {
       laneEnableStatus[2] = Active;
       // If the very first lap, then log and index
-      if(r2LapCount == 0){
-        r2LastXMillis [ r2LapCount ] = logMillis;
+      if(lapCount[2] == 0){
+        r2LastXMillis [ lapCount[2] ] = logMillis;
         startMillis[2] = logMillis;
         // only index the lapcount if initial start, not on pause restart
-        r2LapCount++;
+        lapCount[2]++;
       } else {
         // If returning from Pause, we need to feed the new start time,
         // into the pevious lap index spot, and not index the current lapcount.
-        r2LastXMillis [(r2LapCount - 1) % lapMillisQSize] = logMillis;
+        r2LastXMillis [(lapCount[2] - 1) % lapMillisQSize] = logMillis;
         startMillis[2] = logMillis;
       }
       Beep();
     } else if (laneEnableStatus[2] == Active) {
-      if((logMillis - r2LastXMillis [(r2LapCount-1) % lapMillisQSize] ) > debounceTime){
-        lane2LapFlash = 1;
-        r2LastXMillis [r2LapCount % lapMillisQSize] = logMillis;
+      if((logMillis - r2LastXMillis [(lapCount[2]-1) % lapMillisQSize] ) > debounceTime){
+        lapFlash[2] = 1;
+        r2LastXMillis [lapCount[2] % lapMillisQSize] = logMillis;
         startMillis[2] = logMillis;
         // Serial.println("R2 Lap Count 1++");
-        // Serial.println(r2LapCount);
-        r2LapCount++;
+        // Serial.println(lapCount[2]);
+        lapCount[2]++;
         Beep();
       }
     }
   } // END of PINC, 1 aka lane/racer2 pin detect
-
-
-  // if (!IsBitSet(PINC, 3)) {}
-  // if (!IsBitSet(PINC, 4)) {}
-
   // timeTest[timeTestCount] = micros() - logMicros;
   // timeTestCount++;
 } // END of ISR()
@@ -1302,19 +1318,19 @@ void UpdateResultsMenu() {
     case TopResults: {
       lcd.clear();
       PrintText("C | TOP RESULTS", lcdDisp, 14, 15, false, 0);
-      lcdPrintResults(topFastestTimes, topFastestLaps, r1LapCount + r2LapCount);
+      lcdPrintResults(topFastestTimes, topFastestLaps, lapCount[1] + lapCount[2]);
     }
     break;
     case Racer1Results: {
       lcd.clear();
       PrintText("C | RACER 1 RESULTS", lcdDisp, 18, 19, false, 0);
-      lcdPrintResults(r1FastestTimes, r1FastestLaps, r1LapCount);
+      lcdPrintResults(r1FastestTimes, r1FastestLaps, lapCount[1]);
     }
     break;
     case Racer2Results: {
       lcd.clear();
       PrintText("C | RACER 2 RESULTS", lcdDisp, 18, 19, false, 0);
-      lcdPrintResults(r2FastestTimes, r2FastestLaps, r2LapCount);
+      lcdPrintResults(r2FastestTimes, r2FastestLaps, lapCount[2]);
     }
     break;
   }
@@ -1322,10 +1338,10 @@ void UpdateResultsMenu() {
 
 
 void ResetRace(){
-  r1LapCount = 0;
-  r2LapCount = 0;
-  lane1LapFlash = 0;
-  lane2LapFlash = 0;
+  lapCount[1] = 0;
+  lapCount[2] = 0;
+  lapFlash[1] = 0;
+  lapFlash[2] = 0;
   // UpdateLaneState(lanesEnabledIdx);
   InitializeRacerArrays();
 }
@@ -1773,18 +1789,18 @@ void loop(){
           // Print racer's name to LCD
           PrintText(Racers[racer1], lcdDisp, 7, 8, false, 2);
           // update racer's current lap total on LCD
-          PrintNumbers(r1LapCount == 0 ? 0 : r1LapCount - 1, 3, 11, lcdDisp, true, 2);
+          PrintNumbers(lapCount[1] == 0 ? 0 : lapCount[1] - 1, 3, 11, lcdDisp, true, 2);
           // update racer's current best lap time to LCD
-          if(r1LapCount > 0) PrintClock(r1FastestTimes[0], 19, 7, 3, lcdDisp, 2);
+          if(lapCount[1] > 0) PrintClock(r1FastestTimes[0], 19, 7, 3, lcdDisp, 2);
           PrintText(Start, led1Disp, 7, 8, true, 0, false);
         }
         if(laneEnableStatus[2] > 0){
           // Print racer's name to LCD
           PrintText(Racers[racer2], lcdDisp, 7, 8, false, 3);
           // update racer's current lap total on lcd (0 if start, current if restart)
-          PrintNumbers(r2LapCount == 0 ? 0 : r2LapCount - 1, 3, 11, lcdDisp, true, 3);
+          PrintNumbers(lapCount[2] == 0 ? 0 : lapCount[2] - 1, 3, 11, lcdDisp, true, 3);
           // update racer's current best lap time to lcd
-          if(r2LapCount > 0) PrintClock(r2FastestTimes[0], 19, 7, 3, lcdDisp, 3);
+          if(lapCount[2] > 0) PrintClock(r2FastestTimes[0], 19, 7, 3, lcdDisp, 3);
           PrintText(Start, led2Disp, 7, 8, true, 0, false);
         }
         // this act enables the racer to trigger first lap
@@ -1849,73 +1865,73 @@ void loop(){
         // if tick has passed, then update displays
         if (curMillis - lastTickMillis >  displayTick){
           // A lap Flash is triggered by the completion of a lap, it's 'resting' value is 0
-          if (lane1LapFlash > 0) {
-            if (lane1LapFlash == 1) {
+          if (lapFlash[1] > 0) {
+            if (lapFlash[1] == 1) {
               raceDataExists = true;
               unsigned long r1LapTimeToLog;
-              r1LapTimeToLog = r1LastXMillis [(r1LapCount-1) % lapMillisQSize] - r1LastXMillis [(r1LapCount-2) % lapMillisQSize];
+              r1LapTimeToLog = r1LastXMillis [(lapCount[1]-1) % lapMillisQSize] - r1LastXMillis [(lapCount[1]-2) % lapMillisQSize];
               // during the intro to the lap flash cycle we also update all the racer lap records
               // we do this here to keep it interruptable and out of the lap trigger intrrupt funct.
               // the current lap is the live lap so we need to subtract 1 from lapcount
-              UpdateFastestLap(r1FastestTimes, r1FastestLaps, r1LapCount - 1, r1LapTimeToLog, racer1, fastLapsQSize);
+              UpdateFastestLap(r1FastestTimes, r1FastestLaps, lapCount[1] - 1, r1LapTimeToLog, racer1, fastLapsQSize);
               lc.clearDisplay( led1Disp - 1 );
               // print the just completed lap # to left side of racer's  LED
-              PrintNumbers(r1LapCount - 1, 3, 2, led1Disp);
+              PrintNumbers(lapCount[1] - 1, 3, 2, led1Disp);
               // print the lap time of just completed lap to right side of racer's LED
               PrintClock(r1LapTimeToLog, 7, 4, 3, led1Disp);
               // update racer's current lap total on LCD
-              PrintNumbers(r1LapCount - 1, 3, 11, lcdDisp, true, 2);
+              PrintNumbers(lapCount[1] - 1, 3, 11, lcdDisp, true, 2);
               // update racer's current best lap time to LCD
               PrintClock(r1FastestTimes[0], 19, 7, 3, lcdDisp, 2);
               // record the timestamp at which this flash period is starting at
-              flash1StartMillis = curMillis;
+              flashStartMillis[1] = curMillis;
               // set the flash state to 2 = hold until flash period time is over
-              lane1LapFlash = 2;
+              lapFlash[1] = 2;
             } else { // flash status = 2 which means it's been written and still active
               // if flash time is up, set flag to zero ending display of last lap
-              if (curMillis - flash1StartMillis > flashDisplayTime) lane1LapFlash = 0;
+              if (curMillis - flashStartMillis[1] > flashDisplayTime) lapFlash[1] = 0;
             }
           } else { // lane flash status = 0, or inactive
             // if the lane is in use then start displaying live lap time again
             if (laneEnableStatus[1] == Active) {
               lc.clearDisplay(led1Disp - 1);
-              PrintNumbers(r1LapCount, 3, 2, led1Disp);
+              PrintNumbers(lapCount[1], 3, 2, led1Disp);
               PrintClock(currentTime[1], 7, 4, 1, led1Disp, 0, true);
 
             }
           }
 
-          if (lane2LapFlash > 0) {
-            if (lane2LapFlash == 1) {
+          if (lapFlash[2] > 0) {
+            if (lapFlash[2] == 1) {
               raceDataExists = true;
               unsigned long r2LapTimeToLog;
-              r2LapTimeToLog = r2LastXMillis [(r2LapCount-1) % lapMillisQSize] - r2LastXMillis [(r2LapCount-2) % lapMillisQSize];
+              r2LapTimeToLog = r2LastXMillis [(lapCount[2]-1) % lapMillisQSize] - r2LastXMillis [(lapCount[2]-2) % lapMillisQSize];
               // the current lap is the live lap so we need to subtract 1 from lapcount
-              UpdateFastestLap(r2FastestTimes, r2FastestLaps, r2LapCount - 1, r2LapTimeToLog, racer2, fastLapsQSize);
-              // UpdateFastestLap(topFastestTimes, topFastestLaps, r2LapCount - 1, r2LapTimeToLog, racer2, 2 * fastLapsQSize);
+              UpdateFastestLap(r2FastestTimes, r2FastestLaps, lapCount[2] - 1, r2LapTimeToLog, racer2, fastLapsQSize);
+              // UpdateFastestLap(topFastestTimes, topFastestLaps, lapCount[2] - 1, r2LapTimeToLog, racer2, 2 * fastLapsQSize);
               lc.clearDisplay( led2Disp - 1 );
               // print the just completed lap # to left side of racer's  LED
-              PrintNumbers(r2LapCount - 1, 3, 2, led2Disp);
+              PrintNumbers(lapCount[2] - 1, 3, 2, led2Disp);
               // print the lap time of just completed lap to right side of racer's LED
               PrintClock(r2LapTimeToLog, 7, 4, 3, led2Disp);
               // update racer's current lap total on lcd
-              PrintNumbers(r2LapCount - 1, 3, 11, lcdDisp, true, 3);
+              PrintNumbers(lapCount[2] - 1, 3, 11, lcdDisp, true, 3);
               // update racer's current best lap time to lcd
               PrintClock(r2FastestTimes[0], 19, 7, 3, lcdDisp, 3);
               // record the timestamp at which this flash period is starting at
-              flash2StartMillis = curMillis;
+              flashStartMillis[2] = curMillis;
               // set the flash state to 2 = hold until flash period time is over
-              lane2LapFlash = 2;
+              lapFlash[2] = 2;
             } else { // flash status = 2 which means it's been written and still active
               // if flash time is up, set flag to zero ending display of last lap
-              if (curMillis - flash2StartMillis > flashDisplayTime) lane2LapFlash = 0;
+              if (curMillis - flashStartMillis[2] > flashDisplayTime) lapFlash[2] = 0;
             }
           } else { // lane flash status = 0, or inactive
             // if the lane is in use then start displaying live lap time again
             if (laneEnableStatus[2] == Active) {
               lc.clearDisplay(led2Disp - 1);
               // Print current lap
-              PrintNumbers(r2LapCount, 3, 2, led2Disp);
+              PrintNumbers(lapCount[2], 3, 2, led2Disp);
               // Print running lap time
               PrintClock(currentTime[2], 7, 4, 1, led2Disp, 0, true);
             }
@@ -1932,7 +1948,7 @@ void loop(){
             // check for a winner
             // After crossing finish of last lap, lap Count will be equal to raceLaps + 1
             // which will trigger the finish of a standard race
-            if (r1LapCount > raceLaps || r2LapCount > raceLaps) {
+            if (lapCount[1] > raceLaps || lapCount[2] > raceLaps) {
               // turn off lap trigger interrupts to prevent any additional lap triggers
               EnablePinInterrupts(false);
               DetermineWinner();
@@ -2005,21 +2021,21 @@ byte DetermineWinner() {
   // This conditional ternary operator notatation states that if lapCount is 0 already,
   // then leave it zero, otherwise subtract 1.
   // Because '##LapCount' is used as an index we need to protect against negatives.
-  r1LapCount = r1LapCount == 0 ? 0 : r1LapCount - 1;
-  r2LapCount = r2LapCount == 0 ? 0 : r2LapCount - 1;
+  lapCount[1] = lapCount[1] == 0 ? 0 : lapCount[1] - 1;
+  lapCount[2] = lapCount[2] == 0 ? 0 : lapCount[2] - 1;
   // Serial.println("racer1 laps final");
-  // Serial.println(r1LapCount);
+  // Serial.println(lapCount[1]);
   // Serial.println("racer2 laps final");
-  // Serial.println(r2LapCount);
+  // Serial.println(lapCount[2]);
   // verify winner if one lap count is higher than the other it is clear
-  if (r1LapCount > r2LapCount) {first = racer1; second = racer2;}
-  else if (r2LapCount > r1LapCount) {first = racer2; second = racer1;}
+  if (lapCount[1] > lapCount[2]) {first = racer1; second = racer2;}
+  else if (lapCount[2] > lapCount[1]) {first = racer2; second = racer1;}
   // if timing is such that 2nd place has crossed while processing then the
   // final lap timestamp will show who was first
-  else if (r1LastXMillis[ r1LapCount % lapMillisQSize ] < r2LastXMillis[ r2LapCount % lapMillisQSize ]) {first = racer1; second = racer2;}
-  else if (r2LastXMillis[r2LapCount % lapMillisQSize] < r1LastXMillis[r1LapCount % lapMillisQSize]) {first = racer2; second = racer1;}
+  else if (r1LastXMillis[ lapCount[1] % lapMillisQSize ] < r2LastXMillis[ lapCount[2] % lapMillisQSize ]) {first = racer1; second = racer2;}
+  else if (r2LastXMillis[lapCount[2] % lapMillisQSize] < r1LastXMillis[lapCount[1] % lapMillisQSize]) {first = racer2; second = racer1;}
   // else if lapcount and last lap timestamps are the same it's a tie
-  else if(r2LapCount == r1LapCount && r1LastXMillis[r1LapCount] == r2LastXMillis[r2LapCount]){
+  else if(lapCount[2] == lapCount[1] && r1LastXMillis[lapCount[1]] == r2LastXMillis[lapCount[2]]){
     // we use 254 as a flag for tie, since it is larger than the racer name list size will ever be
     first = 254;
     second = 254;
