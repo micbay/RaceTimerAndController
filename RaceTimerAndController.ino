@@ -1770,98 +1770,147 @@ void loop(){
           currentTime[0] = curMillis - startMillis[0];
         }
         // If lanestate is active then update current lap time
-        if (laneEnableStatus[1] == Active) currentTime[1] = curMillis - startMillis[1];
-          else currentTime[1] = 0;
-        if (laneEnableStatus[2] == Active) currentTime[2] = curMillis - startMillis[2];
-          else currentTime[2] = 0;
+        // if (laneEnableStatus[1] == Active) currentTime[1] = curMillis - startMillis[1];
+        //   else currentTime[1] = 0;
+        // if (laneEnableStatus[2] == Active) currentTime[2] = curMillis - startMillis[2];
+        //   else currentTime[2] = 0;
         
         for(byte i = 1; i <= laneCount; i++){
           if(laneEnableStatus[i] == Active) {
             currentTime[i] = curMillis - startMillis[i];
+
+            switch(flashStatus[i]){
+              case 0:{
+                // if (curMillis - lastTickMillis >  displayTick){
+                  lc.clearDisplay(displays(i));
+                  PrintNumbers(lapCount[i], 3, 2, displays(i));
+                  PrintClock(currentTime[i], 7, 4, 1, displays(i), 0, true);
+                // }
+              }
+              break;
+              case 1:{
+                unsigned long lapTimeToLog;
+                lapTimeToLog = lastXMillis [i] [(lapCount[i]-1) % lapMillisQSize] - lastXMillis [i] [(lapCount[i]-2) % lapMillisQSize];
+                // during the intro to the lap flash cycle we also update all the racer lap records
+                // we do this here to keep it interruptable and out of the lap trigger intrrupt funct.
+                // the current lap is the live lap so we need to subtract 1 from lapcount
+                UpdateFastestLap(fastestTimes[i], fastestLaps[i], lapCount[i] - 1, lapTimeToLog, laneRacer[i], fastestQSize);
+                raceDataExists = true;
+
+                lc.clearDisplay( displays(i) - 1 );
+                // print the just completed lap # to left side of racer's  LED
+                PrintNumbers(lapCount[i] - 1, 3, 2, displays(i));
+                // print the lap time of just completed lap to right side of racer's LED
+                PrintClock(lapTimeToLog, 7, 4, 3, displays(i));
+                // // update racer's current lap total on LCD
+                // PrintNumbers(lapCount[1] - 1, 3, 11, lcdDisp, true, 2);
+                // // update racer's current best lap time to LCD
+                // PrintClock(fastestTimes[1][0], 19, 7, 3, lcdDisp, 2);
+                // record the timestamp at which this flash period is starting at
+                flashStartMillis[i] = curMillis;
+                // set the flash state to 2 = hold until flash period time is over
+                flashStatus[i] = 2;
+              }
+              break;
+              case 2:{
+                // flash status = 2 which means it's been written and still active
+                // if flash time is up, set flag to zero ending display of last lap
+                if (curMillis - flashStartMillis[i] > flashDisplayTime) flashStatus[i] = 0;
+              }
+              break;
+              default:
+              break;
+            } // END flashStatus switch
+
+
           } else {
             currentTime[i] = 0;
-          }
-        }
+          } // END of if lane enabled, else
+        } // END for loop
+        
+        
 
 
-        // if tick has passed, then update displays
-        if (curMillis - lastTickMillis >  displayTick){
-          // A lap Flash is triggered by the completion of a lap, it's 'resting' value is 0
-          if (flashStatus[1] > 0) {
-            if (flashStatus[1] == 1) {
-              raceDataExists = true;
-              unsigned long r1LapTimeToLog;
-              r1LapTimeToLog = lastXMillis [1] [(lapCount[1]-1) % lapMillisQSize] - lastXMillis [1] [(lapCount[1]-2) % lapMillisQSize];
-              // during the intro to the lap flash cycle we also update all the racer lap records
-              // we do this here to keep it interruptable and out of the lap trigger intrrupt funct.
-              // the current lap is the live lap so we need to subtract 1 from lapcount
-              UpdateFastestLap(fastestTimes[1], fastestLaps[1], lapCount[1] - 1, r1LapTimeToLog, laneRacer[1], fastestQSize);
-              lc.clearDisplay( led1Disp - 1 );
-              // print the just completed lap # to left side of racer's  LED
-              PrintNumbers(lapCount[1] - 1, 3, 2, led1Disp);
-              // print the lap time of just completed lap to right side of racer's LED
-              PrintClock(r1LapTimeToLog, 7, 4, 3, led1Disp);
-              // update racer's current lap total on LCD
-              PrintNumbers(lapCount[1] - 1, 3, 11, lcdDisp, true, 2);
-              // update racer's current best lap time to LCD
-              PrintClock(fastestTimes[1][0], 19, 7, 3, lcdDisp, 2);
-              // record the timestamp at which this flash period is starting at
-              flashStartMillis[1] = curMillis;
-              // set the flash state to 2 = hold until flash period time is over
-              flashStatus[1] = 2;
-            } else { // flash status = 2 which means it's been written and still active
-              // if flash time is up, set flag to zero ending display of last lap
-              if (curMillis - flashStartMillis[1] > flashDisplayTime) flashStatus[1] = 0;
-            }
-          } else { // lane flash status = 0, or inactive
-            // if the lane is in use then start displaying live lap time again
-            if (laneEnableStatus[1] == Active) {
-              lc.clearDisplay(led1Disp - 1);
-              PrintNumbers(lapCount[1], 3, 2, led1Disp);
-              PrintClock(currentTime[1], 7, 4, 1, led1Disp, 0, true);
 
-            }
-          }
 
-          if (flashStatus[2] > 0) {
-            if (flashStatus[2] == 1) {
-              raceDataExists = true;
-              unsigned long r2LapTimeToLog;
-              r2LapTimeToLog = lastXMillis[2] [(lapCount[2]-1) % lapMillisQSize] - lastXMillis [2][(lapCount[2]-2) % lapMillisQSize];
-              // the current lap is the live lap so we need to subtract 1 from lapcount
-              UpdateFastestLap(fastestTimes[2], fastestLaps[2], lapCount[2] - 1, r2LapTimeToLog, laneRacer[2], fastestQSize);
-              // UpdateFastestLap(topFastestTimes, topFastestLaps, lapCount[2] - 1, r2LapTimeToLog, racer2, 2 * fastestQSize);
-              lc.clearDisplay( led2Disp - 1 );
-              // print the just completed lap # to left side of racer's  LED
-              PrintNumbers(lapCount[2] - 1, 3, 2, led2Disp);
-              // print the lap time of just completed lap to right side of racer's LED
-              PrintClock(r2LapTimeToLog, 7, 4, 3, led2Disp);
-              // update racer's current lap total on lcd
-              PrintNumbers(lapCount[2] - 1, 3, 11, lcdDisp, true, 3);
-              // update racer's current best lap time to lcd
-              PrintClock(fastestTimes[2][0], 19, 7, 3, lcdDisp, 3);
-              // record the timestamp at which this flash period is starting at
-              flashStartMillis[2] = curMillis;
-              // set the flash state to 2 = hold until flash period time is over
-              flashStatus[2] = 2;
-            } else { // flash status = 2 which means it's been written and still active
-              // if flash time is up, set flag to zero ending display of last lap
-              if (curMillis - flashStartMillis[2] > flashDisplayTime) flashStatus[2] = 0;
-            }
-          } else { // lane flash status = 0, or inactive
-            // if the lane is in use then start displaying live lap time again
-            if (laneEnableStatus[2] == Active) {
-              lc.clearDisplay(led2Disp - 1);
-              // Print current lap
-              PrintNumbers(lapCount[2], 3, 2, led2Disp);
-              // Print running lap time
-              PrintClock(currentTime[2], 7, 4, 1, led2Disp, 0, true);
-            }
-          }
-          // Update LCD with absolute race time and racer lap logs
-          PrintClock(currentTime[0], RACE_CLK_POS, 10, 1, lcdDisp, 0, true);
-          lastTickMillis = curMillis;
-        } // END of if(displayTick) block
+        // // if tick has passed, then update displays
+        // if (curMillis - lastTickMillis >  displayTick){
+        //   // A lap Flash is triggered by the completion of a lap, it's 'resting' value is 0
+        //   if (flashStatus[1] > 0) {
+        //     if (flashStatus[1] == 1) {
+        //       raceDataExists = true;
+        //       unsigned long r1LapTimeToLog;
+        //       r1LapTimeToLog = lastXMillis [1] [(lapCount[1]-1) % lapMillisQSize] - lastXMillis [1] [(lapCount[1]-2) % lapMillisQSize];
+        //       // during the intro to the lap flash cycle we also update all the racer lap records
+        //       // we do this here to keep it interruptable and out of the lap trigger intrrupt funct.
+        //       // the current lap is the live lap so we need to subtract 1 from lapcount
+        //       UpdateFastestLap(fastestTimes[1], fastestLaps[1], lapCount[1] - 1, r1LapTimeToLog, laneRacer[1], fastestQSize);
+        //       lc.clearDisplay( led1Disp - 1 );
+        //       // print the just completed lap # to left side of racer's  LED
+        //       PrintNumbers(lapCount[1] - 1, 3, 2, led1Disp);
+        //       // print the lap time of just completed lap to right side of racer's LED
+        //       PrintClock(r1LapTimeToLog, 7, 4, 3, led1Disp);
+        //       // update racer's current lap total on LCD
+        //       PrintNumbers(lapCount[1] - 1, 3, 11, lcdDisp, true, 2);
+        //       // update racer's current best lap time to LCD
+        //       PrintClock(fastestTimes[1][0], 19, 7, 3, lcdDisp, 2);
+        //       // record the timestamp at which this flash period is starting at
+        //       flashStartMillis[1] = curMillis;
+        //       // set the flash state to 2 = hold until flash period time is over
+        //       flashStatus[1] = 2;
+        //     } else { // flash status = 2 which means it's been written and still active
+        //       // if flash time is up, set flag to zero ending display of last lap
+        //       if (curMillis - flashStartMillis[1] > flashDisplayTime) flashStatus[1] = 0;
+        //     }
+        //   } else { // lane flash status = 0, or inactive
+        //     // if the lane is in use then start displaying live lap time again
+        //     if (laneEnableStatus[1] == Active) {
+        //       lc.clearDisplay(led1Disp - 1);
+        //       PrintNumbers(lapCount[1], 3, 2, led1Disp);
+        //       PrintClock(currentTime[1], 7, 4, 1, led1Disp, 0, true);
+
+        //     }
+        //   }
+
+        //   if (flashStatus[2] > 0) {
+        //     if (flashStatus[2] == 1) {
+        //       raceDataExists = true;
+        //       unsigned long r2LapTimeToLog;
+        //       r2LapTimeToLog = lastXMillis[2] [(lapCount[2]-1) % lapMillisQSize] - lastXMillis [2][(lapCount[2]-2) % lapMillisQSize];
+        //       // the current lap is the live lap so we need to subtract 1 from lapcount
+        //       UpdateFastestLap(fastestTimes[2], fastestLaps[2], lapCount[2] - 1, r2LapTimeToLog, laneRacer[2], fastestQSize);
+        //       // UpdateFastestLap(topFastestTimes, topFastestLaps, lapCount[2] - 1, r2LapTimeToLog, racer2, 2 * fastestQSize);
+        //       lc.clearDisplay( led2Disp - 1 );
+        //       // print the just completed lap # to left side of racer's  LED
+        //       PrintNumbers(lapCount[2] - 1, 3, 2, led2Disp);
+        //       // print the lap time of just completed lap to right side of racer's LED
+        //       PrintClock(r2LapTimeToLog, 7, 4, 3, led2Disp);
+        //       // update racer's current lap total on lcd
+        //       PrintNumbers(lapCount[2] - 1, 3, 11, lcdDisp, true, 3);
+        //       // update racer's current best lap time to lcd
+        //       PrintClock(fastestTimes[2][0], 19, 7, 3, lcdDisp, 3);
+        //       // record the timestamp at which this flash period is starting at
+        //       flashStartMillis[2] = curMillis;
+        //       // set the flash state to 2 = hold until flash period time is over
+        //       flashStatus[2] = 2;
+        //     } else { // flash status = 2 which means it's been written and still active
+        //       // if flash time is up, set flag to zero ending display of last lap
+        //       if (curMillis - flashStartMillis[2] > flashDisplayTime) flashStatus[2] = 0;
+        //     }
+        //   } else { // lane flash status = 0, or inactive
+        //     // if the lane is in use then start displaying live lap time again
+        //     if (laneEnableStatus[2] == Active) {
+        //       lc.clearDisplay(led2Disp - 1);
+        //       // Print current lap
+        //       PrintNumbers(lapCount[2], 3, 2, led2Disp);
+        //       // Print running lap time
+        //       PrintClock(currentTime[2], 7, 4, 1, led2Disp, 0, true);
+        //     }
+        //   }
+        //   // Update LCD with absolute race time and racer lap logs
+        //   PrintClock(currentTime[0], RACE_CLK_POS, 10, 1, lcdDisp, 0, true);
+        //   lastTickMillis = curMillis;
+        // } // END of if(displayTick) block
 
         // check for the race end condition and finishing places
         switch (raceType) {
