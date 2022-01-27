@@ -440,6 +440,9 @@ unsigned long ClockToMillis(const byte ulHour, const byte ulMin, const byte ulSe
 void Beep() {
   tone(buzzPin1, 4000, 200);
 }
+void Boop() {
+  tone(buzzPin1, 1000, 200);
+}
 
 // Used to set fastest lap array to high numbers that will be replaced on comparison.
 // A lap number of 0, and racer id of 255, marks these as dummy laps.
@@ -469,7 +472,7 @@ void InitializeTopFastest(){
 
 
 // Update menu on main LCD with static base text for given menu screen
-void lcdUpdateMenu(const char *curMenu[]){
+void UpdateLCDMenu(const char *curMenu[]){
   // For each string in the menu array, print it to the screen
   // Clear screen first, in case new text doesn't cover all old text
   lcd.clear();
@@ -1051,21 +1054,21 @@ ISR (PCINT1_vect) {
         case StandBy:{
           // If in StandBy, no need for debounce
           // Change lane status from 'StandBy' to 'Active'
-          laneEnableStatus[ laneNum ] = Active;
+          laneEnableStatus[laneNum] = Active;
           // log start time or restart time of lap
-          startMillis[ laneNum ] = logMillis;
+          startMillis[laneNum] = logMillis;
           // If the first lap of race
-          if(lapCount[ laneNum ] == 0) {
+          if(lapCount[laneNum] == 0) {
             // Log timestamp into start log and lap timestamp tracking array (lastXMillis)
-            lastXMillis[ lapCount[laneNum ] ] [0] = logMillis;
-            lapCount[laneNum] = lapCount[laneNum] + 1;
+            lastXMillis[laneNum] [0] = logMillis;
+            lapCount[laneNum] = 1;
           } else {
           // Else, if returning from Pause, we need to feed the new start time,
             // into the pevious lap index spot, and not index the current lapcount.
             lastXMillis [ laneNum ][(lapCount[ laneNum ] - 1) % lapMillisQSize] = logMillis;
             // DON'T index lapcount, we're restarting the current lap
           }
-          Beep();
+          Boop();
         }
         break;
 
@@ -1209,7 +1212,7 @@ void UpdateFastestLap(unsigned long timesArray[], unsigned int lapsArray[], cons
       return;
     } // END if (timesArray) block
   } // END fastest lap array for loop
-}
+} // END UpdateFastesLaps()
 
 
 // This function combines all the racer's fastest laps and list the top fastest overall.
@@ -1279,6 +1282,63 @@ void UpdateResultsMenu() {
 }
 
 
+// void UpdateLiveRaceLCD(){
+
+//   lcd.clear();
+//   lcd.setCursor(15,0);
+//   lcd.print("Best");
+//   byte racer[laneCount];
+//   byte lap[laneCount];
+//   for( byte i = 1; i <= laneCount; i++){
+    
+//   }
+
+
+//   for (byte i = 0; i < arrayLength; i++){
+//     // Starting from beginning of list, compare new time with existing times.
+//     // If new lap time is faster, hold its place, and shift bested, and remaining times down.
+//     if (timesArray[i] > newLapTime) {
+//       // Starting from the end of list, replace rows with previous row,
+//       // until we reach row of the bested time to be replaced.
+//       for (byte j = arrayLength - 1; j > i; j--){
+//         timesArray[j] = timesArray[j-1];
+//         lapsArray[j] = lapsArray[j-1];
+//         if(topTimes) topFastestRacers[j] = topFastestRacers[j-1];
+//       }
+//       // Then replace old, bested lap time, with new, faster lap and time.
+//       timesArray[i] = newLapTime;
+//       lapsArray[i] = lap;
+//       // It's not being consistent to reference this one array globally.
+//       // but in this case it cheaper to do this and use a 'topTimes' flag
+//       // than carry an extra array argument for the corner case.
+//       if(topTimes) topFastestRacers[i] = racer;
+//       // for (int k = 0; k < arrayLength; k++){
+//       //   Serial.println("UpdateFastest End");
+//       //   Serial.print(timesArray[k]);
+//       //   Serial.print(" : ");
+//       //   Serial.println(lapsArray[k][0]);
+//       // }
+//       // exit function, no need to continue once found and shift made
+//       return;
+//     } // END if (timesArray) block
+//   } // END fastest lap array for loop
+
+
+
+  // if(laneEnableStatus[1] > 0){
+  //   // Print racer's name to LCD
+  //   PrintText(Racers[laneRacer[1]], lcdDisp, 7, 8, false, 2);
+  //   // update racer's current lap total on LCD
+  //   PrintNumbers(lapCount[1] == 0 ? 0 : lapCount[1] - 1, 3, 11, lcdDisp, true, 2);
+  //   // update racer's current best lap time to LCD
+  //   if(lapCount[1] > 0) PrintClock(fastestTimes[1][0], 19, 7, 3, lcdDisp, 2);
+  //   PrintText(Start, led1Disp, 7, 8, true, 0, false);
+        // }
+
+
+// } // END UpdateLiveRaceLCD()
+
+
 void ResetRaceVars(){
   // Reset lap count and lap flash status for all lanes/racers to 0.
   for (byte i = 1; i <= laneCount; i++) {
@@ -1286,9 +1346,8 @@ void ResetRaceVars(){
     flashStatus[i] = 0;
     startMillis[i] = 0;
     currentTime[i] = 0;
+    if(laneEnableStatus[i] > 0) laneEnableStatus[i] = StandBy;
   }
-
-  // pauseDebounceMillis = 0;
   InitializeRacerArrays();
 }
 
@@ -1465,7 +1524,7 @@ void loop(){
           // Within each menu case is another switch for each available key input.
           case MainMenu:{
             if (entryFlag) {
-              lcdUpdateMenu(MainText);
+              UpdateLCDMenu(MainText);
               // Update Racer LED Displays
               UpdateNamesOnLEDs();
               entryFlag = false;
@@ -1497,7 +1556,7 @@ void loop(){
           case SettingsMenu: {
             if (entryFlag) {
               //draw non-editable text
-              lcdUpdateMenu(SettingsText);
+              UpdateLCDMenu(SettingsText);
               // Minute setting
               PrintNumbers(raceSetTime[1], 2, 14, lcdDisp, true, 1);
               // Seconds setting
@@ -1560,7 +1619,7 @@ void loop(){
           case SelectRacersMenu: {
             if (entryFlag) {
               // write base, static text to screen
-              lcdUpdateMenu(SelectRacersText);
+              UpdateLCDMenu(SelectRacersText);
               // Write all current racer names to LCD
               for(byte i = 1; i <= laneCount; i++){
                 PrintText(laneEnableStatus[i] == 0 ? Racers[ laneRacer[0] ] : Racers[ laneRacer[i] ], lcdDisp, nameEndPos, 11, false, i - 1);
@@ -1600,7 +1659,7 @@ void loop(){
           case StartRaceMenu: {
             if (entryFlag) {
               //draw non-editable text
-              lcdUpdateMenu(StartRaceText);
+              UpdateLCDMenu(StartRaceText);
               // Print set LAPS #
               PrintNumbers(raceLaps, 3, 13, lcdDisp, true, 0);
               // Print set race time MINUTES
@@ -1731,7 +1790,10 @@ void loop(){
         // Write 'Start' signal to racer LED displays
         for(byte i = 1; i <= laneCount; i++){
           if(laneEnableStatus[i] > 0){
-            PrintText(Start, displays(i), 7, 8, true, 0, false);
+            PrintText(Start, displays(i), 7, 8, true, 0, true);
+          } else {
+            // lc.clearDisplay(i-1);
+            PrintText("Not Used", displays(i), 7, 8, true, 0, true);
           }
           // Set flash status to initial state
           flashStatus[i] = 0;
@@ -1804,6 +1866,7 @@ void loop(){
           // When counting down we need to gaurd against negatives.
           currentTime[0] = raceSetTimeMs < (curMillis - startMillis[0]) ? 0 : raceSetTimeMs - (curMillis - startMillis[0]);
         } else {
+          // Lap based race time counts up until final lap finished by 1st racer.
           currentTime[0] = curMillis - startMillis[0];
         }
         // For each possible lane check its status and process the data and displays accordingly.
@@ -1838,10 +1901,6 @@ void loop(){
                 PrintNumbers(lapCount[i] - 1, 3, 2, displays(i));
                 // print the lap time of just completed lap to right side of racer's LED
                 PrintClock(lapTimeToLog, 7, 4, 3, displays(i));
-                // // update racer's current lap total on LCD
-                // PrintNumbers(lapCount[1] - 1, 3, 11, lcdDisp, true, 2);
-                // // update racer's current best lap time to LCD
-                // PrintClock(fastestTimes[1][0], 19, 7, 3, lcdDisp, 2);
 
                 // During the intro to the lap flash cycle we also update the racer's fastest laps list.
                 // We chose to do this here because it's a period we know will have less
@@ -1924,8 +1983,6 @@ void loop(){
         for(byte i = 1; i <= laneCount; i++){
           if(laneEnableStatus[i]) PrintText("PAUSE", displays(i), 7, 5, true, 0, false);
         }
-        // if(laneEnableStatus[1]) PrintText("PAUSE", led1Disp, 7, 5, true, 0, false);
-        // if(laneEnableStatus[2]) PrintText("PAUSE", led2Disp, 7, 5, true, 0, false);
         // Turn entry flag off for next loop
         entryFlag = false;
         // MICROTIMING code
