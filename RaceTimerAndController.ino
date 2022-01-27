@@ -553,7 +553,7 @@ int calcDigits(int number){
 
 // Used to write same character repeatedly from start to end position, inclusive.
 // This is primarily used to clear lines and space before writing an update to display.
-void writeSpanOfChars(displays disp, byte lineNumber = 0, byte posStart = 0, byte posEnd = LCD_COLS - 1, char printChar = ' ') {
+void PrintSpanOfChars(displays disp, byte lineNumber = 0, byte posStart = 0, byte posEnd = LCD_COLS - 1, char printChar = ' ') {
   switch(disp){
     case lcdDisp:{
       lcd.setCursor(posStart, lineNumber);
@@ -576,7 +576,7 @@ void writeSpanOfChars(displays disp, byte lineNumber = 0, byte posStart = 0, byt
 // function to write pre-start final countdown digits to LEDs
 void ledWriteDigits(byte digit) {
   for (int i = 1; i <= LED_BAR_COUNT; i++){
-    if(laneEnableStatus[i] > 0) writeSpanOfChars( displays(i), 0, 0, 7, char(digit) );
+    if(laneEnableStatus[i] > 0) PrintSpanOfChars( displays(i), 0, 0, 7, char(digit) );
   }
 }
 
@@ -660,7 +660,7 @@ void PrintText(const char textToWrite[LCD_COLS], const displays display, const b
     // For writing to LCD display
     case lcdDisp: {
       // for clearing we want to clear the whole space so we don't use adjusted endPos.
-      if (clear) writeSpanOfChars(lcdDisp, line, cursorStartPos, writeSpaceEndPos);
+      if (clear) PrintSpanOfChars(lcdDisp, line, cursorStartPos, writeSpaceEndPos);
       for (byte i = cursorStartPos; i <= cursorEndPos; i++){
         lcd.setCursor(i, line);
         lcd.print(textToWrite[textIndex]);
@@ -712,7 +712,7 @@ void PrintClock(ulong timeMillis, byte clockEndPos, byte printWidth, byte precis
 
   // Clear clock space on display
   // Must account for end position being included in the printWidth total.
-  writeSpanOfChars(display, line, clockEndPos - printWidth + 1, clockEndPos);
+  PrintSpanOfChars(display, line, clockEndPos - printWidth + 1, clockEndPos);
 
   clockWidth nextTimeBlock = H;
   int maxPrecision = 0;
@@ -1235,7 +1235,7 @@ void lcdPrintResults(unsigned long fastestTimes[], unsigned int fastestLaps[], i
       // Print the lap TIME
       PrintClock(fastestTimes[resultsRowIdx + i], 12, 6, 3, lcdDisp, i + 1);
       // clear racer name space of any previous characters
-      writeSpanOfChars(lcdDisp, 1 + i, 13);
+      PrintSpanOfChars(lcdDisp, 1 + i, 13);
       // then print RACER NAME
       // if idx = 0 then it's the top results and has racer names with the lap times.
       if(resultsMenuIdx == 0){
@@ -1278,15 +1278,15 @@ void UpdateResultsMenu() {
 
 
 const byte PLACES = 3;
+// col0 is number of laps, col1 is the lane/racer #
+int leaderBoard[PLACES][2] = {};
 
 // Function to update main display during race,
 // with current leader board and best lap time.
 void UpdateLiveRaceLCD(){
-  // col0 is number of laps, col1 is the lane/racer #
-  int leaderBoard[PLACES][2] = {};
   // leaderBoard.fill(0);
   Serial.println("LEADER BOARD");
-  // memset(leaderBoard, 0, sizeof(leaderBoard));
+  memset(leaderBoard, 0, sizeof(leaderBoard));
 
   int idLoopCount = 0;
   // For each lane/racer...
@@ -1364,10 +1364,16 @@ void UpdateLiveRaceLCD(){
     // Print place #
     lcd.setCursor(0,k);
     lcd.print(k);
-    // Print racer's lap count
-    PrintNumbers(leaderBoard[k-1][0], 3, 4, lcdDisp, true, k);
-    // Print racer's name to LCD
-    PrintText(Racers[ leaderBoard[k-1][1] ], lcdDisp, 12, 7, false, k, true);
+
+    if((leaderBoard[k-1][0]-1) == 0){
+      // If the lap count is zero then don't print anything.
+      PrintSpanOfChars(lcdDisp, k, 0, 12);
+    } else {
+      // Print racer's lap count - 1, because current lapCount is the unfinished active lap.
+      PrintNumbers(leaderBoard[k-1][0]-1, 3, 4, lcdDisp, true, k);
+      // Print racer's name to LCD
+      PrintText(Racers[leaderBoard[k-1][1]], lcdDisp, 12, 7, false, k, true);
+    }
   }
 
 } // END UpdateLiveRaceLCD()
@@ -1483,7 +1489,7 @@ void setup(){
     lc.setIntensity(deviceID, 1);
     // Blank the LED digits
     lc.clearDisplay(deviceID);
-    // writeSpanOfChars(displays(deviceID+1),0, 0, 7, 4);
+    // PrintSpanOfChars(displays(deviceID+1),0, 0, 7, 4);
     // lc.setDigit(3, 6, 3, false);
   }
 
@@ -1757,9 +1763,9 @@ void loop(){
                   // else arrayMax = fastestQSize * 2;
                   arrayMax = fastestQSize;
                   // clear line to remove extra ch from long names replace by short ones
-                  writeSpanOfChars(lcdDisp, 1);
-                  writeSpanOfChars(lcdDisp, 2);
-                  writeSpanOfChars(lcdDisp, 3);
+                  PrintSpanOfChars(lcdDisp, 1);
+                  PrintSpanOfChars(lcdDisp, 2);
+                  PrintSpanOfChars(lcdDisp, 3);
                   if (key == 'A' && resultsRowIdx > 0) resultsRowIdx--;
                   // we subtract 3 because there are two rows printed after tracked index
                   if (key == 'B' && resultsRowIdx < arrayMax-2) resultsRowIdx++;
@@ -1835,6 +1841,11 @@ void loop(){
         lcd.clear();
         lcd.setCursor(15, 0);
         lcd.print("Best");
+        // Draw vertical bars seperating leader list from best lap.
+        for(byte row; row <= LCD_ROWS; row++){
+          lcd.setCursor(12, row);
+          lcd.print("|");
+        }
         // Turn on interrupts for enabled lane pins,
         // this act enables the racers to trigger first lap.
         EnablePinInterrupts(true);
@@ -1894,7 +1905,7 @@ void loop(){
               // Flash OFF - display running laptime normally
               case 0:{
                 if (curMillis - lastTickMillis >  displayTick){
-                  lc.clearDisplay(displays(i) - 1);
+                  // lc.clearDisplay(displays(i) - 1);
                   PrintNumbers(lapCount[i], 3, 2, displays(i));
                   PrintClock(currentTime[i], 7, 4, 1, displays(i), 0, true);
                 }
@@ -2046,57 +2057,66 @@ void loop(){
 
 } // END of MAIN LOOP
 
-// Returns racer index of winner.
-// This function assumes only 2 racers, needs to be reworked if more racers added.
+
 byte DetermineWinner() {
-  byte first = 255;
-  byte second = 255;
-  // Adjust final lap count by 1 because current, unfinished, lap is not to be included.
-  // This conditional ternary operator notatation states that if lapCount is 0 already,
-  // then leave it zero, otherwise subtract 1.
-  // Because '##LapCount' is used as an index we need to protect against negatives.
-  lapCount[1] = lapCount[1] == 0 ? 0 : lapCount[1] - 1;
-  lapCount[2] = lapCount[2] == 0 ? 0 : lapCount[2] - 1;
-  // Serial.println("racer1 laps final");
-  // Serial.println(lapCount[1]);
-  // Serial.println("racer2 laps final");
-  // Serial.println(lapCount[2]);
-  // verify winner if one lap count is higher than the other it is clear
-  if (lapCount[1] > lapCount[2]) {first = laneRacer[1]; second = laneRacer[2];}
-  else if (lapCount[2] > lapCount[1]) {first = laneRacer[2]; second = laneRacer[1];}
-  // if timing is such that 2nd place has crossed while processing then the
-  // final lap timestamp will show who was first
-
-  else if (lastXMillis[1][ lapCount[1] % lapMillisQSize ] < lastXMillis[2][ lapCount[2] % lapMillisQSize ]) {first = laneRacer[1]; second = laneRacer[2];}
-
-  else if (lastXMillis[2][lapCount[2] % lapMillisQSize] < lastXMillis[1][lapCount[1] % lapMillisQSize]) {first = laneRacer[2]; second = laneRacer[1];}
-
-  else if(lapCount[2] == lapCount[1] && lastXMillis[1][lapCount[1]] == lastXMillis[2][lapCount[2]]){
-
-    // we use 254 as a flag for tie, since it is larger than the racer name list size will ever be
-    first = 254;
-    second = 254;
-  }
-  if (first == 254 && second == 254) {
-    if(laneEnableStatus[1]) PrintText("A TIE", led1Disp, 7, 8, true);
-    if(laneEnableStatus[2]) PrintText("A TIE", led2Disp, 7, 8, true);
-  } else if (first == 255) {
-    // If first is never changed from default 255 then somehow an error occurred.
-    if(laneEnableStatus[1]) PrintText("ERROR", led1Disp, 7, 8);
-    if(laneEnableStatus[2]) PrintText("ERROR", led2Disp, 7, 8);
-  } else {
-    PrintText("1st", first == laneRacer[1] ? led1Disp:led2Disp, 2, 3, false);
-    PrintText(Racers[first], first == laneRacer[1] ? led1Disp:led2Disp, 7, 4, true, 0, false);
-    // Only if 'All' lanes are enabled, aka =3, aka 0x00000011, is there a 2nd place.
-    if(4 >= 3) {
-      PrintText("2nd", second == laneRacer[1] ? led1Disp:led2Disp, 2, 3, false);
-      PrintText(Racers[second], second == laneRacer[1] ? led1Disp:led2Disp, 7, 4, true, 0, false);
-    }
-  }
   // Play theme song from winner's victorySong[] index
+  byte first = leaderBoard[0][1];
   startPlayRtttlPGM(buzzPin1, victorySong[first]);
   return first;
 }
+
+
+// // Returns racer index of winner.
+// // This function assumes only 2 racers, needs to be reworked if more racers added.
+// byte DetermineWinner() {
+//   byte first = 255;
+//   byte second = 255;
+//   // Adjust final lap count by 1 because current, unfinished, lap is not to be included.
+//   // This conditional ternary operator notatation states that if lapCount is 0 already,
+//   // then leave it zero, otherwise subtract 1.
+//   // Because '##LapCount' is used as an index we need to protect against negatives.
+//   lapCount[1] = lapCount[1] == 0 ? 0 : lapCount[1] - 1;
+//   lapCount[2] = lapCount[2] == 0 ? 0 : lapCount[2] - 1;
+//   // Serial.println("racer1 laps final");
+//   // Serial.println(lapCount[1]);
+//   // Serial.println("racer2 laps final");
+//   // Serial.println(lapCount[2]);
+//   // verify winner if one lap count is higher than the other it is clear
+//   if (lapCount[1] > lapCount[2]) {first = laneRacer[1]; second = laneRacer[2];}
+//   else if (lapCount[2] > lapCount[1]) {first = laneRacer[2]; second = laneRacer[1];}
+//   // if timing is such that 2nd place has crossed while processing then the
+//   // final lap timestamp will show who was first
+
+//   else if (lastXMillis[1][ lapCount[1] % lapMillisQSize ] < lastXMillis[2][ lapCount[2] % lapMillisQSize ]) {first = laneRacer[1]; second = laneRacer[2];}
+
+//   else if (lastXMillis[2][lapCount[2] % lapMillisQSize] < lastXMillis[1][lapCount[1] % lapMillisQSize]) {first = laneRacer[2]; second = laneRacer[1];}
+
+//   else if(lapCount[2] == lapCount[1] && lastXMillis[1][lapCount[1]] == lastXMillis[2][lapCount[2]]){
+
+//     // we use 254 as a flag for tie, since it is larger than the racer name list size will ever be
+//     first = 254;
+//     second = 254;
+//   }
+//   if (first == 254 && second == 254) {
+//     if(laneEnableStatus[1]) PrintText("A TIE", led1Disp, 7, 8, true);
+//     if(laneEnableStatus[2]) PrintText("A TIE", led2Disp, 7, 8, true);
+//   } else if (first == 255) {
+//     // If first is never changed from default 255 then somehow an error occurred.
+//     if(laneEnableStatus[1]) PrintText("ERROR", led1Disp, 7, 8);
+//     if(laneEnableStatus[2]) PrintText("ERROR", led2Disp, 7, 8);
+//   } else {
+//     PrintText("1st", first == laneRacer[1] ? led1Disp:led2Disp, 2, 3, false);
+//     PrintText(Racers[first], first == laneRacer[1] ? led1Disp:led2Disp, 7, 4, true, 0, false);
+//     // Only if 'All' lanes are enabled, aka =3, aka 0x00000011, is there a 2nd place.
+//     if(4 >= 3) {
+//       PrintText("2nd", second == laneRacer[1] ? led1Disp:led2Disp, 2, 3, false);
+//       PrintText(Racers[second], second == laneRacer[1] ? led1Disp:led2Disp, 7, 4, true, 0, false);
+//     }
+//   }
+//   // Play theme song from winner's victorySong[] index
+//   startPlayRtttlPGM(buzzPin1, victorySong[first]);
+//   return first;
+// }
 
 
 // Integer power function as pow() is only good with floats
