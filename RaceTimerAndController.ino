@@ -68,8 +68,8 @@ hd44780_I2Cexp lcd;
 // Constants to set display size
 const byte LCD_COLS = 20;
 const byte LCD_ROWS = 4;
-const byte RACE_CLK_POS = 13;
-const byte PRESTART_CLK_POS = RACE_CLK_POS - 2;
+const byte RACE_CLK_POS = 8;
+const byte PRESTART_CLK_POS = 11;
 
 
 // ***** 7-Seg 8-digit LED Bars *****
@@ -1162,10 +1162,6 @@ void ToggleRacePause(){
           startMillis[i] = logMillis;
           currentTime[i] = 0;
         }
-        // currentTime[1] = 0;
-        // currentTime[2] = 0;
-        // startMillis[1] = logMillis;
-        // startMillis[2] = logMillis;
         // Renable pins on active lanes
         EnablePinInterrupts(true);
       }
@@ -1175,7 +1171,6 @@ void ToggleRacePause(){
       break;
     } // END switch
   } // END debounce if
-
 }
 
 
@@ -1282,61 +1277,100 @@ void UpdateResultsMenu() {
 }
 
 
-// void UpdateLiveRaceLCD(){
+const byte PLACES = 3;
 
-//   lcd.clear();
-//   lcd.setCursor(15,0);
-//   lcd.print("Best");
-//   byte racer[laneCount];
-//   byte lap[laneCount];
-//   for( byte i = 1; i <= laneCount; i++){
-    
-//   }
+// Function to update main display during race,
+// with current leader board and best lap time.
+void UpdateLiveRaceLCD(){
+  // col0 is number of laps, col1 is the lane/racer #
+  int leaderBoard[PLACES][2] = {};
+  // leaderBoard.fill(0);
+  Serial.println("LEADER BOARD");
+  // memset(leaderBoard, 0, sizeof(leaderBoard));
 
+  int idLoopCount = 0;
+  // For each lane/racer...
+  for (byte racerID = 1; racerID <= laneCount; racerID++){
+    idLoopCount++;
+    bool swap = false;
+    // Iterate through the Leader Board Array.
+    // Starting from beginning of list, compare each racer's lap count with already placed racer's
+    for (byte place = 0; place < PLACES; place++){
+      // If new lap count is greater, shift bested, and remaining times down.
+      // Starting from the end of list, replace rows with previous row,
+      // until we reach row of the bested time to be replaced.
+      // leaderBoard col0 = # laps, col1 = lane#
+      if (lapCount[racerID] > leaderBoard[place][0]) {
+        swap = true;
+      } else
+      if (lapCount[racerID] == leaderBoard[place][0]) {
+        // If two racers have the same lap count,
+        // The one with the earliest timestamp wins.
+        unsigned long racerFinishTimestamp = lastXMillis [racerID] [lapCount[racerID]%lapMillisQSize];
+        unsigned long placeFinishTimestamp = lastXMillis [leaderBoard[place][1]] [leaderBoard[place][0]%lapMillisQSize];
+        if(racerFinishTimestamp < placeFinishTimestamp){
+          swap = true;
+        } else if(racerFinishTimestamp == placeFinishTimestamp){
+          // If there was a tie in the completion of the last lap,
+          // then the racerID with the fastest lap wins.
+          byte n = 0;
+          if(fastestTimes[racerID][n] < fastestTimes [leaderBoard[place][1]] [n] ){
+            swap = true;
+          } else if (fastestTimes[racerID][n] == fastestTimes [leaderBoard[place][1]] [n] ){
+            // Keep checking next fastest until a winner is found.
+            for(n = 1; n < fastestQSize; n++){
+              if(fastestTimes[racerID][n] < fastestTimes [leaderBoard[place][1]] [n]){
+                swap = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+      // If new racer is better then slide everyone down a place.
+      if(swap){    
+        for(byte i = PLACES - 1; i > place; i--){
+          leaderBoard[i][0] = (leaderBoard[i-1][0]);
+          leaderBoard[i][1] = (leaderBoard[i-1][1]);
+        }
+        // and insert new racer data into current place.
+        leaderBoard[place][0] = lapCount[racerID];
+        leaderBoard[place][1] = racerID;
+        break;
+      } // END of Swap
 
-//   for (byte i = 0; i < arrayLength; i++){
-//     // Starting from beginning of list, compare new time with existing times.
-//     // If new lap time is faster, hold its place, and shift bested, and remaining times down.
-//     if (timesArray[i] > newLapTime) {
-//       // Starting from the end of list, replace rows with previous row,
-//       // until we reach row of the bested time to be replaced.
-//       for (byte j = arrayLength - 1; j > i; j--){
-//         timesArray[j] = timesArray[j-1];
-//         lapsArray[j] = lapsArray[j-1];
-//         if(topTimes) topFastestRacers[j] = topFastestRacers[j-1];
-//       }
-//       // Then replace old, bested lap time, with new, faster lap and time.
-//       timesArray[i] = newLapTime;
-//       lapsArray[i] = lap;
-//       // It's not being consistent to reference this one array globally.
-//       // but in this case it cheaper to do this and use a 'topTimes' flag
-//       // than carry an extra array argument for the corner case.
-//       if(topTimes) topFastestRacers[i] = racer;
-//       // for (int k = 0; k < arrayLength; k++){
-//       //   Serial.println("UpdateFastest End");
-//       //   Serial.print(timesArray[k]);
-//       //   Serial.print(" : ");
-//       //   Serial.println(lapsArray[k][0]);
-//       // }
-//       // exit function, no need to continue once found and shift made
-//       return;
-//     } // END if (timesArray) block
-//   } // END fastest lap array for loop
+      // debug printout
+      Serial.print("IDLoopCount: ");
+      Serial.print(idLoopCount);
+      Serial.print("   place: ");
+      Serial.print(place);
+      Serial.print("   racerID: ");
+      Serial.println(racerID);
+      for (int k = 0; k < PLACES; k++){
+        Serial.print("LeaderBoard - place: ");
+        Serial.print(k + 1);
+        Serial.print("  Lap:");
+        Serial.print(leaderBoard[k][0]);
+        Serial.print("  Racer:");
+        Serial.println(Racers[leaderBoard[k][1]]);
+      }
 
+    // exit function, no need to continue once found and shift made
+    } // END end for each PLACE
 
+  } // END for each racer
 
-  // if(laneEnableStatus[1] > 0){
-  //   // Print racer's name to LCD
-  //   PrintText(Racers[laneRacer[1]], lcdDisp, 7, 8, false, 2);
-  //   // update racer's current lap total on LCD
-  //   PrintNumbers(lapCount[1] == 0 ? 0 : lapCount[1] - 1, 3, 11, lcdDisp, true, 2);
-  //   // update racer's current best lap time to LCD
-  //   if(lapCount[1] > 0) PrintClock(fastestTimes[1][0], 19, 7, 3, lcdDisp, 2);
-  //   PrintText(Start, led1Disp, 7, 8, true, 0, false);
-        // }
+  for(byte k = 1; k <= PLACES; k++){
+    // Print place #
+    lcd.setCursor(0,k);
+    lcd.print(k);
+    // Print racer's lap count
+    PrintNumbers(leaderBoard[k-1][0], 3, 4, lcdDisp, true, k);
+    // Print racer's name to LCD
+    PrintText(Racers[ leaderBoard[k-1][1] ], lcdDisp, 12, 7, false, k, true);
+  }
 
-
-// } // END UpdateLiveRaceLCD()
+} // END UpdateLiveRaceLCD()
 
 
 void ResetRaceVars(){
@@ -1792,39 +1826,18 @@ void loop(){
           if(laneEnableStatus[i] > 0){
             PrintText(Start, displays(i), 7, 8, true, 0, true);
           } else {
-            // lc.clearDisplay(i-1);
             PrintText("Not Used", displays(i), 7, 8, true, 0, true);
           }
-          // Set flash status to initial state
+          // Set flash status to initial, do nothing state.
           flashStatus[i] = 0;
         }
-        // Write Live Race screen to LCD
+        // Write static text to main LCD for live race screen
         lcd.clear();
-        lcd.setCursor(8,1);
-        lcd.print("Laps   Best");
-        // if(laneEnableStatus[1] > 0){
-        //   // Print racer's name to LCD
-        //   PrintText(Racers[laneRacer[1]], lcdDisp, 7, 8, false, 2);
-        //   // update racer's current lap total on LCD
-        //   PrintNumbers(lapCount[1] == 0 ? 0 : lapCount[1] - 1, 3, 11, lcdDisp, true, 2);
-        //   // update racer's current best lap time to LCD
-        //   if(lapCount[1] > 0) PrintClock(fastestTimes[1][0], 19, 7, 3, lcdDisp, 2);
-        //   PrintText(Start, led1Disp, 7, 8, true, 0, false);
-        // }
-        // if(laneEnableStatus[2] > 0){
-        //   // Print racer's name to LCD
-        //   PrintText(Racers[laneRacer[2]], lcdDisp, 7, 8, false, 3);
-        //   // update racer's current lap total on lcd (0 if start, current if restart)
-        //   PrintNumbers(lapCount[2] == 0 ? 0 : lapCount[2] - 1, 3, 11, lcdDisp, true, 3);
-        //   // update racer's current best lap time to lcd
-        //   if(lapCount[2] > 0) PrintClock(fastestTimes[2][0], 19, 7, 3, lcdDisp, 3);
-        //   PrintText(Start, led2Disp, 7, 8, true, 0, false);
-        // }
-        // this act enables the racer to trigger first lap
-        // Turn on interrupts for enabled lane pins
+        lcd.setCursor(15, 0);
+        lcd.print("Best");
+        // Turn on interrupts for enabled lane pins,
+        // this act enables the racers to trigger first lap.
         EnablePinInterrupts(true);
-        // enable race pause button interrupt
-        pciSetup(pauseStopPin);
         // Reset display tick timestamp to current loop's timestamp.
         lastTickMillis = curMillis;
         entryFlag = false;
@@ -1869,6 +1882,7 @@ void loop(){
           // Lap based race time counts up until final lap finished by 1st racer.
           currentTime[0] = curMillis - startMillis[0];
         }
+
         // For each possible lane check its status and process the data and displays accordingly.
         for(byte i = 1; i <= laneCount; i++){
 
@@ -1908,6 +1922,8 @@ void loop(){
                 // to be updated again until after this flash period expires.
                 // The current lap is the live lap so we need to subtract 1 from lapcount
                 UpdateFastestLap(fastestTimes[i], fastestLaps[i], lapCount[i] - 1, lapTimeToLog, laneRacer[i], fastestQSize);
+                // Also update main display
+                UpdateLiveRaceLCD();
                 // set the flash state to 2 = hold
                 flashStatus[i] = 2;
               }
@@ -1969,10 +1985,23 @@ void loop(){
           default:
             break;
         } // END RaceType Switch
-      } // END PreStart if-then-else
 
-      // Check analog pause button for press, debouncing is done in 'ToggleRacePause'
-      if(buttonPressed(pauseStopPin)) ToggleRacePause();
+        // If a tick has passed then update displays.
+        if (curMillis - lastTickMillis >  displayTick){
+          // // Update Racer LEDs
+          // for(byte i = 1; i <= laneCount; i++){
+          //   lc.clearDisplay(displays(i) - 1);
+          //   PrintNumbers(lapCount[i], 3, 2, displays(i));
+          //   PrintClock(currentTime[i], 7, 4, 1, displays(i), 0, true);
+          // }
+          // Update the main LCD
+          PrintClock(currentTime[0], RACE_CLK_POS, 10, 1, lcdDisp, 0, true);
+          lastTickMillis = curMillis;
+        }
+        // Check analog pause button for press, debouncing is done in 'ToggleRacePause'
+        if(buttonPressed(pauseStopPin)) ToggleRacePause();
+
+      } // END PreStart if-then-else Live Race block
 
     } // END of Race state case
     break;
