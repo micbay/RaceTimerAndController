@@ -26,6 +26,8 @@
 // LCD driver libraries
 #include <hd44780.h>						            // main hd44780 header file
 #include <hd44780ioClass/hd44780_I2Cexp.h>	// i/o class header for i2c expander backpack
+// Custom character layout Byte's for LCD
+#include "CustomChars.h"
 // library for 7-seg LED Bars
 #include <LedControl.h>
 
@@ -81,77 +83,6 @@ const byte LED_BAR_COUNT = 4; // # of attached max7219 controlled LED bars
 const byte LED_DIGITS = 8;            // # of digits on each LED bar
 // LedControl parameters (DataIn, CLK, CS/LOAD, Number of Max chips (ie 8-digit bars))
 LedControl lc = LedControl(PIN_TO_LED_DIN, PIN_TO_LED_CLK, PIN_TO_LED_CS, LED_BAR_COUNT);
-// Custom Character Bytes. We can have up to 8 (id0-7).
-byte Skull[] = {
- B00000,
- B01110,
- B10101,
- B11011,
- B01110,
- B01110,
- B00000,
- B00000
-};
-byte Heart[] = {
-  B00000,
-  B01010,
-  B11111,
-  B11111,
-  B01110,
-  B00100,
-  B00000,
-  B00000
-};
-byte Alien[] = {
-  B11111,
-  B10101,
-  B11111,
-  B11111,
-  B01110,
-  B01010,
-  B11011,
-  B00000
-};
-byte Check[] = {
-  B00000,
-  B00001,
-  B00011,
-  B10110,
-  B11100,
-  B01000,
-  B00000,
-  B00000
-};
-byte UpDownArrow[] = {
-  B00100,
-  B01110,
-  B10101,
-  B00100,
-  B00100,
-  B10101,
-  B01110,
-  B00100
-};
-byte UpArrow[] = {
-  B00100,
-  B01110,
-  B10101,
-  B00100,
-  B00100,
-  B00100,
-  B00100,
-  B00100
-};
-byte DownArrow[] = {
-  B00100,
-  B00100,
-  B00100,
-  B00100,
-  B00100,
-  B10101,
-  B01110,
-  B00100
-};
 
 
 //***** Declare KeyPad Variables *****
@@ -195,7 +126,7 @@ enum laneState {
   Off = 0,      // lane is not being used
   Active = 1,   // lane is being used and live in a race
   StandBy = 2,  // lane is being used in a race, but currently not active
-  Finished = 3
+  Finished = 3  // lane has finished the race
 };
 // Racetype options
 enum races {
@@ -908,11 +839,10 @@ void PrintClock(ulong timeMillis, byte clockEndPos, byte printWidth, byte precis
         decimalSec = NULL;
       break;
     }
-    Serial.println("decimalSec");
-    Serial.println(decimalSec);
-    Serial.println("precision");
-    Serial.println(precision);
-
+    // Serial.println("decimalSec");
+    // Serial.println(decimalSec);
+    // Serial.println("precision");
+    // Serial.println(precision);
     if (nextTimeBlock == H) {
       // H 00:00:00
       switch (display){
@@ -1396,7 +1326,7 @@ void UpdateResultsMenu() {
         // Print results, if number of recorded laps is smaller than Q size, use lap count for list size.
         lcdPrintResults(fastestTimes[resultsMenuIdx], fastestLaps[resultsMenuIdx], lapCount[resultsMenuIdx] < fastestQSize ? lapCount[resultsMenuIdx] : fastestQSize);
         // Print Racer 'Name', after results to avoid getting written over.
-        PrintText(Racers[laneRacer[resultsMenuIdx]], lcdDisp, 19, 9, true, 1);
+        PrintText(Racers[laneRacer[resultsMenuIdx]], lcdDisp, 19, 6, true, 1);
       } else {
         resultsMenuIdx++;
         UpdateResultsMenu();
