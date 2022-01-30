@@ -384,9 +384,22 @@ const char* const StartRaceText[4] PROGMEM = {
 //   "D|Countdown:    Sec"
 // };
 
+
 // additional text strings used in multiple places
 const char* Start = {"Start"};
 
+const char DidNotFinish[] PROGMEM = "DNF";
+const char FirstPlace[] PROGMEM = "1st";
+const char SecondPlace[] PROGMEM = "2nd";
+const char ThirdPlace[] PROGMEM = "3rd";
+const char FourthPlace[] PROGMEM = "4th";
+const char* const FinishPlaceText[5] PROGMEM = {
+  DidNotFinish,
+  FirstPlace,
+  SecondPlace,
+  ThirdPlace,
+  FourthPlace
+};
 
 // Reviews lane status array and updates the settings menu.
 // Run after a settings change.
@@ -937,14 +950,6 @@ void ToggleLaneEnable(byte laneNumber){
 }
 
 
-// If lane enabled, writes the current racer name to display.
-// Otherwise writes Racers[0], the disabled lane text label, to the display.
-void UpdateNamesOnLEDs(){
-  for (byte i = 1; i <= laneCount; i++){
-    PrintText((laneEnableStatus[i] == 0 ? Racers[laneRacer[0]] : Racers[laneRacer[i]]), displays(i), 7, 8);
-  }
-}
-
 
 // This function enable/disables the Port Register pin hardware interrupts
 // on every pin that corresponds to a lane, set to be on, in the settings menu.
@@ -1151,6 +1156,7 @@ int buttonPressed(uint8_t analogPin) {
   return false;
 }
 
+
 // Function run when a trigger from the "Pause" button is detected.
 // Replaces the function of an interrupt function that the other buttons have.
 void ToggleRacePause(){
@@ -1159,13 +1165,12 @@ void ToggleRacePause(){
   // Check the debounce
   if (logMillis - pauseDebounceMillis > debounceTime){
     Beep();
-    // reset debounce timestatmp
+    // Reset debounce timestatmp
     pauseDebounceMillis = logMillis;
     switch(state){
       // if currently in a 'Race' state, then put in 'Paused' state
       case Race: {
         // immediately turn off the interrupts on the lap sensing pins
-        // Turn off the lane interrupts
         EnablePinInterrupts(false);
         // Change game state to 'Paused'
         state = Paused;
@@ -1176,16 +1181,15 @@ void ToggleRacePause(){
         }
       }
       break;
-      // if already paused then return to race
+      // If already paused then return to race.
       case Paused: {
         state = Race;
-        // make sure entry flag is turned back off before re-entering race state
         entryFlag = true;
         for(byte i = 1; i <= laneCount; i++){
           startMillis[i] = logMillis;
           currentTime[i] = 0;
         }
-        // Renable pins on active lanes
+        // Re-enable pins on active lanes.
         EnablePinInterrupts(true);
       }
       break;
@@ -1261,9 +1265,9 @@ void PrintLeaderBoard(bool withLeaders = true){
 
 
 
-// Prints given results array to lcd display
-// resultsRowIdx = 0 should be all fastest, = 1, 2, 3, or 4 indicates that lane's fastest.
-void lcdPrintResults(unsigned long fastestTimes[], unsigned int fastestLaps[], int listSize) {
+// Prints given results array to lcd display.
+// resultsRowIdx = 0 Top Fastest, = 1, 2, 3, or 4 indicates that lane's fastest.
+void PrintResultsList(unsigned long fastestTimes[], unsigned int fastestLaps[], int listSize) {
   for (byte i = 0; i < 3; i++){
     // ignore if lap = 0 which means it's a dummy lap or if index greater than lap count
     if (fastestLaps[resultsRowIdx + i] > 0 && ((resultsRowIdx + i) < listSize)) {
@@ -1301,7 +1305,7 @@ void UpdateResultsMenu() {
       lcd.write('A');
       lcd.write(0);
       lcd.write('B');
-      lcdPrintResults(topFastestTimes, topFastestLaps, fastestQSize);
+      PrintResultsList(topFastestTimes, topFastestLaps, fastestQSize);
     }
     break;
     // All idx > 0 indicate results related to matching lane number.
@@ -1317,7 +1321,7 @@ void UpdateResultsMenu() {
         // Print 'Racer #'
         PrintNumbers(resultsMenuIdx, 1, 10, lcdDisp, false, 0);
         // Print results, if number of recorded laps is smaller than Q size, use lap count for list size.
-        lcdPrintResults(fastestTimes[resultsMenuIdx], fastestLaps[resultsMenuIdx], lapCount[resultsMenuIdx] < fastestQSize ? lapCount[resultsMenuIdx] : fastestQSize);
+        PrintResultsList(fastestTimes[resultsMenuIdx], fastestLaps[resultsMenuIdx], lapCount[resultsMenuIdx] < fastestQSize ? lapCount[resultsMenuIdx] : fastestQSize);
         // Print Racer 'Name', after results to avoid getting written over.
         PrintText(Racers[laneRacer[resultsMenuIdx]], lcdDisp, 19, 6, true, 1);
       } else {
@@ -1333,11 +1337,13 @@ void UpdateResultsMenu() {
     default:
     break;
   }
-}
+} // END UpdateResultsMenu()
 
 
-// const byte PLACES = 3;
+
 // col0 is number of laps, col1 is the lane/racer #
+// Even though only 3 places are displayed, the leader board data table,
+// should contain all of the lanes in order.
 int leaderBoard[laneCount][2] = {};
 unsigned long overallFastestTime = 99999999;
 byte overallFastestRacer = 5;
@@ -1345,8 +1351,6 @@ byte overallFastestRacer = 5;
 // Function to update main display during race,
 // with current leader board and best lap time.
 void UpdateLiveRaceLCD(){
-  // leaderBoard.fill(0);
-  // Serial.println("LEADER BOARD");
   // Clear table to be rebuilt
   memset(leaderBoard, 0, sizeof(leaderBoard));
   // For each lane/racer...
@@ -1373,10 +1377,6 @@ void UpdateLiveRaceLCD(){
           // The one with the earliest completion timestamp is in the lead.
           unsigned long racerFinishTimestamp = lastXMillis [racerID] [racerLapCount%lapMillisQSize];
           unsigned long placeFinishTimestamp = lastXMillis [leaderBoard[place][1]] [leaderBoard[place][0]%lapMillisQSize];
-            // Serial.println("racer Timestamp");
-            // Serial.println(racerFinishTimestamp);
-            // Serial.println("placeTimestamp");
-            // Serial.println(placeFinishTimestamp);
           if(racerFinishTimestamp < placeFinishTimestamp){
             swap = true;
           } else if(racerFinishTimestamp == placeFinishTimestamp){
@@ -1459,6 +1459,7 @@ void ResetRaceVars(){
   overallFastestRacer = 0;
 }
 
+
 // ------------BELOW NOT USED-------------
 // // *** This section for using Note and Lengths arrays for songs
 // // Globals for holding the current melody data references.
@@ -1536,8 +1537,8 @@ void setup(){
   'hang', this may be the culprit if there is a connection issue.
   */
   // Open port and wait for connection before proceeding.
-  Serial.begin(9600);
-  while(!Serial);
+  // Serial.begin(9600);
+  // while(!Serial);
 
   // --- SETUP LCD DIPSLAY -----------------------------
   // Initialize LCD with begin() which will return zero on success.
@@ -1549,12 +1550,12 @@ void setup(){
   lcd.clear();
   // --- CREATE CUSTOM LCD CHARS -------------
   lcd.createChar(0, UpDownArrow);
-  lcd.createChar(1, UpArrow);
-  lcd.createChar(2, DownArrow);
+  // lcd.createChar(1, UpArrow);
+  // lcd.createChar(2, DownArrow);
   lcd.createChar(3, Skull);
-  lcd.createChar(4, Heart);
-  lcd.createChar(5, Alien);
-  lcd.createChar(6, Check);
+  // lcd.createChar(4, Heart);
+  // lcd.createChar(5, Alien);
+  // lcd.createChar(6, Check);
 
   // --- SETUP LED 7-SEG, 8-DIGIT MAX7219 LED Globals ------
   // Initialize all the displays
@@ -1642,10 +1643,10 @@ void loop(){
             if (entryFlag) {
               UpdateLCDMenu(MainText);
               // Update Racer LED Displays
-              UpdateNamesOnLEDs();
+              UpdateAllNamesOnLEDs();
               entryFlag = false;
             }
-            // depending on seleted option, change menu state accordingly and set entry flag
+            // Depending on seleted option, change menu state accordingly and set entry flag.
             switch (key) {
               case 'A':
                 currentMenu = SelectRacersMenu;
@@ -1682,7 +1683,7 @@ void loop(){
               // Lane's Enabled
               lcdPrintLaneSettings();
               // Update Racer LED Displays
-              UpdateNamesOnLEDs();
+              UpdateAllNamesOnLEDs();
               entryFlag = false;
             }
             switch (key) {
@@ -1717,7 +1718,7 @@ void loop(){
                 // Update LCD with change
                 lcdPrintLaneSettings();
                 // Update racer displays
-                UpdateNamesOnLEDs();
+                UpdateAllNamesOnLEDs();
               }
               break;
               case '*':{
@@ -1743,7 +1744,7 @@ void loop(){
                   lcd.setCursor(nameEndPos - 10, i - 1);
                   lcd.write(3);
                   // Then print disabled lane name (ie. '-Off-')
-                  PrintText(Racers[laneRacer[0]], lcdDisp, nameEndPos, 9, false, i - 1);
+                  PrintText(Racers[0], lcdDisp, nameEndPos, 9, false, i - 1);
                   // and another skull
                   lcd.setCursor(nameEndPos - 7 + strlen(Racers[laneRacer[0]]), i - 1);
                   lcd.write(3);
@@ -1828,9 +1829,8 @@ void loop(){
             if (entryFlag) {
               lcd.clear();
               if(raceDataExists){
-                // resultsMenuIdx = TopResults;
                 resultsMenuIdx = 0;
-                lcd.print("-Compiling Results-");
+                lcd.print("-Compiling-");
                 CompileTopFastest();
                 UpdateResultsMenu();
               } else {
@@ -1839,30 +1839,25 @@ void loop(){
               entryFlag = false;
             }
             switch (key) {
-              // cycle up or down the lap list
+              // Scroll up or down the lap results list
               case 'A': case 'B':{
-                // only deal with data if it exists,
-                // otherwise garbage will be displayed on screen
+                // Only deal with data if it exists,
+                // otherwise garbage will be displayed on screen.
                 if(raceDataExists) {
-                  byte arrayMax;
-                  // if resultsMenuIdx is 'Top', then it equals 0 and is false
-                  // if (resultsMenuIdx) arrayMax = fastestQSize;
-                  // else arrayMax = fastestQSize * 2;
-                  arrayMax = fastestQSize;
-                  // clear line to remove extra ch from long names replace by short ones
+                  // Clear lines to remove extra ch from long names replace by short ones.
                   PrintSpanOfChars(lcdDisp, 1);
                   PrintSpanOfChars(lcdDisp, 2);
                   PrintSpanOfChars(lcdDisp, 3);
                   if (key == 'A' && resultsRowIdx > 0) resultsRowIdx--;
-                  // we subtract 3 because there are two rows printed after tracked index
-                  if (key == 'B' && resultsRowIdx < arrayMax-2) resultsRowIdx++;
+                  // Subtract 2 because there are two rows printed after tracked index.
+                  if (key == 'B' && resultsRowIdx < fastestQSize - 2) resultsRowIdx++;
                   UpdateResultsMenu();
                 }
               }
               break;
-              // cycle up or down racer list and update Racer2 name
+              // Cycle through results sub-menus.
               case 'C': case 'D':{
-                // only deal with data if it exists,
+                // Only deal with data if it exists,
                 // otherwise garbage will be displayed on screen
                 if(raceDataExists) {
                   // Index results menu to next racer.
@@ -1891,8 +1886,8 @@ void loop(){
           break;
           default:
           break;
-        }; // end of Menu switch
-      }; // end of if key pressed wrap
+        }; // END of Menu switch
+      }; // END of if key pressed wrap
     } // END of Menu State
     break; 
 
@@ -1927,12 +1922,12 @@ void loop(){
           lcd.clear();
         }
         // If Lane is in StandBy, write 'Start' signal to racer LED displays.
-        // If lane 'Off' then write 'Not Used', if 'Finished', do nothing.
+        // If lane 'Off' then write disabled label found in Racers[0], if 'Finished', do nothing.
         for(byte i = 1; i <= laneCount; i++){
           if(laneEnableStatus[i] == StandBy){
             PrintText(Start, displays(i), 7, 8, true, 0, true);
           } else if(laneEnableStatus[i] == Off){
-            PrintText("Not Used", displays(i), 7, 8, true, 0, true);
+            PrintText(Racers[0], displays(i), 7, 8, true, 0, true);
           }
           // Set flash status to initial, do nothing state.
           flashStatus[i] = 0;
@@ -1977,11 +1972,6 @@ void loop(){
           ledCountdownTemp = 0;
           // reset entry flag to true so race timing variables can be initialized
           entryFlag = true;
-          // Clear LEDs here, because we don't clear before drawing start.
-          // This allows us to use the same function to draw the restart after pause.
-          // for(byte i = 1; i <= laneCount; i++){
-          //   lc.clearDisplay(i-1);        
-          // }
         }
       } else { // ********* LIVE RACE **********
         // Regardless of race type, we do these things
@@ -2060,63 +2050,67 @@ void loop(){
           lastTickMillis = curMillis;
         }
 
-        // check for the race end condition and finishing places
+        // FINISHING CHECK - check for the race end condition.
         switch (raceType) {
           case Standard: {
             // ****** STANDARD FINSIH *******************
+            // Check if any Active lanes have since finished.
             for(byte i = 1; i <= laneCount; i++){
-              // and check if any Active lanes have since finished.
               if(laneEnableStatus[i] == Active){
                 // If the a lanes's current lapCount is greater than the raceLaps that means
-                // they have finished the race.
+                // they have finished the race. lapCount when 'Active' is +1 of finsished laps.
                 if(lapCount[i] > raceLaps){
                   laneEnableStatus[i] = Finished;
                   finishedLaneCount++;
-                  UpdateFinishedLEDs(i);
-                  // Turn off lap trigger interrupts to prevent any additional lap triggers
-                  // EnablePinInterrupts(false);
+                  UpdateNameOnLED(i);
+                  // Turn off lap trigger interrupt of finished lane.
                   clearPCI(laneSensorPin[i]);
+                  // Play finishing song of racer
                   startPlayRtttlPGM(buzzPin1, victorySong[i]);
-                  // PrintClock(currentTime[0], RACE_CLK_POS, 10, 1, lcdDisp, 0, true);
-                  // PrintText("RACE OVER", lcdDisp, 9, 9);
                 }
               }
             }
+            // The race continues until all racers have finsihed.
             if (finishedLaneCount == enabledLaneCount) {
-              state = Menu;
-              currentMenu = ResultsMenu;
-              entryFlag = true;
-              // resultsMenuIdx = TopResults;
-              resultsMenuIdx = 0;
+              // If all racers have finished end race and return to results menu.
+              Finish();
             }
           } // END Standard Race Finish case
+          
+          // ****** TIMED FINSIH *******************
           break;
           case Timed:{
-            // if time <= 0 then race is over and the most laps wins
+            // if time <= 0 then race is over.
             if (currentTime[0] <= 0) {
-              // turn off lap trigger interrupts to prevent any additional lap triggers
+              // Turn off all lap trigger interrupts.
               EnablePinInterrupts(false);
-              // DetermineWinner();
-              state = Menu;
-              currentMenu = ResultsMenu;
-              entryFlag = true;
-              // resultsMenuIdx = TopResults;
-              resultsMenuIdx = 0;
+              for(byte i = 1; i <= laneCount; i++){
+                if(laneEnableStatus[i] == Active){
+                  // Set lanes to finished state and write places to LEDs.
+                  laneEnableStatus[i] = Finished;
+                  UpdateNameOnLED(i);
+                }
+              }
+              finishedLaneCount = laneCount;
+              // Play finishing song of 1st place racer.
+              startPlayRtttlPGM(buzzPin1, victorySong[leaderBoard[0][1]]);
+              Finish();
             }
           } // END Timed race case
           break;
           case Pole:{
-
+              // RACE type not implemented.
+              // Intended for some form of individual lap time challenges.
             break;
           }
           default:
             break;
-        } // END RaceType Switch
+        } // END RaceType Switch (Finishing Check)
 
         // Check analog pause button for press, debouncing is done in 'ToggleRacePause'
         if(buttonPressed(pauseStopPin)) ToggleRacePause();
 
-      } // END PreStart if-then-else Live Race block
+      } // END PreStart-LiveRace, if-then-else Live Race block
 
     } // END of Race state case
     break;
@@ -2144,11 +2138,8 @@ void loop(){
         // Check if star is pressed on keypad, if so then end game and got to results.
         char key = keypad.getKey();
         if (key == '*') {
-          state = Menu;
-          currentMenu = ResultsMenu;
-          entryFlag = true;
-          resultsMenuIdx = 0;
-          UpdateNamesOnLEDs();
+          UpdateAllNamesOnLEDs();
+          Finish();
         }
       } // END of if EntryFleg, else
     } // END of Paused state
@@ -2165,93 +2156,58 @@ void loop(){
 // ********************************************************
 // ********************************************************
 
-
-// Writes the place finish to racer's LED display if in finished state.
-void UpdateFinishedLEDs(byte finishedRacer){
-  // Find what place the racer is in
-  for(byte i = 1; i <= laneCount; i++){
-    // If still racing, pause screen, don't affect finished or disabled lanes.
-    if(leaderBoard[i-1][1] == finishedRacer){
-      char* finish;
-      switch(i){
-        case 1:
-          finish = "1st";
-        break;
-        case 2:
-          finish = "2nd";
-        break;
-        case 3:
-          finish = "3rd";
-        break;
-        default:
-          finish = "4th";
-        break;
-      }
-      PrintText(finish, displays(finishedRacer), 2, 3, false, 0, false);
-      PrintText(Racers[laneRacer[finishedRacer]], displays(finishedRacer), 7, 4, false, 0, true);
-      // Serial.println("finish Text");
-      // Serial.println(finish);
-    }
+// function to execute common steps at end of race.
+void Finish(){
+  state = Menu;
+  currentMenu = ResultsMenu;
+  entryFlag = true;
+  resultsMenuIdx = 0;
+  resultsRowIdx = 0;
+  // Reset lane states to StandBay
+  for (byte i = 1; i <= laneCount; i++){
+    if(laneEnableStatus[i] > 0) laneEnableStatus[i] = StandBy;
   }
-
 }
 
 
-// // Returns racer index of winner.
-// // This function assumes only 2 racers, needs to be reworked if more racers added.
-// byte DetermineWinner() {
-//   byte first = 255;
-//   byte second = 255;
-//   // Adjust final lap count by 1 because current, unfinished, lap is not to be included.
-//   // This conditional ternary operator notatation states that if lapCount is 0 already,
-//   // then leave it zero, otherwise subtract 1.
-//   // Because '##LapCount' is used as an index we need to protect against negatives.
-//   lapCount[1] = lapCount[1] == 0 ? 0 : lapCount[1] - 1;
-//   lapCount[2] = lapCount[2] == 0 ? 0 : lapCount[2] - 1;
-//   // Serial.println("racer1 laps final");
-//   // Serial.println(lapCount[1]);
-//   // Serial.println("racer2 laps final");
-//   // Serial.println(lapCount[2]);
-//   // verify winner if one lap count is higher than the other it is clear
-//   if (lapCount[1] > lapCount[2]) {first = laneRacer[1]; second = laneRacer[2];}
-//   else if (lapCount[2] > lapCount[1]) {first = laneRacer[2]; second = laneRacer[1];}
-//   // if timing is such that 2nd place has crossed while processing then the
-//   // final lap timestamp will show who was first
 
-//   else if (lastXMillis[1][ lapCount[1] % lapMillisQSize ] < lastXMillis[2][ lapCount[2] % lapMillisQSize ]) {first = laneRacer[1]; second = laneRacer[2];}
+// This function updates all the Racer names on the LEDS according to lane status.
+void UpdateAllNamesOnLEDs(){
+  for (byte i = 1; i <= laneCount; i++){
+    UpdateNameOnLED(i);
+  }
+}
 
-//   else if (lastXMillis[2][lapCount[2] % lapMillisQSize] < lastXMillis[1][lapCount[1] % lapMillisQSize]) {first = laneRacer[2]; second = laneRacer[1];}
-
-//   else if(lapCount[2] == lapCount[1] && lastXMillis[1][lapCount[1]] == lastXMillis[2][lapCount[2]]){
-
-//     // we use 254 as a flag for tie, since it is larger than the racer name list size will ever be
-//     first = 254;
-//     second = 254;
-//   }
-//   if (first == 254 && second == 254) {
-//     if(laneEnableStatus[1]) PrintText("A TIE", led1Disp, 7, 8, true);
-//     if(laneEnableStatus[2]) PrintText("A TIE", led2Disp, 7, 8, true);
-//   } else if (first == 255) {
-//     // If first is never changed from default 255 then somehow an error occurred.
-//     if(laneEnableStatus[1]) PrintText("ERROR", led1Disp, 7, 8);
-//     if(laneEnableStatus[2]) PrintText("ERROR", led2Disp, 7, 8);
-//   } else {
-//     PrintText("1st", first == laneRacer[1] ? led1Disp:led2Disp, 2, 3, false);
-//     PrintText(Racers[first], first == laneRacer[1] ? led1Disp:led2Disp, 7, 4, true, 0, false);
-//     // Only if 'All' lanes are enabled, aka =3, aka 0x00000011, is there a 2nd place.
-//     if(4 >= 3) {
-//       PrintText("2nd", second == laneRacer[1] ? led1Disp:led2Disp, 2, 3, false);
-//       PrintText(Racers[second], second == laneRacer[1] ? led1Disp:led2Disp, 7, 4, true, 0, false);
-//     }
-//   }
-//   // Play theme song from winner's victorySong[] index
-//   startPlayRtttlPGM(buzzPin1, victorySong[first]);
-//   return first;
-// }
+// Writes the place finish to racer's LED display if in finished state.
+void UpdateNameOnLED(byte lane){
+  // if the lane is 'Active' then check place
+  if(laneEnableStatus[lane] == Finished){
+    // Find what place the racer is in
+    for(byte i = 1; i <= laneCount; i++){
+      // If the racer has finished then write their place then name.
+      if(leaderBoard[i-1][1] == lane){
+        char finishPlace[3];
+        // Get place text prefix string
+        strcpy_P(finishPlace, (char*)pgm_read_word(&(FinishPlaceText[i])));
+        PrintText(finishPlace, displays(lane), 2, 3, false, 0, false);
+        PrintText(Racers[laneRacer[lane]], displays(lane), 7, 4, false, 0, true);
+      }
+      // If the racer has not finished don't do anything.
+    }
+  } else
+  // else if lane is in StandBy just print the name
+  if(laneEnableStatus[lane] == StandBy){
+    PrintText(Racers[laneRacer[lane]], displays(lane), 7, 8);
+  } else
+  // else if lane is in Off, print label held in resreve idx, Racers[0].
+  if(laneEnableStatus[lane] == Off){
+    PrintText(Racers[laneRacer[0]], displays(lane), 7, 8);
+  }
+} // END UpdateNameOnLED()
 
 
 // Integer power function as pow() is only good with floats
-int ipow(int base, int exp) {
+int ipow(int base, int exp){
   int result = 1;
   for (;;) {
     if (exp & 1)
