@@ -59,6 +59,8 @@ const byte lane4Pin = PIN_A3;
 // An external pullup resistor must be added to button wiring.
 // This input is expected to be HIGH and go LOW when pressed.
 const byte pauseStopPin = PIN_A6;
+// timestamp marking new press of pause button, used to set start of debounce period.
+unsigned long pauseDebounceMillis = 0;
 
 //***** Variables for LCD 4x20 Display **********
 // This display communicates using I2C via the SCL and SDA pins,
@@ -141,49 +143,63 @@ enum clockWidth {
   H = 6,    // 00:00:00
 };
 
-//*** Variables and defaults for USER SET, RACE PROPERTIES
+//*** RACE PROPERTIESS ******
 races raceType = Standard;
-// Variable for the number of laps to win standard race type
+// Number of laps to win standard race type
 int raceLaps = 10;
 // Race time for a Timed race type, most laps before time runs out wins.
 // Create a clock time array to hold converted values for easy display update.
 // raceSetTime[1] holds Min, raceSetTime[0] holds Sec, settable from menu.
-const byte defMin = 0;
-const byte defSec = 30;
-byte raceSetTime[2] = {defSec, defMin};
+const byte raceSetMin = 0;
+const byte raceSetSec = 30;
+byte raceSetTime[2] = {raceSetSec, raceSetMin};
 // raceSetTime in milliseconds, will be initialized in setup().
 unsigned long raceSetTimeMs;
 // pre-race countdown length in seconds, settable from menu
-byte preStartCountDown = 2;
+byte preStartCountDown = 5;
 // Flag to tell race timer if race time is going up or going down as in a time limit race.
 // Since the default race type is standard the default countingDown is false.
 bool countingDown = false;
 
-// Note that the durint a race, current lap count may often be 1 greater than the lap of interest.
+// The millis() timestamp of the start of current program loop.
+// This time is used by all processes in the loop so that everything happens
+// psuedo concurrently.
+unsigned long curMillis;
+
+// Interval in milliseconds that the clock displays are updated.
+// this value does not affect lap time precision, it only sets min display update rate.
+// This is done to be more efficient and give's us some control over refresh rate.
+int displayTick = 100;
+// A millis() timestamp marking last tick completion.
+unsigned long lastTickMillis;
+// flag indicating if race state is in preStart countdown or active race
+bool preStart = false;
+
+
+// ***** RACE DATA *********
+// Running count of the current lap a racer is on.
+// Note that this is 1 greater than the number of completed laps.
 // idx of lapCount relates to corresponding lane#, idx = 0 is reserved.
 volatile int lapCount[laneCount + 1] = {
   0, 0, 0, 0, 0
 };
-
-
-const byte fastestQSize = 10;
-// Using two, 2D arrays, whose rows are kept in sync, to track fastest laps.
-// One array of longs to hold the time, and one of int for the lap#.
-// This is to save on memory over a single 2D long array.
+// For each lane/racer a list of the fastest 10 laps will be recorded.
+// This will be stored in 2, 2D arrays.
+// One array to hold the time (long), and one to hold the corresponding lap# (int).
 // The row index indicates the associated lane/racer #.
 // Row idx = 0 is reserved, and currently not used.
+const byte fastestQSize = 10;
 unsigned int fastestLaps[laneCount + 1][fastestQSize] = {};
 unsigned long fastestTimes[laneCount + 1][fastestQSize] = {};
 
 // Another pair of lap and time arrays holds the fastest overall laps
 unsigned int topFastestLaps[ fastestQSize ] = {};
 unsigned long topFastestTimes[ fastestQSize ] = {};
-// With the overall lap times we also need to track the associated lane/racer.
+// With the overall lap times we need to track the associated lane/racer in a seperate array.
 byte topFastestRacers[ fastestQSize ] = {};
 
-
 // During the actual race, due to memory limits, we only track the
-// last X lap millis() timestamps.
+// last few completed lap millis() timestamps.
 // The modulus of the lap count, by the lapMillisQSize, will set the looping index.
 // (lapCount % lapMillisQSize) = idx, will always be 0 <= idx < lapMillisQSize
 // DO NOT SET lapMillisQSize < 3
@@ -191,32 +207,18 @@ const byte lapMillisQSize = 5;
 // The row index indicates the lane/racer associated with it's row array timestamps.
 volatile unsigned long lastXMillis[laneCount + 1] [ lapMillisQSize ] = {};
 
-
-// idx = 0 logs millis() timestamp at start of race.
-// idx > 0 logs millis() timestamp at the start of the current lap on matching lane #.
+// To keep a running time of the race and each current lap,
+// we record a start, millis() timestamp and log elapsed time in ms.
+// idx0 used to log overall race time.
+// idx > 0, log the current lap time of corresponding lane #.
 volatile unsigned long startMillis[laneCount + 1];
-// idx = 0 logs current race time in ms.
-// idx > 1 logs current lap time in ms of matching lane #.
 volatile unsigned long currentTime[laneCount + 1] = {
   0, 0, 0, 0, 0
 };
 
-
-// flag to alert results menu whether the race data is garbage or not
+// Flag to alert results menu whether race data has been collected.
+// If it tries to print empty tables it will print garbage to the screen.
 bool raceDataExists = false;
-// The millis() timestamp of the start of current program loop.
-unsigned long curMillis;
-
-// The millis() timestamp of last display update.
-unsigned long lastTickMillis;
-// Interval in milliseconds that the clock displays are updated.
-// this value does not affect lap time precision, it only sets min display update rate.
-// This is done to be more efficient and give's us some control over refresh rate.
-int displayTick = 100;
-// timestamp marking new press of pause button, used to set start of debounce period.
-unsigned long pauseDebounceMillis = 0;
-// flag indicating if race state is in preStart countdown or active race
-bool preStart = false;
 
 
 // ******* LANE/RACER VARIABLES ******************
@@ -224,16 +226,6 @@ bool preStart = false;
 // detection and timing related to the triggering of a given hardware sensor.
 // In all arrays relating to this data the array index will equal the associate lane/racer/sensor #.
 // Index 0 will be reserved for race level times and data or may not be used at present.
-//
-// The bit mask representing the active lanes, defaults lanes 1 & 2 enabled by default.
-// byte enabledLanes = 0b00000011;
-
-// Because the pins we use are in order we don't actually need these, and
-// throughout the code we assume this is the case.
-// Bit masks for each lane that are used to identify related port register bit.
-// byte laneMask[ laneCount + 1 ] = {
-//   0b00000000, 0b00000001, 0b00000010, 0b00000100, 0b00001000
-// };
 
 // Logs current lane state (see enum for details)
 volatile byte laneEnableStatus[ laneCount + 1 ] = {
@@ -243,10 +235,11 @@ volatile byte laneEnableStatus[ laneCount + 1 ] = {
 byte laneSensorPin[ laneCount + 1 ] = {
   255, lane1Pin, lane2Pin, lane3Pin, lane4Pin
 };
+// These help keep code easier to read instead of calculating them repeatedly from status array.
 byte enabledLaneCount = 2;
 byte finishedLaneCount = 0;
 // Holds index of Racers[] array that indicates the name of racer associated with lane.
-// set racer name to '0' (aka 'DISABLED') when status is Off.
+// set racer name to '0' when status is Off.
 // Other than 0, the same Racer[idx] cannot be used for more than 1 racer.
 // During use, the code will prevent this, but it will not correct duplicates made here.
 byte laneRacer[ laneCount + 1 ] = {
@@ -261,6 +254,7 @@ byte laneRacer[ laneCount + 1 ] = {
 // 1 = write last finished lap, and its logged time, to racer's LED.
 // 2 = hold the last finished lap info on display until flash time is up.
 // lap flash status idx corresponds to status of lane #, idx0 reserved.
+// The flash display period does not affect active timing, or any other functions.
 volatile byte flashStatus[ laneCount + 1 ] = {
   0, 0, 0, 0, 0
 };
@@ -297,8 +291,8 @@ bool entryFlag;
 
 // Racer Names list.
 // Because this is an array of different length character arrays
-// there is not easy way to determine the number of elements,
-// so we use a constant to set the length.
+// there is not easy way to determine the number of racer names,
+// so we use a constant to set and read the length.
 // This must be maintained manually to match Racers[] actual content below
 byte const racerListSize = 10;
 // 7-seg digits cannot display W's, M's, X's, K's, or V's
@@ -394,14 +388,13 @@ const char* const StartRaceText[4] PROGMEM = {
 const char* Start = {"Start"};
 
 
-// Reviews lane status array and writes to lcd a number for each enabled lane
-// and an 'X' if the lane is disabled. Run after settings change.
+// Reviews lane status array and updates the settings menu.
+// Run after a settings change.
 void lcdPrintLaneSettings(){
   for(int i = 1; i <= laneCount; i++){
     lcd.setCursor(10+ 2 * i, 3);
     // Something with the lcd.print() doesn't work to use a ternery to assess this.
     if (laneEnableStatus[i] == 0){
-      // lcd.print('X');
       // write a skull
       lcd.write(3);
     } else {
@@ -671,8 +664,7 @@ void PrintText(const char textToWrite[LCD_COLS], const displays display, const b
   switch (display) {
     // For writing to LCD display
     case lcdDisp: {
-      // for clearing we want to clear the whole space so we don't use adjusted positions.
-      // if (clear) PrintSpanOfChars(display, line, cursorStartPos, writeSpaceEndPos);
+      // For clearing we want to clear the whole space so we don't use adjusted positions.
       if (clear) PrintSpanOfChars(display, line, (writeSpaceEndPos-width+1), writeSpaceEndPos);
       for (byte i = cursorStartPos; i <= cursorEndPos; i++){
         lcd.setCursor(i, line);
@@ -691,7 +683,7 @@ void PrintText(const char textToWrite[LCD_COLS], const displays display, const b
       // Serial.print("beginning position:  ");
       // Serial.println(writeSpaceEndPos-width+1);
       for (byte j = cursorStartPos; j <= cursorEndPos; j++){
-        // The digit position of the LED bars is right to left so we flip the requested index.
+        // The digit position of the LED bars is right to left so flip the requested index.
         lc.setChar(display - 1, (LED_DIGITS-1) - j, textToWrite[textIndex], false);
         textIndex++;
       }
@@ -916,8 +908,9 @@ void PreStartDisplaysUpdate(){
 }
 
 
-// Toggle status of given lane mask and update status array.
-// This also then must update the racer name between 'DISABLED' and an initial racer.
+// 'laneNumber' is a settings menu, keypad entry 0-4.
+// '0' means to disable all lanes,
+// '1-4' means toggle corresponding lane status between 'StandBy' and 'Off'.
 void ToggleLaneEnable(byte laneNumber){
   const bool wasSet = laneEnableStatus[laneNumber] > 0;
   if(laneNumber == 0){
@@ -945,17 +938,16 @@ void ToggleLaneEnable(byte laneNumber){
 
 
 // If lane enabled, writes the current racer name to display.
-// Otherwise writes 'DISABLED' to the display.
+// Otherwise writes Racers[0], the disabled lane text label, to the display.
 void UpdateNamesOnLEDs(){
   for (byte i = 1; i <= laneCount; i++){
-    // PrintText((laneEnableStatus[i] == 0 ? "DISABLED" : Racers[laneRacer[i]]), displays(i), 7, 8);
     PrintText((laneEnableStatus[i] == 0 ? Racers[laneRacer[0]] : Racers[laneRacer[i]]), displays(i), 7, 8);
   }
 }
 
 
-// This function goes through the lanes enabled by the settings
-// and turns the interrupt pins on or off.
+// This function enable/disables the Port Register pin hardware interrupts
+// on every pin that corresponds to a lane, set to be on, in the settings menu.
 void EnablePinInterrupts(bool Enable){
   for (byte i = 1; i <= laneCount; i++){
     // TURN ON PIN
@@ -1014,8 +1006,7 @@ void pciSetup(byte pin) {
   // Serial.println(bit (digitalPinToPCMSKbit(pin)), BIN);
 }
 
-// This function will disable the port register interrupt on the given pin
-// when for periods we don't want to have lap sensor input.
+// This function will disable the port register interrupt on a given pin.
 void clearPCI(byte pin) {
   // Clear any outstanding interrupt
   PCIFR  |= bit (digitalPinToPCICRbit(pin));
@@ -1038,19 +1029,21 @@ void clearPCI(byte pin) {
 // PCINT1_vect handles pin change interrupt for the pin block A0-A5, represented in bit0-bit5
 // The execution time of this function should be as fast as possible as
 // interrupts are disabled while inside it.
-// This function takes 0.004 - 0.180ms
+// This function takes approximately 0.004 - 0.180ms
 ISR (PCINT1_vect) {
   // Note that millis() does not execute inside the ISR().
-  // It can be called and used, but it is not continuing to increment.
+  // It can be called, and used as the time of entry, but it does not continue to increment.
   unsigned long logMillis = millis();
 
   // MICROTIMING code used for assessing the ISR execution time.
   // unsigned long logMicros = micros();
 
-  // We have setup the lap triggers as inputs.
+  // This code expects the lap sensors are setup as inputs.
   // This means the pins have been set to HIGH, indicated by a 1 on its register bit.
   // When a button is pressed, or sensor triggered, it should bring the pin LOW.
   // A LOW pin is indicated by a 0 on its port register.
+  // Because all of the lap sensors are on the same port regirster
+  // it will be possible to detect simulataneous triggers.
 
   // Lane 1 positive trigger PINC = 0xXXXXXXX0
   // Lane 1 is on pin A0 which uses the 1st bit of the register; idx 0, of PINC Byte

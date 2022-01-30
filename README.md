@@ -1,17 +1,21 @@
 Download repository into a local folder with the same name as the contained `.ino` to use as an Arduino sketch.
 
-# **<span style="color:red;font-size:72px"> -- IN DRAFT -- </span>**
+---
+
+
+# **<span style="color:red;font-size:72px"> -- README IN DRAFT -- </span>**
 
 # **Arduino Race Timer and Lap Gate Controller**
 This is an Arduino based project that implements a functional race game controller that can be used for timed racing games. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
 
-In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate.  
+In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate. The working demo of this project uses two paper clips integrated into a mechanical lap counter to create a simple, yet functional lap sensor.  
 ![MainMenu](Images/MainMenu.png)  
 ![Wiring Diagram](Images/Demolayout_Adjusted.jpg)  
 ![Wiring Diagram](Images/ArduinoNanopPinOut_RealHardware.png)  
 ![Wiring Diagram](Images/Displays_DemoStartup.png)
 
-The implementation shown here is immediately useable for 2 player racing games such as would be used in a 1/64 slot car set or drone race. However, the hardware included can handle up to 4 racers. In several places in the code we take advantage of knowing that there are only 2 racers. These aspects of the code would need to be rafactored into an object or array with iterating loops. Something similiar to how the lanes/racers are enabled in this 2-player embodiment.
+The implementation shown here is immediately useable for 1-4 player racing games. The original intended use for this controller is slot car racing, as such, the controller is designed to have a dedicated, individual pin for each racer.  
+Each lap/gate that racer goes through will trigger that dedicated pin.
 
 ### **Prerequisites**  
 This project requires almost no experience to execute, however it will not cover basic usage of Arduino. It is expected the reader understands how to use the Arduino IDE, connect wires, and program boards. To get up to speed on the basics, there are many great resources from [Arduino](https://www.arduino.cc/en/Guide) and around the web covering these topics exhaustively.
@@ -40,21 +44,21 @@ All of the components are readily available and can be connected with basic jump
 
 |Attached        |Pin  |Nano|Pin  |Attached        |
 |---------------:|----:|:--:|-----|----------------|
-|                |D13  |\-- |D12  |Keypad 8 (C4)   |
+|Passive Buzzer  |D13  |\-- |D12  |Keypad 8 (C4)   |
 |                |3V3  |\-- |D11  |Keypad 7 (C3)   |
 |                |Free |\-- |D10  |Keypad 6 (C2)   |
 |Lane1 lap sensor|A0   |\-- |D9   |Keypad 5 (C1)   |
 |Lane2 lap sensor|A1   |\-- |D8   |Keypad 4 (R4)   |
-|Pause Button    |A2   |\-- |D7   |Keypad 3 (R3)   |
-|Passive Buzzer  |A3   |\-- |D6   |Keypad 2 (R2)   |
+|Lane3 lap sensor|A2   |\-- |D7   |Keypad 3 (R3)   |
+|Lane4 lap sensor|A3   |\-- |D6   |Keypad 2 (R2)   |
 |LCD SDA         |A4   |\-- |D5   |Keypad 1 (R1)   |
 |LCD SCL         |A5   |\-- |D4   |LED CLK         |
-|                |A6   |\-- |D3   |LED CS          |
+|Pause Button    |A6   |\-- |D3   |LED CS          |
 |                |A7   |\-- |D2   |LED DIN         |
-|LCD 5V          |5V   |\-- |GND  |                |
+|                |5V   |\-- |GND  |                |
 |                |Reset|\-- |Reset|                |
 |                |GND  |\-- |Rx0  |                |
-|                |Vin  |\-- |Tx1  |                |
+|+5V             |Vin  |\-- |Tx1  |                |
 </div>  
 
 ![Wiring Diagram](Images/WiringDiagram1600x800.png)
