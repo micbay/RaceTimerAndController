@@ -80,9 +80,12 @@ const byte PRESTART_CLK_POS = 11;
 const byte PIN_TO_LED_DIN = 2;
 const byte PIN_TO_LED_CS = 3;
 const byte PIN_TO_LED_CLK = 4;
-// When more than 2 MAX7219s are chained each additional chip needs direct power supply.
-const byte LED_BAR_COUNT = 4; // # of attached max7219 controlled LED bars
-const byte LED_DIGITS = 8;            // # of digits on each LED bar
+// When more than 2 MAX7219s are chained, additional chips
+// may need direct power supply to avoid intermittent error.
+// # of attached max7219 controlled LED bars
+const byte LED_BAR_COUNT = 4;
+// # of digits on each LED bar
+const byte LED_DIGITS = 8;
 // LedControl parameters (DataIn, CLK, CS/LOAD, Number of Max chips (ie 8-digit bars))
 LedControl lc = LedControl(PIN_TO_LED_DIN, PIN_TO_LED_CLK, PIN_TO_LED_CS, LED_BAR_COUNT);
 
@@ -1566,8 +1569,6 @@ void setup(){
     lc.setIntensity(deviceID, 1);
     // Blank the LED digits
     lc.clearDisplay(deviceID);
-    // PrintSpanOfChars(displays(deviceID+1),0, 0, 7, 4);
-    // lc.setDigit(3, 6, 3, false);
   }
 
   // --- SETUP LAP TRIGGERS AND BUTTONS ----------------
