@@ -9,11 +9,13 @@ Download repository into a local folder with the same name as the contained `.in
 This is an Arduino based project that implements a functional race game controller that can be used for timed racing games. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
 
 In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate. The working demo of this project uses two paper clips integrated into a mechanical lap counter to create a simple, yet functional lap sensor.  
-![MainMenu](Images/Screenshots/Main_Menu.png)  
+![MainMenu](Images/ScreenShots/Main_Menu.png)  
 ![Wiring Diagram](Images/FullSystem.png)  
 ![Wiring Diagram](Images/Breadboard_4Racer.png)  
 
 The implementation shown here is immediately useable for 1-4 player racing games. The original application for this controller was slot car racing, as such, the controller was designed expecting a dedicated lane/gate for each racer. The down side of this, if attempting to adapt for drone racing, is that each racer needs a dedicated gate, but in turn, this also means that the racing object is irrelevant and does not need to communicate its identity.
+> ***Code Snippets in Readme** - the code snippets shown in this readme file are not meant to be cut and paste working examples. They are only illustrating the general setup and syntax for usage using the implementation in this project as a reference.*  
+> ***Note on Reference Sources** - All links are for reference only and are not to be taken as an endorsement of any particular component supplier. I attempt to reference official Arduino resources whenever possible, but this is also not an endorsment for or against using the Arduino store.*
 
 ### **Prerequisites**  
 This project involves a lot of different hardware and software concepts and implements some more intermediate to advanced code for Arduino.  
@@ -25,7 +27,6 @@ It is expected the reader understands how to use the Arduino IDE, connect wires,
 # **Hardware Configuration**  
 All of the components are readily available and can be connected with basic jumper leads or simple conductor and header pin soldering.
 > ***Note on Housing and Mechanical Interface** - This project only documents the functional electrical and software configuration. It can be wired, and used as illustrated for demonstration, however, for repeated, practical usage, the construction of a physical housing and the mechanical lane sensing interface are left up to the implementer to adapt to their specific use.*  
-> ***Note on Reference Sources** - All links are for reference only and are not to be taken as an endorsement of any particular component supplier. I attempt to reference official Arduino resources whenever possible, but this is also not an endorsment for or against using the Arduino store.*
 
 ## **Parts for Race Controller**  
 - [Arduino Nano](https://www.arduino.cc/en/pmwiki.php?n=Main/ArduinoBoardNano) (or equivalent microntroller module)
@@ -354,6 +355,63 @@ const static byte charTable [] PROGMEM  = {
 };
 ```
 
+<br>
+
+# **The Keypad**
+Using a full 4x4 membrane keypad is probably not needed for this project since we have pretty simple interface, but these are readily available for only a couple dollars and facilitate an easy to use and program UI.
+They do, however, require 8 pins, but because of our pin savings on the displays we have enough available.
+![Keypad](Images/Keypad.png)
+<br>
+
+## LED Libraries and Initialization in Code:  
+To handle working with the keypad input, we will use the aptly named [Keypad](https://www.arduino.cc/reference/en/libraries/keypad/) library. These buttons are not on an interrupt so they need to be poled to detect a keypress. In this application the game has a menu state and a race state. In the menu state, which is active while using the UI, it's not a problem to pole for a key press every loop, giving a very responsive interface.  
+During a race, the keypad is not used so the code does not pole for presses. When a race is paused, it will pole for an asterisk `*`, but stop again if the race is restarted.
+```cpp
+// Library to support 4 x 4 keypad
+#include <Keypad.h>
+
+//***** Declare KeyPad Variables *****
+// set keypad size
+const int KP_COLS = 4;
+const int KP_ROWS = 4;
+// Layout KeyMap
+char keys[KP_ROWS][KP_COLS] = {
+  {'1','2','3','A'},
+  {'4','5','6','B'},
+  {'7','8','9','C'},
+  {'*','0','#','D'}
+};
+// Establish the row pinouts, {Row1,Row2,Row3,Row4} => Arduino pins 5,6,7,8
+byte pin_rows[KP_ROWS] = {5,6,7,8};
+// Establish the column pinouts, {Col1,Col2,Col3,Col4} => Arduino pins 9,10,11,12
+byte pin_column[KP_COLS] = {9,10,11,12}; 
+// Declare keypad object
+Keypad keypad = Keypad( makeKeymap(keys), pin_rows, pin_column, KP_ROWS, KP_COLS );
+
+
+setup(){
+  --- some code ---
+}
+
+loop(){
+  // to pole the keypad for a button press
+  char key = keypad.getKey();
+
+  // Then to do something with it
+  switch(key){
+    case 'A':{
+      --- do something ---
+    }
+    break;
+    case 'B':{
+      --- do something else ---
+    }
+    break;
+    default:
+    break;
+  }
+}
+```
 
 <br>
 
@@ -657,7 +715,7 @@ const int takeOnMeLengths[] PROGMEM = {
 const int takeOnMeTempo = 160;
 const int takeOnMeSize = sizeof(takeOnMeNotes)/sizeof(int);
 ```
-## **Sources of tone() Array Melodies**
+## **Sources of `tone()` Array Melodies**
 [robsoncouto/arduino-songs](https://www.smssolutions.net/tutorials/smart/rtttl/) is probably the biggest library of songs in this format I found. These are written as a single array of interwoven note, length, note, length, pattern. However, they can be quickly be converted into the 2 array format, used in this project, by making a copy and using search-replace to replace a few, often repeated notes and durations with nothing.
 
 Otherwise, most available melodies in this format are one-off single song projects and must be searched for individually.
@@ -755,44 +813,48 @@ void loop(){
 # **Race Controller Operation**
 ## Main Menu
 When the controller boots up it will display the main menu screen. This is a small system, so the menu layer is only one layer deep from here. Pressing the corresponding keys on the attached keypad will navigate the menu structure and allow input for changing settings.
-![main menu](Images/Screenshots/Main_Menu.png)
+![main menu](Images/ScreenShots/Main_Menu.png)
 
 ---
 > **\* Asterisk Key**
->   - In all sub-menus, the '*' key will exit back to the main menu.
->   -During a live race, if the race is in the 'Paused' state, pressing `*` will end the race and open the **Top Results Menu**.
+>   - In all sub-menus, the `*` key will exit back to the main menu.
+>   - During a live race, if the race is in the 'Paused' state, pressing `*` will end the race and open the **Top Results Menu**.
 ---
 
 ## Main Menu -> A| Select Racers
-Pressing the `A` key, from the main menu will go to the **Select Racers Menu**. On this menu, selecting the key corresponding to the racer will cycle through the available names and play a sample of the victory song corresponding to the selected name.
+Pressing the `A` key, from the main menu will go to the **Select Racers Menu**. On this menu, selecting the key corresponding to the racer will cycle through the available names and play a sample of the victory song associated to the selected name.
   - Racer names and victory songs are a from a hard-coded list. Edit the list in software to change options. Remember that the timer LED bars will not display certain characters, when choosing racer names.
-  - Two racers cannot have the same name. To select a name used by anoter racer #, cycle the other racer # to a new name, then choose newly freed name.
+  - Two racers cannot have the same name.
   - **Disabled Lanes** - If a lane sensor is disabled then it will show up as `-Off-` in the Select Racers menu. To select a name for a disabled racer, go to the **Settings Menu**, and enable the desired lanes, then return to this menu.
 
-![Racers menu](Images/Screenshots/SelectRacers_Menu.png)
+![Racers menu](Images/ScreenShots/SelectRacers_Menu.png)
 
 ## Main Menu -> B| Change Settings
-Pressing the `B` key, from the main menu will bring up the **Settings Menu**. On this menu the general race settings can be adjusted. These include:
-- Press `A`, to activate edit, then use keypad numbers to enter mm:ss. Race time is only used in a 'Timed' race type, where the winner is the one who finishes the most laps in the set amount of time.
-- Press `B`, to activate edit, then enter the number of laps. This setting is only used by the 'Standard' race type where the first to finish the set number of laps is the winner.
-- Pressing `1-4` will toggle the enabled status of the give lane/racer number.
-- Pressing `0` will disable all of the lanes/racers.
+Pressing the `B` key, from the main menu will bring up the **Settings Menu**. On this menu the general race settings can be adjusted.
+- **Change Race Time** - Press `A`, to activate edit mode, then use keypad numbers to enter mm:ss. Race time is only used in a 'Timed' race type, where the winner is the one who finishes the most laps in the set amount of time.
+- **Change Laps to Finish** - Press `B`, to activate edit, then enter the number of laps. This setting is only used by the 'Standard' race type where the first to finish the set number of laps is the winner.
+- **Enable/Disable Lanes** - Pressing `1-4` will toggle the enabled status of the give lane/racer number. Pressing `0` will disable all of the lanes/racers.
 - Press `*` to return to main menu.
 
 ![Settings Menu](Images/ScreenShots/Settings_Menu.png)
 
 ## Main Menu -> C| Start a Race
 Pressing `C` from the Main Menu will bring up the **Race Start Menu**. From this menu we can start one of the two types of races.
-  - Pressing `A` will begin a 'Standard', first to finish X laps race.
-  - Pressing `B` will begin a 'Timed', most laps before time runs out race.
+  - Pressing `A` will begin a 'Standard', first to finish X laps, race.
+  - Pressing `B` will begin a 'Timed', most laps before time runs out, race.
   - Pressing `D` to activate edit, then use number pad to change the number of seconds the pre-start countdown lasts (0-30).
 
 ![Start Race Menu](Images/ScreenShots/StartRace_Menu.png)
 
-
+## Pre-Start Countdown
+When a race is started it begins with a pre-start countdown. This countdown gives racers time to get to postions before the race begins.
 ![Prestart Menu](Images/ScreenShots/PrestartCountdown.png)
+During the final 3 seconds of the countdown the remaining seconds will be displayed on the individual racer's LED bars. Once the pre-start countdown expires, the racer's timers will display `Start`. Though the overall race time begins immediately, timing of each racer's first lap won't begin until they cross the start line for the first time.
 
+![Prestart LEDs](Images/PreStart_Countdown.png)
 
+## Live Race Leader Board
+During the race the main display will show the live Leader board on which is the running race time, the current 1st-3rd place lap count and racer names, and the current overall fastest lap time and racer who achieved it.
 ![Leader Board Menu](Images/ScreenShots/LiveLeaderBoard.png)
 
 
@@ -801,13 +863,19 @@ Pressing `D` from the Main Menu will bring up the **Results Menu**. Initially, o
 
 ![No Results Menu](Images/ScreenShots/NoResults_Menu.png)
 
+After a race has finished (or paused and stopped), and lap data for racers exists, entering the Results Menu will give access to the lap time data recorded from the last race.
+
 ![Top Results Menu](Images/ScreenShots/TopResults_Menu.png)
 
+Due to memory limits, depending how long a race is, we cannot store data for every lap of every racer. Instead we keep a running record of just the top X fastest laps for each racer. Currently this is set to 10 laps. Implementers can feel free to adjust the `fastestQsize` variable to shorten or lengthen the stored lap data count.
 
 ![Racer1 Results Menu](Images/ScreenShots/Racer1Results_Menu.png)
 
+Pressing `A` or `B` on any of the fastest lap lists will scroll up or down the list respectively.
+
+![Top Results Scrolled](Images/ScreenShots/TopResults_ScrolledDown_Menu.png)
+
+Pressing `C` will cycle through the available results sub-menus. There is a results list page for the top overall laps, a page for each racer's individual top laps, and a page that displays the final leader board.
 
 ![Finish Results Menu](Images/ScreenShots/FinishResults_Menu.png)
-
-
 
