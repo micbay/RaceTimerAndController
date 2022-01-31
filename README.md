@@ -423,7 +423,7 @@ This readme would never end if it got into every kind of sensor that can be adap
 
 This fits nicely with the port register interrupts to give a reliable, repeatable, trigger. Because our contact time is much longer than our interrupt function, and we can read simultaneous contacts of all racers, we'll never miss a lap. Even if there is a tie, or if a racer is in the interrupt when another initiates its own triggering contact.
 
-[Paperclip Sensor In Action Video](Images/PaperClip_LapSensor.mp4)
+[Paperclip Sensor In Action Video](Images/PaperClip_LapSensor_x264.mp4)
 
 ![Rigged Lap Counter](Images/RiggedMechancialLapCounter.png)
 ![Rigged Lap Counter](Images/pcswitch_withcar1.png)
