@@ -358,12 +358,12 @@ const static byte charTable [] PROGMEM  = {
 <br>
 
 # **The Keypad**
-Using a full 4x4 membrane keypad is probably not needed for this project since we have pretty simple interface, but these are readily available for only a couple dollars and facilitate an easy to use and program UI.
+Using a full 4x4 membrane keypad is probably not needed for this project since we have pretty simple interface, but these are readily available for only a couple dollars and facilitate an easy to use, and program UI.
 They do, however, require 8 pins, but because of our pin savings on the displays we have enough available.
 ![Keypad](Images/Keypad.png)
 <br>
 
-## LED Libraries and Initialization in Code:  
+## Keypad Library and Initialization in Code:  
 To handle working with the keypad input, we will use the aptly named [Keypad](https://www.arduino.cc/reference/en/libraries/keypad/) library. These buttons are not on an interrupt so they need to be poled to detect a keypress. In this application the game has a menu state and a race state. In the menu state, which is active while using the UI, it's not a problem to pole for a key press every loop, giving a very responsive interface.  
 During a race, the keypad is not used so the code does not pole for presses. When a race is paused, it will pole for an asterisk `*`, but stop again if the race is restarted.
 ```cpp
@@ -412,6 +412,23 @@ loop(){
   }
 }
 ```
+
+<br>
+
+# **Lap/Gate Sensing**
+This project was originally designed for a lane based racing environment. As such it has dedicated the 4 pins from `A0-A3` as lap trigger inputs. A triggering signal on any given pin is counted as a lap for the associated racer.
+
+## **Example Integration - Converting Mechanical Lap Counter**
+This readme would never end if it got into every kind of sensor that can be adapted for this input. In my case I have a mechanical lap counter that I added two paper clips to act as contacts, creating a triggering connection every time the mechanical switch in the track is flipped. It's easy to bend the paperclips such that they have a nice, relatively long, solid contact period.
+
+This fits nicely with the port register interrupts to give a reliable, repeatable, trigger. Because our contact time is much longer than our interrupt function, and we can read simultaneous contacts of all racers, we'll never miss a lap. Even if there is a tie, or if a racer is in the interrupt when another initiates its own triggering contact.
+
+[Paperclip Sensor In Action Video](Images/PaperClip_LapSensor.mp4)
+
+![Rigged Lap Counter](Images/RiggedMechancialLapCounter.png)
+![Rigged Lap Counter](Images/pcswitch_withcar1.png)
+![Rigged Lap Counter](Images/pcswitch_withcar2.png)
+![Rigged Lap Counter](Images/pcswitch_withcar3.png)
 
 <br>
 
@@ -869,13 +886,12 @@ After a race has finished (or paused and stopped), and lap data for racers exist
 
 Due to memory limits, depending how long a race is, we cannot store data for every lap of every racer. Instead we keep a running record of just the top X fastest laps for each racer. Currently this is set to 10 laps. Implementers can feel free to adjust the `fastestQsize` variable to shorten or lengthen the stored lap data count.
 
-![Racer1 Results Menu](Images/ScreenShots/Racer1Results_Menu.png)
-
 Pressing `A` or `B` on any of the fastest lap lists will scroll up or down the list respectively.
 
 ![Top Results Scrolled](Images/ScreenShots/TopResults_ScrolledDown_Menu.png)
 
 Pressing `C` will cycle through the available results sub-menus. There is a results list page for the top overall laps, a page for each racer's individual top laps, and a page that displays the final leader board.
 
+![Racer1 Results Menu](Images/ScreenShots/Racer1Results_Menu.png)
 ![Finish Results Menu](Images/ScreenShots/FinishResults_Menu.png)
 
