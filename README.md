@@ -787,27 +787,27 @@ Pressing `C` from the Main Menu will bring up the **Race Start Menu**. From this
   - Pressing `B` will begin a 'Timed', most laps before time runs out race.
   - Pressing `D` to activate edit, then use number pad to change the number of seconds the pre-start countdown lasts (0-30).
 
-![Settings Menu](Images/ScreenShots/StartRace_Menu.png)
+![Start Race Menu](Images/ScreenShots/StartRace_Menu.png)
 
 
-![Settings Menu](Images/ScreenShots/PrestartCountdown.png)
+![Prestart Menu](Images/ScreenShots/PrestartCountdown.png)
 
 
-![Settings Menu](Images/ScreenShots/LiveLeaderBoard.png)
+![Leader Board Menu](Images/ScreenShots/LiveLeaderBoard.png)
 
 
 ## Main Menu -> D| See Results  
 Pressing `D` from the Main Menu will bring up the **Results Menu**. Initially, on bootup, before a race is run there are no results to display.
 
-![Settings Menu](Images/ScreenShots/NoResults_Menu.png)
+![No Results Menu](Images/ScreenShots/NoResults_Menu.png)
 
-![Settings Menu](Images/ScreenShots/TopResults_Menu.png)
-
-
-![Settings Menu](Images/ScreenShots/Racer1Results_Menu.png)
+![Top Results Menu](Images/ScreenShots/TopResults_Menu.png)
 
 
-![Settings Menu](Images/ScreenShots/FinishResults_Menu.png)
+![Racer1 Results Menu](Images/ScreenShots/Racer1Results_Menu.png)
+
+
+![Finish Results Menu](Images/ScreenShots/FinishResults_Menu.png)
 
 
 
