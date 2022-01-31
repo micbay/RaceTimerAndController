@@ -769,7 +769,7 @@ Pressing the `A` key, from the main menu will go to the **Select Racers Menu**. 
   - Two racers cannot have the same name. To select a name used by anoter racer #, cycle the other racer # to a new name, then choose newly freed name.
   - **Disabled Lanes** - If a lane sensor is disabled then it will show up as `-Off-` in the Select Racers menu. To select a name for a disabled racer, go to the **Settings Menu**, and enable the desired lanes, then return to this menu.
 
-![main menu](Images/Screenshots/SelectRacers_Menu.png)
+![Racers menu](Images/Screenshots/SelectRacers_Menu.png)
 
 ## Main Menu -> B| Change Settings
 Pressing the `B` key, from the main menu will bring up the **Settings Menu**. On this menu the general race settings can be adjusted. These include:
