@@ -1168,8 +1168,6 @@ void ToggleRacePause(){
   // Check the debounce
   if (logMillis - pauseDebounceMillis > debounceTime){
     Beep();
-    // Reset debounce timestatmp
-    pauseDebounceMillis = logMillis;
     switch(state){
       // if currently in a 'Race' state, then put in 'Paused' state
       case Race: {
@@ -1192,6 +1190,9 @@ void ToggleRacePause(){
           startMillis[i] = logMillis;
           currentTime[i] = 0;
         }
+        // Adjust race clock start time to ignore the paused period
+        // The pauseDebounceMillis also works as a timestamp for the start of the pause.
+        startMillis[0] = startMillis[0] + (logMillis - pauseDebounceMillis);
         // Re-enable pins on active lanes.
         EnablePinInterrupts(true);
       }
@@ -1200,6 +1201,8 @@ void ToggleRacePause(){
       default:
       break;
     } // END switch
+    // Reset debounce timestatmp
+    pauseDebounceMillis = logMillis;
   } // END debounce if
 } // END Toggle Pause ()
 
@@ -2065,6 +2068,8 @@ void loop(){
                   UpdateNameOnLED(i);
                   // Turn off lap trigger interrupt of finished lane.
                   clearPCI(laneSensorPin[i]);
+                  // Stop any currently playing song
+                  stopPlayRtttl();
                   // Play finishing song of racer
                   startPlayRtttlPGM(buzzPin1, victorySong[i]);
                 }
@@ -2092,6 +2097,8 @@ void loop(){
                 }
               }
               finishedLaneCount = laneCount;
+              // Stop any currently playing song
+              stopPlayRtttl();
               // Play finishing song of 1st place racer.
               startPlayRtttlPGM(buzzPin1, victorySong[leaderBoard[0][1]]);
               Finish();

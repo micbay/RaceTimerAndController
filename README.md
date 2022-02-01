@@ -1,13 +1,16 @@
-Download repository into a local folder with the same name as the contained `.ino` to use as an Arduino sketch.
+Download this repository into a local folder with the same name as the contained `.ino` to use as an Arduino sketch.
+
+### [This video](https://youtu.be/n0GLdoQ6pg4) provides a live use demonstration of the example implementation described below.
 
 ---
 
 <br>
 
 # **Arduino Race Timer and Lap Gate Controller**
-This is an Arduino based project that implements a functional race game controller that can be used for timed racing games. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
+This is an Arduino based project that implements an inexpensive, reliable, race game controller that can be used for timed racing games. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
 
-In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate. The working demo of this project uses two paper clips integrated into a mechanical lap counter to create a simple, yet reliable lap sensor.  
+In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate. The working demo of this project uses two paper clips integrated into a mechanical lap counter to create a simple, yet effective lap sensor.
+
 ![MainMenu](Images/ScreenShots/Main_Menu.png)  
 ![Wiring Diagram](Images/FullSystem.png)  
 ![Wiring Diagram](Images/Breadboard_4Racer.png)  
@@ -587,7 +590,7 @@ This readme would never end if it got into every kind of sensor that can be adap
 
 This fits nicely with the port register interrupts to give a reliable, repeatable, trigger. Because our contact time is much longer than our interrupt function, and we can read simultaneous contacts of all racers, we'll never miss a lap. Even if there is a tie, or if a racer is in the interrupt when another initiates its own triggering contact.
 
-[Paperclip Sensor In Action Video](Images/PaperClip_LapSensor_x264.mp4)
+[Paperclip Sensor In Action](https://youtu.be/n0GLdoQ6pg4?t=135)
 
 ![Rigged Lap Counter](Images/RiggedMechancialLapCounter.png)
 ![Rigged Lap Counter](Images/pcswitch_withcar1.png)
@@ -598,8 +601,9 @@ This fits nicely with the port register interrupts to give a reliable, repeatabl
 
 # **The Pause Button**  
 A pause button is included in this project to provide a means to temporarily suspend a race in progress and either quite, or restart when racers are ready to proceed.  
-- Pressing the pause button a second time will return the race from a 'Paused' state to the 'Race' state.
-- Pressing the aterisk `*` key while in the pause state will end the race and return the program to the 'Menu' state.
+- Pressing the pause button the first time will put the race into the `Paused` state.
+- Pressing the pause button a second time will return the race from the `Paused` state to the `Race` state.
+- Pressing the aterisk `*` key while in the `Paused` state will end the race and return the program to the `Menu` state.
 
 A restart is the same as an intial race start except that each racer will be on the lap count they left off with. Each racer must cross the start line to re-initiate the timing of the incomplete lap they were last on.
 
@@ -608,7 +612,7 @@ A restart is the same as an intial race start except that each racer will be on 
 ## **Using A6 as a Button**
 The only pins left available for the Pause button are A6 or A7. These pins are different than all the others, they do not have internal pull-up resistors and can only be used as an analog input.
 
-In order to use them as a button trigger we must add our own external Pull-Up resistor in the hardware wiring as explained in [this article](https://roboticsbackend.com/arduino-input_pullup-pinmode/). To detect a press we must then pole the button's analog input value. If the value is lower than a set threshold then we consider it pressed.
+In order to use them as a button trigger we must add our own external Pull-Up resistor in the hardware wiring as explained in [this article](https://roboticsbackend.com/arduino-input_pullup-pinmode/). Like the keypad, to detect a press we must then pole the button. In this case, since it's not digital, we must asses the analog input value. If the value is lower than a set threshold then we consider it pressed.
 
 ```cpp
 const byte pauseStopPin = PIN_A6;
