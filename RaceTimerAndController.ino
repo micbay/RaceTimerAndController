@@ -406,7 +406,7 @@ const char* const FinishPlaceText[5] PROGMEM = {
 
 // Reviews lane status array and updates the settings menu.
 // Run after a settings change.
-void lcdPrintLaneSettings(){
+void PrintLaneSettings(){
   for(int i = 1; i <= laneCount; i++){
     lcd.setCursor(10+ 2 * i, 3);
     // Something with the lcd.print() doesn't work to use a ternery to assess this.
@@ -1118,17 +1118,17 @@ ISR (PCINT1_vect) {
 
         default:{
           // If lane is 'Off' then ignore it. It should not have been possible to trigger.
-          // The interrupt hardware should not be active on 'Off' lanes. 
+          // An interrupt should not be enabled on 'Off' lanes. 
         }
         break;
       } // END of lane status switch
     } // END if triggeredPin & 1
 
-    // shift to the next bit and iterate PINC byte index.
+    // Shift to the next bit and iterate PINC byte index.
     triggeredPins = triggeredPins >> 1;
     laneNum++;
 
-  } // END of, for loop, checking each digit, loop
+  } // END of While Loop checking each digit
 
   // MICROTIMING code
   // timeTest[timeTestCount] = micros() - logMicros;
@@ -1536,7 +1536,7 @@ void setup(){
   /*
   NOTE: Serial port is only used in debugging at the moment.
   The while loop waits for the serial connection to be established
-  before moving on so we don't miss anything. If the Arduion seems to
+  before moving on so we don't miss anything. If the Arduino seems to
   'hang', this may be the culprit if there is a connection issue.
   */
   // Open port and wait for connection before proceeding.
@@ -1566,7 +1566,7 @@ void setup(){
     // The MAX72XX is in power-saving mode on startup
     lc.shutdown(deviceID, false);
     // intensity range from 0-15, higher = brighter
-    lc.setIntensity(deviceID, 1);
+    lc.setIntensity(deviceID, 8);
     // Blank the LED digits
     lc.clearDisplay(deviceID);
   }
@@ -1606,6 +1606,7 @@ void setup(){
 void loop(){
   // Serial.println("MAIN LOOP START");
   // Serial.println(state);
+  // This function is required to be called every loop to facilitate non-blocking audio.
   updatePlayRtttl();
   // ----- enable if using melody arrays ----------
   // if(melodyPlaying){
@@ -1618,11 +1619,13 @@ void loop(){
   //   }
   // }
   // --------------------------------
+
+  // The main loop is driven by switching between states and substates.
   switch (state) {
     // Serial.println("Entered Stat Switch");
-    // In the 'Menu' state the program is focused on looking for keypad input
-    // and using that keypad input to navigate the menu tree and adjust settings.
     case Menu:{
+      // In the 'Menu' state the program is focused on looking for keypad input
+      // and using that keypad input to navigate the menu tree and adjust settings.
       // Serial.println("entering Menu STATE");
       char key = keypad.getKey();
       // Only if a press is detected or it is the first loop of a new state
@@ -1634,7 +1637,6 @@ void loop(){
         // This means these interrupts get disabled on every new menu, but keeps things simpler.
         if (entryFlag) {
           EnablePinInterrupts(false);
-          // clearPCI(pauseStopPin);
         }
         // All of the menus and sub-menus should been flattened to this single switch
         switch (currentMenu) {
@@ -1682,7 +1684,7 @@ void loop(){
               // Lap count
               PrintNumbers(raceLaps, 3, 16, lcdDisp, true, 2);
               // Lane's Enabled
-              lcdPrintLaneSettings();
+              PrintLaneSettings();
               // Update Racer LED Displays
               UpdateAllNamesOnLEDs();
               entryFlag = false;
@@ -1691,9 +1693,9 @@ void loop(){
               // TIME
               case 'A':{
                 // Change minutes
-                raceSetTime[1] = lcdEnterNumber(2, 60, 1, 13);
+                raceSetTime[1] = EditNumber(2, 60, 1, 13);
                 // Change seconds
-                raceSetTime[0] = lcdEnterNumber(2, 59, 1, 16);
+                raceSetTime[0] = EditNumber(2, 59, 1, 16);
                 // update the race time in ms
                 raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
               }
@@ -1701,13 +1703,13 @@ void loop(){
               // LAP
               case 'B':{
                 // change lap count
-                raceLaps = lcdEnterNumber(3, 999, 2, 14);
+                raceLaps = EditNumber(3, 999, 2, 14);
               }
               break;
               // SECONDS
               case 'C':{
                 // change seconds
-                raceSetTime[0] = lcdEnterNumber(2, 59, 1, 16);
+                raceSetTime[0] = EditNumber(2, 59, 1, 16);
                 // update the race time in ms
                 raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
               }
@@ -1717,7 +1719,7 @@ void loop(){
               case '0' ... '4':{
                 ToggleLaneEnable(key - '0');
                 // Update LCD with change
-                lcdPrintLaneSettings();
+                PrintLaneSettings();
                 // Update racer displays
                 UpdateAllNamesOnLEDs();
               }
@@ -1740,11 +1742,12 @@ void loop(){
               UpdateLCDMenu(SelectRacersText);
               // Write all current racer names to LCD
               for(byte i = 1; i <= laneCount; i++){
+                // If the lane is disabled
                 if(laneEnableStatus[i] == 0){
                   // Print Skull icon
                   lcd.setCursor(nameEndPos - 10, i - 1);
                   lcd.write(3);
-                  // Then print disabled lane name (ie. '-Off-')
+                  // Then print disabled lane label (ie. '-Off-')
                   PrintText(Racers[0], lcdDisp, nameEndPos, 9, false, i - 1);
                   // and another skull
                   lcd.setCursor(nameEndPos - 7 + strlen(Racers[laneRacer[0]]), i - 1);
@@ -1760,10 +1763,10 @@ void loop(){
               case 'A' ... 'D':{
                 byte laneNumber = key - 'A' + 1;
                 if(laneEnableStatus[laneNumber]){
-                  // Cycle to next racer name, if we reach the end of list start back at 1 not 0.
-                  // The zero index is reserved for the 'DISABLED' label.
+                  // Cycle to next racer name, if end of list, start back at 1 not 0.
+                  // The zero index is reserved for the disabled lane label.
                   laneRacer[laneNumber] = IndexRacer(laneNumber);
-                  // Update LCD
+                  // Update LCD with new racer name
                   PrintText(Racers[ laneRacer[laneNumber] ], lcdDisp, nameEndPos, 11, false, laneNumber-1);
                   // Update Racer's LED
                   PrintText(Racers[ laneRacer[laneNumber] ], displays(laneNumber), 7, 8);
@@ -1787,7 +1790,7 @@ void loop(){
 
           case StartRaceMenu: {
             if (entryFlag) {
-              //draw non-editable text
+              // Draw non-editable text
               UpdateLCDMenu(StartRaceText);
               // Print set LAPS #
               PrintNumbers(raceLaps, 3, 13, lcdDisp, true, 0);
@@ -1810,12 +1813,12 @@ void loop(){
               }
               break;
               case 'D': {
-                // change how long the preStartCountDown before the race start lasts
-                preStartCountDown = lcdEnterNumber(2, 30, 3, 13);
+                // Change duration of pre-race countdown.
+                preStartCountDown = EditNumber(2, 30, 3, 13);
               }
               break;
               case '*': {
-                // return to main menu
+                // Return to main menu
                 currentMenu = MainMenu;
                 entryFlag = true;
               }
@@ -1862,8 +1865,7 @@ void loop(){
                 // otherwise garbage will be displayed on screen
                 if(raceDataExists) {
                   // Index results menu to next racer.
-                  // Currently does not skip 'disabled' data pages.
-                  // %(laneCount+2) to account for top results and leader board pages.
+                  // The +2 is to account for top results and leader board pages.
                   resultsMenuIdx = (resultsMenuIdx + 1) % (laneCount + 2);
                   // Reset row index to 0 so new list starts at the top
                   resultsRowIdx = 0;
@@ -1875,7 +1877,7 @@ void loop(){
               }
               break;
               case '*':{
-                // return to MainMenu
+                // Return to MainMenu
                 currentMenu = MainMenu;
                 entryFlag = true;
               }
@@ -1890,8 +1892,10 @@ void loop(){
         }; // END of Menu switch
       }; // END of if key pressed wrap
     } // END of Menu State
-    break; 
+    break;
 
+    // The 'Race' state manages the active race.
+    // Keypad entry is not poled while in the 'Race' state.
     case Race:{
       curMillis = millis();
       // First cycle initialization of race PRE-START countdown phase.
@@ -1909,7 +1913,7 @@ void loop(){
       // First cycle initialization of RACE and signalling of START.
       if (entryFlag && !preStart) {
         // Set race time to 0:00 and race start timestamp to current loop's timestamp.
-        // If laps exist we are returning from 'Pause' so don't reset main race time.
+        // If laps exist, returning from 'Pause', so don't reset main race time.
         bool lapsExist = false;
         for(byte k = 1; k <= laneCount; k++){
           if(lapCount[k] > 0) {
@@ -1923,7 +1927,7 @@ void loop(){
           lcd.clear();
         }
         // If Lane is in StandBy, write 'Start' signal to racer LED displays.
-        // If lane 'Off' then write disabled label found in Racers[0], if 'Finished', do nothing.
+        // If lane is disabled, then write disabled label found in Racers[0], if 'Finished', do nothing.
         for(byte i = 1; i <= laneCount; i++){
           if(laneEnableStatus[i] == StandBy){
             PrintText(Start, displays(i), 7, 8, true, 0, true);
@@ -1933,14 +1937,7 @@ void loop(){
           // Set flash status to initial, do nothing state.
           flashStatus[i] = 0;
         }
-        // // Write static text to main LCD for live race screen
-        // lcd.setCursor(15, 0);
-        // lcd.print("Best");
-        // // Draw vertical bars seperating leader list from best lap.
-        // for(byte row; row <= LCD_ROWS; row++){
-        //   lcd.setCursor(12, row);
-        //   lcd.print("|");
-        // }
+        // Write static text to main LCD for live race screen
         PrintLeaderBoard(false);
         // Turn on interrupts for enabled lane pins,
         // this act enables the racers to trigger first lap.
@@ -1987,7 +1984,7 @@ void loop(){
 
         // For each possible lane check its status and process the data and displays accordingly.
         for(byte i = 1; i <= laneCount; i++){
-
+          // Only bother to process lanes with 'Active' status.
           if(laneEnableStatus[i] == Active) {
             // Update running time for lane.
             currentTime[i] = curMillis - startMillis[i];
@@ -2058,11 +2055,13 @@ void loop(){
             // Check if any Active lanes have since finished.
             for(byte i = 1; i <= laneCount; i++){
               if(laneEnableStatus[i] == Active){
-                // If the a lanes's current lapCount is greater than the raceLaps that means
-                // they have finished the race. lapCount when 'Active' is +1 of finsished laps.
+                // If a lanes's current lapCount is greater than the raceLaps that means
+                // they have finished the race. lapCount of an 'Active' lane, is +1 of finsished laps.
                 if(lapCount[i] > raceLaps){
+                  // Change racer's status to finished
                   laneEnableStatus[i] = Finished;
                   finishedLaneCount++;
+                  // Update the racer's LED display with their finishing place.
                   UpdateNameOnLED(i);
                   // Turn off lap trigger interrupt of finished lane.
                   clearPCI(laneSensorPin[i]);
@@ -2120,7 +2119,10 @@ void loop(){
       // Serial.println("Entered Paused state"); 
       if(entryFlag){
         for(byte i = 1; i <= laneCount; i++){
-          // If still racing, pause screen, don't affect finished or disabled lanes.
+          // If just entering pause state, update racer's LEDs.
+          // Only update enabled, not finished, lanes (aka lanes in StandBy).
+          // The ToggleRacePause() function has already changed the enabled
+          // lanes that were 'Active' to 'StandBy'.
           if(laneEnableStatus[i] == StandBy) PrintText("PAUSE", displays(i), 7, 5, true, 0, false);
         }
         // Turn entry flag off for next loop
@@ -2156,6 +2158,8 @@ void loop(){
 } // END of MAIN LOOP
 // ********************************************************
 // ********************************************************
+
+
 
 // function to execute common steps at end of race.
 void Finish(){
@@ -2225,7 +2229,7 @@ int ipow(int base, int exp){
 // This function handles user input of values on the lcd. Once this function is entered, 
 // it continues to monitor keypad until the user enters enough digits.
 // This funcion writes the input directly to the lcd then returns the entered number
-int lcdEnterNumber(int digits, int maxValue, int line, int cursorPos){
+int EditNumber(int digits, int maxValue, int line, int cursorPos){
   byte digitsOG = digits;
   // char inputNumber[digits];
   int inputNumber[digits];
@@ -2256,10 +2260,10 @@ int lcdEnterNumber(int digits, int maxValue, int line, int cursorPos){
         inputNumber[digits] = keyIN - '0';
         // Serial.println("inputNumber digit");
         // Serial.println(inputNumber[digits]);
-        break;
       }
+      break;
       default:
-        break;
+      break;
     }
     if (digits == 0){
       done = true;

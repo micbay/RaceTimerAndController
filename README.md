@@ -2,13 +2,12 @@ Download repository into a local folder with the same name as the contained `.in
 
 ---
 
-
-# **<span style="color:red;font-size:72px"> -- README IN DRAFT -- </span>**
+<br>
 
 # **Arduino Race Timer and Lap Gate Controller**
 This is an Arduino based project that implements a functional race game controller that can be used for timed racing games. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
 
-In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate. The working demo of this project uses two paper clips integrated into a mechanical lap counter to create a simple, yet functional lap sensor.  
+In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate. The working demo of this project uses two paper clips integrated into a mechanical lap counter to create a simple, yet reliable lap sensor.  
 ![MainMenu](Images/ScreenShots/Main_Menu.png)  
 ![Wiring Diagram](Images/FullSystem.png)  
 ![Wiring Diagram](Images/Breadboard_4Racer.png)  
@@ -20,24 +19,24 @@ The implementation shown here is immediately useable for 1-4 player racing games
 ### **Prerequisites**  
 This project involves a lot of different hardware and software concepts and implements some more intermediate to advanced code for Arduino.  
 However, I have endevored to explain what I understand, in enough detail that someone with almost no experience can still implement and even modify to their own use.
-It is expected the reader understands how to use the Arduino IDE, connect wires, and program boards. To get up to speed on those basics, there are many great resources from [Arduino](https://www.arduino.cc/en/Guide) and around the web, covering these topics exhaustively.
+It is expected the reader understands how to use the Arduino IDE, connect wires, and program boards. To get up to speed on those basics, there are many great resources from [Arduino](https://www.arduino.cc/en/Guide) and around the web, covering them exhaustively.
 
 <br>
 
 # **Hardware Configuration**  
 All of the components are readily available and can be connected with basic jumper leads or simple conductor and header pin soldering.
-> ***Note on Housing and Mechanical Interface** - This project only documents the functional electrical and software configuration. It can be wired, and used as illustrated for demonstration, however, for repeated, practical usage, the construction of a physical housing and the mechanical lane sensing interface are left up to the implementer to adapt to their specific use.*  
+> ***Note on Housing and Mechanical Interface** - This project only documents the functional electrical and software configuration. It can be wired, and used as illustrated for demonstration, however, for repeated, practical usage, the construction of a permanant housing, and mechanical trigger interface, is left up to the implementer to develop per their unique setup.*  
 
 ## **Parts for Race Controller**  
 - [Arduino Nano](https://www.arduino.cc/en/pmwiki.php?n=Main/ArduinoBoardNano) (or equivalent microntroller module)
 - [4 x 4 membrane keypad](https://duckduckgo.com/?q=4+x+4+membrane+keypad)
 - [LCD2004 4 row x 20 character display](https://duckduckgo.com/?q=LCD2004A+4+x+20+I2C+backpack), with [I2C backpack](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
 - 2-4 Chainable, [8-digit, 7-segment LED bar with integrated MAX7219](https://duckduckgo.com/?q=8-digit%2C+7-segment+LED+display)
-- +5V Passive Buzzer or speaker
+- Passive Buzzer or speaker
   - The 7-seg LEDs induced a hum on my buzzer, I used a diode on one lead to eliminate it.
-- 2-4 lap sensors/switches/buttons
+- 2-4 Analog or digital lap sensors/switches/buttons
 - 1 momentary button for in game pause and restart
-  - 10k Ohm Pull-Up resistor
+  - 10k Ohm Pull-Up resistor to adapt button for analog input on A6
 - Jumper leads to wire connections between peripherals & Arduino
 
 ## **PinOut Diagram for Wiring Arduino Nano**
@@ -67,6 +66,7 @@ All of the components are readily available and can be connected with basic jump
 
 ## **Power Supply (+5V)**  
 All devices in this build are powered from a +5V source. The displays should draw power from the source supply and not through the Arduino which cannot support enough current to run everything without flickering.
+
 > ***Powering MAX7219 LED Bars** - Power for these can be daisy chained for the first 2 bars, but cascading 3 or more may require running the power directly to each subsequent display bar, but always keep all the signal lines daisy chained.*
 
 > ***<span style="color:yellow"> Connect Arduino GND to external ground reference </span>** - Like many projects with higher power demands, this one uses an external power supply to get enough current for the dipslays; during development and programming, we will often have the USB plugged in as well. If we do not connect the Arduino GND to the power supply ground we run the risk of a reference mismatch that can cause intermittent errors, or the device to not work at all.  
@@ -89,12 +89,12 @@ The game controller code uses non-blocking techniques with port register interru
 <br>
 
 # **The Main Display (LCD2004 + I2C Backpack)**  
-For the main display that provides the user interface, we are using a 4 row x 20 character LCD. LCD character displays are readily available in 2 or 4 rows, of 16 or 20 characters, fairly inexpensive, and simply to use. A 4 row x 20 character LCD display is the biggest commonly available, and is big enough to fit understandable menus and output for this application.  
+For the main display that provides the user interface, the project uses a 4 row x 20 character LCD. LCD character displays are readily available in 2 or 4 rows, of 16 or 20 characters, fairly inexpensive, and simply to use. A 4 row x 20 character LCD display is the biggest commonly available, and is big enough to fit understandable menus and output for this application.  
 In addition to providing the setup interface, the main display will also display a live leaderboard during a race. Hoewever, it's much too small to be used as a spectator display from a distance.
 
 > ***LCD Part Numbers:** these types of character LCDs usually follow a Part Number pattern of 'LCDccrr', where rr = number of rows, and cc = the number of characters wide it is. (ie. LCD2004 = 4rows of 20ch).*
 
-This display can be controlled directly using 13 Arduino pins. However, it is common to add a small 'backpack' board that will allow us to control these via I2C instead. This reduces the number of signal pins from 13 to just 2. This addition is so prevalent that most LCDs of this type, sold for use with Arduino, have an I2C backpack included.
+This display can be controlled directly using 13 Arduino pins. However, it is common to add a small 'backpack' board that will allow us to control it via I2C instead. This reduces the number of signal pins from 13 to just 2. This addition is so prevalent that most LCDs of this type, sold for use with Arduino, have an I2C backpack included.
 
 [![I2C PinsImage](Images/LCD2004%20I2C%20backpack.png)](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
 
@@ -129,6 +129,7 @@ hd44780_I2Cexp lcd;
 const byte LCD_COLS = 20;
 const byte LCD_ROWS = 4;
 
+
 void setup(){
   --- other code ---
   // --- SETUP LCD DIPSLAY -----------------------------
@@ -141,7 +142,17 @@ void setup(){
   lcd.clear();
   --- other code ---
 }
---- remaining program ---
+
+void loop(){
+  --- other code ---
+
+  // To write to the lcd, set the cursor position (col#, row#)
+  lcd.setCursor(0, 0);
+  // Then print the characrters or numbers
+  lcd.print("Text to write");
+
+  --- other code ---
+}
 ```
 
 <br>
@@ -218,7 +229,9 @@ As with the LCD, we could drive each LED directly from the Arduino, but the numb
 
 ## **The MAX7219 Serial LED Driver:**
 ### **Use Serial LED Driver to Minimize Pin Count**  
-Luckily, our pin problem can be overcome by using a chip like the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), which can drive up to 64 LEDs while requiring only 3 signal pins from the Arduino. As such, it's common to find pre-assembled 7-segment LED bars having 4, or 8 digits, with an integrated MAX7219, like the one shown here. We'll use one of these 8 digit MAX7219 LED packages, as a lap timer, for each racer.
+Luckily, our pin problem can be overcome by using a chip like the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), which can drive up to 64 LEDs while requiring only 3 signal pins from the Arduino. As such, it's common to find pre-assembled 7-segment LED bars having 4, or 8 digits, with an integrated MAX7219, like the one shown here.
+
+We'll use one of these 8 digit MAX7219 LED packages, as a lap timer, for each racer.
 
 ![8-digit 7-Seg LED](Images/MAX7219,%208-digit%207-seg%20LED%20Bar.png)
 
@@ -228,7 +241,7 @@ Another feature of the MAX7219, that makes these LED bars a good choice for this
 ![MAX7219 LED Cascade](Images/LED_MAX7219_Cascade.png)
 
 ### **Noise Sensitivity**  
-The MAX7219 can be particularly sensitive to noise on its power input. If the power lines are clean, and direct, there may not be an issue, however, the MAXIM documentation on using the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), strongly recommends using a [bypass filter](https://www.electronicdesign.com/power-management/power-supply/article/21808839/3-ways-to-reduce-powersupply-noise), consisting of a 10&mu;F (polarized, electrolytic) and 100nF (i.e. 0.1&mu;F, #104) capacitors across the input voltage into the MAX7219 and ground. I can concur from experience that there will be random, intermittent issues, if the signal, and power supply to these displays managed properly.
+The MAX7219 can be particularly sensitive to noise on its power input. If the power lines are clean, and direct, there may not be an issue, however, the MAXIM documentation on using the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), strongly recommends using a [bypass filter](https://www.electronicdesign.com/power-management/power-supply/article/21808839/3-ways-to-reduce-powersupply-noise), consisting of a 10&mu;F (polarized, electrolytic) and 100nF (i.e. 0.1&mu;F, #104) capacitors across the input voltage into the MAX7219 and ground. I can concur from experience that there will be random, intermittent issues, if the signal, and power supply to these displays is not managed properly.
  
 |Bypass Diagram| Capacitor Diagram Symbol Review|
 |:---:|:---:|
@@ -242,7 +255,7 @@ The MAX7219 can be particularly sensitive to noise on its power input. If the po
 <br>
 
 ## LED Libraries and Initialization in Code:  
-To drive the LED race timers, we will make use of the `LedControl` library which is specifically designed to operate these kinds of display packages. Similar to the LCD, this library allows us to update any given display digit with a straightforward write number or character API.
+To drive the LED race timers, we will make use of the `LedControl` library which is specifically designed to operate these kinds of display packages. Similar to the LCD, this library allows us to update any given display digit with a straightforward, write number or character API.
 - [LedControl](https://www.arduino.cc/reference/en/libraries/ledcontrol/) - library supports MAX7219 & MAX7221 LED displays for the LED bars.
 
 Declaration and Setup of LED dispalys in `RaceTimerAndController.ino`
@@ -280,7 +293,20 @@ void setup() {
 
   --- some other code ---
 }
---- remaining program ---
+
+void loop(){
+  --- some other code ---
+
+  // To send a value to LED, as a character use:
+  // setChar(id# of bar to update, digit position on bar, # or char to write, if to show decimal?)
+  // This will write the letter 'S' to the far right digit of the 2nd, 8 digit LED bar.
+  lc.setChar(1, 0, 'S', false);
+  // or to send a number, this will write a 4 to the far right digit of 2nd bar.
+  lc.setDigit(1, 0, 4, false);
+
+  --- some other code ---
+}
+
 ```
 
 ## **LED Display Character Writing**  
@@ -302,7 +328,7 @@ Normally it is not best practice to directly edit library files because next tim
 > Built-in:
 > C:\Program Files (x86)\Arduino\libraries
 > ```  
-> Add-on librarie (ones installed via the library manager) such as `LedControl.h`, are found in the sketchbook folder, the same folder sketches are saved, (this folder is called 'Arduino', not 'sketchbook').  
+> Add-on libraries (ones installed via the library manager) such as `LedControl.h`, are found in the sketchbook folder, the same folder sketches are saved, (this folder is called 'Arduino', not 'sketchbook').  
 > By default, on windows, this is found in the user's `Documents` folder:
 > ```
 > Add-ons:
@@ -358,14 +384,14 @@ const static byte charTable [] PROGMEM  = {
 <br>
 
 # **The Keypad**
-Using a full 4x4 membrane keypad is probably not needed for this project since we have pretty simple interface, but these are readily available for only a couple dollars and facilitate an easy to use, and program UI.
+Using a full 4x4 membrane keypad is probably not needed for this project since the interface needs aren't too great, but these are readily available for only a couple dollars and facilitate an easy to use, and program, UI.
 They do, however, require 8 pins, but because of our pin savings on the displays we have enough available.
 ![Keypad](Images/Keypad.png)
 <br>
 
 ## Keypad Library and Initialization in Code:  
-To handle working with the keypad input, we will use the aptly named [Keypad](https://www.arduino.cc/reference/en/libraries/keypad/) library. These buttons are not on an interrupt so they need to be poled to detect a keypress. In this application the game has a menu state and a race state. In the menu state, which is active while using the UI, it's not a problem to pole for a key press every loop, giving a very responsive interface.  
-During a race, the keypad is not used so the code does not pole for presses. When a race is paused, it will pole for an asterisk `*`, but stop again if the race is restarted.
+To handle working with the keypad input, the aptly named [Keypad](https://www.arduino.cc/reference/en/libraries/keypad/) library can be used. The keypad is not on an interrupt so it needs to be poled to detect a keypress. In this application the game has a menu state and a race state. In the menu state, which is active while using the UI, it's not a problem to pole for a key press every loop, giving a very responsive interface.  
+During a race, the keypad is not used so the program does not pole for presses. When a race is paused, it will pole for an asterisk `*`, but stop again if the race is restarted.
 ```cpp
 // Library to support 4 x 4 keypad
 #include <Keypad.h>
@@ -416,10 +442,148 @@ loop(){
 <br>
 
 # **Lap/Gate Sensing**
-This project was originally designed for a lane based racing environment. As such it has dedicated the 4 pins from `A0-A3` as lap trigger inputs. A triggering signal on any given pin is counted as a lap for the associated racer.
+This project was originally designed for slot car racing, and as such, is a lane based controller. Pins `A0-A3` serve as lap trigger inputs to support 1-4 lanes/racers. When enabled during an active race, a triggering signal on any given pin is counted as a lap for the associated racer. In the breadboard layout and wiring diagram push buttons are used to simulate lap triggers, though in practice, any number of analog or digital triggering methods can be used.
+
+## **Port Register Pin Change Interrupts**  
+In order to detect laps as fast as possible this project uses pin change interrupts. One reason to use pins A0-A3 for our lap sensors is that they can be analog or digital, the other is that they all share the same port interrupt (PCINT1).
+
+Arduino pin change interrupts is a huge topic covered in great detail by the defacto Arduino Bible on [Interrupts by Nick Gammon](http://gammon.com.au/interrupts). The part discussing the interrupts used in this project, is under the post "Pin Change Interrupts" about 3/4 down the page.
+
+When an interrupt on a pin is enabled, any signal change on any pin in the interrupt block will trigger immediate execution of the 'Interrupt Service Routine' function, `ISR()`. The main code loop will be paused until this function is finished and then it will go back to the point in the main loop that it previously left.
+
+Even though all pins in the interrupt block are read at the same time when an interrupt is triggered, the ability of each pin to trigger an interrupt can be individually enabled or disabled. The functions below can be used to enable or disable port change interrupts on different pins: 
+
+```cpp
+// This function enables the port register change interrupt on the given pin.
+void pciSetup(byte pin) {
+  // Enable interrupts on pin
+  *digitalPinToPCMSK(pin) |= bit (digitalPinToPCMSKbit(pin));
+  // Clear any outstanding interrupt
+  PCIFR  |= bit (digitalPinToPCICRbit(pin));
+  // Enables the port for interrupts for the group
+  PCICR  |= bit (digitalPinToPCICRbit(pin));
+}
+
+// This function will disable the port register interrupt on a given pin.
+void clearPCI(byte pin) {
+  // Clear any outstanding interrupts
+  PCIFR  |= bit (digitalPinToPCICRbit(pin));
+  // Disable interrupts on pin,
+  // using a logical AND (&) with the bitwise NOT (~) of the bitmask for the pin
+  *digitalPinToPCMSK(pin) &= ~bit (digitalPinToPCMSKbit(pin));
+}
+```
+
+## **The Interrupt Service Routine Function, ISR()**
+When an interrupt is triggered, the ISR() is executed. While in the interrupt function, interrupts are turned off so any additional triggers will not be detected. This is why it's important to keep the ISR() short and ensure that the lap sensing trigger signal is of a sufficient duration that it is still active in the event its contact was initiated while the program was in the interrupt for another pin.
+
+> ***ISR Execution Time** - The execution time of the ISR in this project, with 4 lanes active, is between 0.004 - 0.180 ms (ie max 180uS). This is considerably shorter than inherent debounce periods of most switches.*
+
+### **Debouncing**
+Because these interrupts will trigger on each, and every, signal change event we need to filter out unwanted re-triggers. We do this by setting a debounce time after the initial detection, within which any re-triggers on the same pin are ignored. Each lap trigger pin has its own timing array, so while the debounce period may be active for one pin causing it to be ignored, another may be newly triggered and will be accepted.
+
+Currently the default debounce is set to 1sec (1000ms). This is kind of excessive for a debounce period, but laps are still much longer than this. If this time is an issue, it can be changed by editing the `debounceTimeout` in the code.
+
+This is the ISR() for this project. It may seem a bit busy and long, but the actual number of execution steps is minimal and no issues have yet been seen in practice.
+
+```cpp
+// ISR is a special Arduino Macro or routine that handles interrupts ISR(vector, attributes)
+// PCINT1_vect handles pin change interrupt for the pin block A0-A5, represented in bit0-bit5
+// The execution time of this function should be as fast as possible as
+// interrupts are disabled while inside it.
+// This function takes approximately 0.004 - 0.180ms
+ISR (PCINT1_vect) {
+  // Note that millis() does not execute inside the ISR().
+  // It can be called, and used as the time of entry, but it does not continue to increment.
+  unsigned long logMillis = millis();
+  // This code expects the lap sensors are setup as inputs.
+  // This means the pins have been set to HIGH, indicated by a 1 on its register bit.
+  // When a button is pressed, or sensor triggered, it should bring the pin LOW.
+  // A LOW pin is indicated by a 0 on its port register.
+  // Because all of the lap sensors are on the same port regirster
+  // it will be possible to detect simulataneous triggers.
+
+  // Lane 1 positive trigger PINC = 0xXXXXXXX0
+  // Lane 1 is on pin A0 which uses the 1st bit of the register; idx 0, of PINC Byte
+  // Lane 2 positive trigger PINC = 0xXXXXXX0X
+  // Lane 2 is on pin A1 which uses the 2nd bit of the register; idx 1, of PINC Byte
+  // Lane 3 positive trigger PINC = 0xXXXXX0XX
+  // Lane 3 is on pin A2 which uses the 3rd bit of the register; idx 2, of PINC Byte
+  // Lane 4 positive trigger PINC = 0xXXXX0XXX
+  // Lane 4 is on pin A3 which uses the 4th bit of the register; idx 3, of PINC Byte
+  
+  // Because the bits we are interested in, are together at the low end,
+  // we can be a little more efficient by using a bit shifting approach.
+  // For this, it will work better to have our triggered bits as 1s.
+  // To convert the zero based triggers above into 1s, we can simply flip each bit.
+  // Since we only need to check the 1st 4 bits, we'll also turn the last 4 bits to 0.
+  // Flip every bit by using ('BitsToFlip' xor 0b11111111)
+  // Then trim off the 4 highest bits with ('ByteToTrim' & 0b00001111)
+  byte triggeredPins = ((PINC xor 0b11111111) & 0b00001111);
+
+  // While the triggeredPins byte is > 0, one of the digits is a 1.
+  // If after a shift, triggerPins = 0, then there is no need to keep checking.
+  // Since we only have 4 bits that can be a 1, this loop will run a max of 4 times.
+  // Lane index will determine which lane the currently checked bit is related to.
+  byte laneNum = 1;
+  while(triggeredPins > 0){
+    // If bit i is a 1, then process it as a trigger on lane 'laneNum'
+    if(triggeredPins & 1){
+      // Depending on the status of this lane we process the trigger differently.
+      switch (laneEnableStatus[ laneNum ]) {
+
+        case StandBy:{
+          // If in StandBy, no need for debounce
+          // Change lane status from 'StandBy' to 'Active'
+          laneEnableStatus[laneNum] = Active;
+          // log start time or restart time of lap
+          startMillis[laneNum] = logMillis;
+          // If the first lap of race
+          if(lapCount[laneNum] == 0) {
+            // Log timestamp into start log and lap timestamp tracking array (lastXMillis)
+            lastXMillis[laneNum] [0] = logMillis;
+            lapCount[laneNum] = 1;
+          } else {
+          // Else, if returning from Pause, we need to feed the new start time,
+            // into the pevious lap index spot, and not index the current lapcount.
+            lastXMillis [ laneNum ][(lapCount[ laneNum ] - 1) % lapMillisQSize] = logMillis;
+            // DON'T index lapcount, we're restarting the current lap
+          }
+          Boop();
+        }
+        break;
+
+        case Active:{
+          // If lane is 'Active' then check that it has not been previously triggerd within debounce period.
+          if( ( logMillis - lastXMillis [laneNum] [(lapCount[ laneNum ]-1)%lapMillisQSize] ) > debounceTime ){
+            // Set lap display flash status to 1, indicating entry into the flash state for the lane.
+            flashStatus[laneNum] = 1;
+            lastXMillis [laneNum][lapCount[laneNum] % lapMillisQSize] = logMillis;
+            startMillis[laneNum] = logMillis;
+            lapCount[laneNum] = lapCount[laneNum] + 1;
+            Beep();
+          }
+        }
+        break;
+
+        default:{
+          // If lane is 'Off' then ignore it. It should not have been possible to trigger.
+          // An interrupt should not be enabled on 'Off' lanes. 
+        }
+        break;
+      } // END of lane status switch
+    } // END if triggeredPin & 1
+
+    // Shift to the next bit and iterate PINC byte index.
+    triggeredPins = triggeredPins >> 1;
+    laneNum++;
+
+  } // END of While Loop checking each digit
+} // END of ISR()
+```
 
 ## **Example Integration - Converting Mechanical Lap Counter**
-This readme would never end if it got into every kind of sensor that can be adapted for this input. In my case I have a mechanical lap counter that I added two paper clips to act as contacts, creating a triggering connection every time the mechanical switch in the track is flipped. It's easy to bend the paperclips such that they have a nice, relatively long, solid contact period.
+This readme would never end if it got into every kind of sensor that can be adapted for use with this project. In my case I have a mechanical lap counter that I added two paper clips to act as contacts, creating a triggering connection every time the mechanical switch in the track is flipped. It's easy to bend the paperclips such that they have a nice, relatively long, solid contact period.
 
 This fits nicely with the port register interrupts to give a reliable, repeatable, trigger. Because our contact time is much longer than our interrupt function, and we can read simultaneous contacts of all racers, we'll never miss a lap. Even if there is a tie, or if a racer is in the interrupt when another initiates its own triggering contact.
 
@@ -429,6 +593,53 @@ This fits nicely with the port register interrupts to give a reliable, repeatabl
 ![Rigged Lap Counter](Images/pcswitch_withcar1.png)
 ![Rigged Lap Counter](Images/pcswitch_withcar2.png)
 ![Rigged Lap Counter](Images/pcswitch_withcar3.png)
+
+<br>
+
+# **The Pause Button**  
+A pause button is included in this project to provide a means to temporarily suspend a race in progress and either quite, or restart when racers are ready to proceed.  
+- Pressing the pause button a second time will return the race from a 'Paused' state to the 'Race' state.
+- Pressing the aterisk `*` key while in the pause state will end the race and return the program to the 'Menu' state.
+
+A restart is the same as an intial race start except that each racer will be on the lap count they left off with. Each racer must cross the start line to re-initiate the timing of the incomplete lap they were last on.
+
+![LED Pause Displays](Images/LED_PauseScreens.png)
+
+## **Using A6 as a Button**
+The only pins left available for the Pause button are A6 or A7. These pins are different than all the others, they do not have internal pull-up resistors and can only be used as an analog input.
+
+In order to use them as a button trigger we must add our own external Pull-Up resistor in the hardware wiring as explained in [this article](https://roboticsbackend.com/arduino-input_pullup-pinmode/). To detect a press we must then pole the button's analog input value. If the value is lower than a set threshold then we consider it pressed.
+
+```cpp
+const byte pauseStopPin = PIN_A6;
+
+// Generic function to check if an analog button is pressed
+int buttonPressed(uint8_t analogPin) {
+  if (analogRead(analogPin) < 100){
+    return true;
+  }
+  return false;
+}
+
+void setup(){
+  --- other code ---
+
+  pinMode(pauseStopPin, INPUT);
+
+  --- other code ---
+}
+
+void loop(){
+  --- other code ---
+  
+  if(buttonPressed){
+    --- do something ---
+  }
+  
+  --- other code ---
+}
+
+```
 
 <br>
 
