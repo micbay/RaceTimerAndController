@@ -199,7 +199,7 @@ void setup(){
 void loop(){
   ---- some code ----
 
-  // To use the charactar write to lcd
+  // To use the character write to lcd
   lcd.setCuror(0,0);
   lcd.write(3);
 
@@ -425,11 +425,11 @@ byte pin_column[KP_COLS] = {9,10,11,12};
 Keypad keypad = Keypad( makeKeymap(keys), pin_rows, pin_column, KP_ROWS, KP_COLS );
 
 
-setup(){
+void setup(){
   --- some code ---
 }
 
-loop(){
+void loop(){
   // to pole the keypad for a button press
   char key = keypad.getKey();
 
@@ -498,7 +498,7 @@ Currently the default debounce is set to 1sec (1000ms). This is kind of excessiv
 
 This is the ISR() for this project. It may seem a bit busy and long, but the actual number of execution steps is minimal.
 
-### The implementation of the ISR() in this `RaceTimerAndController.ino`
+#### The implementation of the ISR() in this `RaceTimerAndController.ino`
 
 ```cpp
 // ISR is a special Arduino Macro or routine that handles interrupts ISR(vector, attributes)
@@ -616,7 +616,7 @@ A pause button is included in this project to provide a means to temporarily sus
 - Pressing the pause button a second time will return the race from the `Paused` state to the `Race` state.
 - Pressing the aterisk `*` key while in the `Paused` state will end the race and return the program to the `Menu` state.
 
-A restart is the same as an intial race start except that each racer will be on the lap count they left off with. Each racer must cross the start line to re-initiate the timing of the incomplete lap they were last on.
+A restart is the same as an initial race start except that each racer will be on the lap count they left off with. Each racer must cross the start line to re-initiate the timing of the incomplete lap they were last on.
 
 ![LED Pause Displays](Images/LED_PauseScreens.png)
 
@@ -684,8 +684,6 @@ void Beep() {
 To play a melody, we need to play a series of tones corresponding to the appropriate musical notes. Presented here are two common methods of coding and playing non-blocking audio melodies on the Arduino.
 
 ## **Method 1: `Notes[]` & `Lengths[]` Arrays ( `pitches.h` )**  
-This is probably the most commonly used approach, as it is the most direct way to use `tone()` to play a melody. It is also the most versatile because there are no limits to the values used.
-
 In this approach we will represent the musical notes that make up a melody, using two arrays, one array to hold the note frequencies, `Notes[]`, and one to hold the note lengths, `Lengths[]`, which will be used to determine each note's tone duration.
 
 > ***Music Theory***  
@@ -733,7 +731,7 @@ const int cMajorScaleNotes[] PROGMEM = {
 };
 ```
 ### **Determining The Lengths Array ( `Lengths[]` )**
-Each note in the `Notes[]` arrary has a note length that must be accounted for. We can store this note length in a second array, `Lengths[]`, where `Note[i]` = a note's freq and `Lengths[i]` = the corresponding length. 
+Each note in the `Notes[]` array has a note length that must be accounted for. We can store this note length in a second array, `Lengths[]`, where `Note[i]` = a note's frequency, and `Lengths[i]` = the corresponding length. 
 
 The length of a note, or rest, in music is measured in number of beats and recorded on sheet music as follows:
 
@@ -764,6 +762,7 @@ const int cMajorScaleLengths[] PROGMEM = {
   4, 4, 4, 4, 4, 4, 4
 };
 ```
+### **Tempo**
 In order to convert our note lengths into millisecond durations, we need to establish a **tempo**.
 
 How long a beat lasts in real time is established by the tempo of the melody in **beats per minute (bpm)**. The tempo on a sheet of music is sometimes declared by assigning a bpm to a note. Often this is the quarter note since a quarter note is equal to 1 beat, but it doesn't have to be.  
@@ -794,7 +793,7 @@ To account for tempo we could use the same tempo for everything and hard code it
 const int cMajorScaleTemp = 120;
 ```
 
-Lastly, because in C++ it can be challenging to know how many elements are in an array, if using pointers and passing them into functions, it's worth generating a `count` variable right away for referencing the array size. This will be used by the play function to determine when the melody is over.
+Lastly, because in C++ it can be challenging to know how many elements are in an array, when using pointers and passing them into functions, it's worth generating a `count` variable right away for referencing the array size. This will be used by the play function to determine when the melody is over.
 
 So the final, full melody definition consists of 2 integer arrays, and 2 integer constants.
 
@@ -879,34 +878,39 @@ int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
   return noteDuration;
 }
 
+void setup(){
+    --- other code ---
+    // To play a song we set the flag to true and re-assign song pointer to desired tune.
+    melodyPlaying = true;
+    playingNotes = takeOnMeNotes;
+    playingLengths = takeOnMeLengths;
+    playingMelodySize = takeOnMeCount;
+    playingTempoBPM = takeOnMeTempo;
+    --- other code ---
+}
+
 void loop() {
-  if(melodyPlaying){
-    if(millis() - lastNoteMillis >= noteDelay){
-      noteDelay = PlayNote(playingNotes, playingLengths, melodyIndex, false);
+    --- other code ---
+    // In the main loop, if a song is playing we check for when to play
+    // the next note, then reset the delay for the one after that.
+    if(melodyPlaying){
+        if(millis() - lastNoteMillis >= noteDelay){
+            noteDelay = PlayNote(playingNotes, playingLengths, melodyIndex, false);
+        }
     }
-  }
-
-  --- other code ---
-  // To play a song we set the flag to true and re-assign song pointer to desired tune.
-  melodyPlaying = true;
-  playingNotes = takeOnMeNotes;
-  playingLengths = takeOnMeLengths;
-  playingMelodySize = takeOnMeCount;
-  playingTempoBPM = takeOnMeTempo;
-
-  --- other code ---
+    --- other code ---
 }
 ```
 
 ## **Example Transcribing *'Take On Me'* Into Playable Arrays**
-To illustrate the process, we will transcribe the intro to Take On Me by Aha! Here are the first 12 meausres (bar 1 repeated twice, and 2nd bar) of the sheet music.
+To illustrate the process, we will transcribe the intro to Take On Me by Aha! Here are the first 12 measures (bar 1 repeated twice, and 2nd bar) of the sheet music.
 
 ![Take On Me Sheet](Images/TakeOnMeIntro_SheetMusic.png)
 
 Looking at the first measure we see that the key signature is for the key of A Major. This means that all F5, C5, and G5 notes are sharp, as is indicated by the key signature sharp symbols on those lines.
 ![Take On Me Key Sig](Images/TOnMe_KeySignature.png)
 
-In addition to our notes and note lengths we also see the tempo is 'Fast', which on our chart is around 120-168 bpm, listening it sounds on the fast end of that scale, so something around 160 bpm, is probably good.
+In addition to our notes and note lengths, we also see the tempo is 'Fast', which on our chart is around 120-168 bpm, listening it sounds on the fast end of that scale, so something around 160 bpm, is probably good.
 
 This first measure gives us everything we need to make our melody variables and populate the first notes.
 ```cpp
@@ -920,7 +924,7 @@ const int takeOnMeTempo = 160;
 const int takeOnMeSize = sizeof(takeOnMeNotes)/sizeof(int); 
 ```
 
-Finishing the rest of the notes in the intro we get a full trancription of the sheet snippet.
+Finishing the rest of the notes in the intro we get a full transcription of the sheet snippet.
 
 ```cpp
 const int takeOnMeNotes[] PROGMEM = {
@@ -959,7 +963,7 @@ const int takeOnMeTempo = 160;
 const int takeOnMeSize = sizeof(takeOnMeNotes)/sizeof(int);
 ```
 ## **Sources of `tone()` Array Melodies**
-[robsoncouto/arduino-songs](https://www.smssolutions.net/tutorials/smart/rtttl/) is probably the biggest library of songs in this format I found. These are written as a single array of interwoven note, length, note, length, pattern. However, they can be quickly be converted into the 2 array format, used in this project, by making a copy and using search-replace to replace a few, often repeated notes and durations with nothing.
+[robsoncouto/arduino-songs](https://github.com/robsoncouto/arduino-songs) is probably the biggest library of songs in this format I found. These are written as a single array of interwoven note, length, note, length, pattern. However, they can be quickly be converted into the 2 array format, used in this project, by making a copy and using search-replace to replace a few, often repeated notes and durations with nothing.
 
 Otherwise, most available melodies in this format are one-off single song projects and must be searched for individually.
 
@@ -968,10 +972,10 @@ Otherwise, most available melodies in this format are one-off single song projec
 ---  
 
 ## **Method 2: Ringtone RTTTL Format**  
-RTTTL stands for Ring Tone Text Transfer Language which is a string based format developed by Nokia that can be interpreted and played as a ringtone. This format is no longer used by phones, but the internet has libaries of thousands of songs encoded with it. Making it the preferred method for this project.
+RTTTL stands for Ring Tone Text Transfer Language which is a string based format developed by Nokia that can be interpreted and played as a ringtone. This format is no longer used by phones, but the internet has libraries of thousands of songs encoded with it. Making it the preferred method for this project.
 
 ### **The RTTTL String**  
-The RTTTL string is made up of 3 parts seperated by colons ':'
+The RTTTL string is made up of 3 parts separated by colons ':'
 
 ![RTTTL](Images/RTTTL%20Format.png)
 
@@ -993,7 +997,7 @@ The RTTTL string is made up of 3 parts seperated by colons ':'
     b = tempo, beats per minute (default = 63bpm)
       Allowed Values = 25, 28, 31, 35, 40, 45, 50, 56, 63, 70, 80, 90, 100, 112, 125, 140, 160, 180, 200, 225, 250, 285, 320, 355, 400, 450, 500, 565, 635, 715, 800 and 900
     ```
-  - **Notes** - the last part of the RTTTL string is a comma seperated list of encoded notes using a duration-note-octave and optional dot, pattern.
+  - **Notes** - the last part of the RTTTL string is a comma separated list of encoded notes using a duration-note-octave and optional dot, pattern.
     ```
     Tone Pattern: duration-note-octave(.)
     . an optional dotted note is 1.5 x duration
@@ -1048,18 +1052,18 @@ void loop(){
 ## **Sources of tone() Array Melodies**  
 - [Online List of RTTTL Online Sources](https://www.srtware.com/index.php?/ringtones/findringtones.php)
 - [Picaxe Ringtone Download](https://picaxe.com/rtttl-ringtones-for-tune-command/) - RTTTL zip downloads 10,000+ songs
-- [dglaude/xmas.py](https://gist.github.com/dglaude/71525a07f5e24888a3f098fba3abf29b) - RTTTL christmas songs
+- [dglaude/xmas.py](https://gist.github.com/dglaude/71525a07f5e24888a3f098fba3abf29b) - RTTTL Christmas songs
 
 <br>
 
 ---
 # **Race Controller Operation**
 ## Main Menu
-When the controller boots up it will display the main menu screen. This is a small system, so the menu layer is only one layer deep from here. Pressing the corresponding keys on the attached keypad will navigate the menu structure and allow input for changing settings.
+When the controller boots up it will display the main menu screen. This is a simple system, so the menu layer is only one layer deep from here. Pressing the corresponding keys on the attached keypad will navigate the menu structure and allow input for changing settings.
 ![main menu](Images/ScreenShots/Main_Menu.png)
 
 ---
-> **\* Asterisk Key**
+> **Asterisk Key\***
 >   - In all sub-menus, the `*` key will exit back to the main menu.
 >   - During a live race, if the race is in the 'Paused' state, pressing `*` will end the race and open the **Top Results Menu**.
 ---
@@ -1090,7 +1094,7 @@ Pressing `C` from the Main Menu will bring up the **Race Start Menu**. From this
 ![Start Race Menu](Images/ScreenShots/StartRace_Menu.png)
 
 ## Pre-Start Countdown
-When a race is started it begins with a pre-start countdown. This countdown gives racers time to get to postions before the race begins.
+When a race is started it begins with a pre-start countdown. This countdown gives racers time to get to positions before the race begins.
 ![Prestart Menu](Images/ScreenShots/PrestartCountdown.png)
 During the final 3 seconds of the countdown the remaining seconds will be displayed on the individual racer's LED bars. Once the pre-start countdown expires, the racer's timers will display `Start`. Though the overall race time begins immediately, timing of each racer's first lap won't begin until they cross the start line for the first time.
 
