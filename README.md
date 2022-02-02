@@ -395,8 +395,13 @@ They do, however, require 8 pins, but because of our pin savings on the displays
 <br>
 
 ## Keypad Library and Initialization in Code:  
-To handle working with the keypad input, the aptly named [Keypad](https://www.arduino.cc/reference/en/libraries/keypad/) library can be used. The keypad is not on an interrupt so it needs to be poled to detect a keypress. In this application, the game has a menu state, and a race state. In the menu state, which is active while using the UI, it's not a problem to pole for a key press every loop, giving a very responsive interface.  
-During a race, the keypad is not used so the program does not pole for presses. When a race is paused, it will pole for an asterisk `*`, but stop again if the race is restarted.
+To handle working with the keypad input, the aptly named [Keypad](https://www.arduino.cc/reference/en/libraries/keypad/) library can be used. The keypad is not on an interrupt so it needs to be poled to detect a keypress.
+
+In this application, the game has a **Menu** state, a **Race** state and a **Paused** state.
+- In the **menu** state, which is active while using the UI, we pole for a key press every loop, giving a very responsive interface.
+- During a **race**, the keypad is not used so the program doesn't pole for presses.
+- When a race is **paused**, it will pole for an asterisk `*`, but stop again if the race is restarted.
+
 ```cpp
 // Library to support 4 x 4 keypad
 #include <Keypad.h>
@@ -447,12 +452,14 @@ loop(){
 <br>
 
 # **Lap/Gate Sensing**
-This project was originally designed for slot car racing, and as such, is a lane based controller. Pins `A0-A3` serve as lap trigger inputs to support 1-4 lanes/racers. When enabled during an active race, a triggering signal on any given pin is counted as a lap for the associated racer. In the breadboard layout and wiring diagram push buttons are used to simulate lap triggers, though in practice, any number of analog or digital triggering methods can be used.
+This project was originally designed for slot car racing, and as such, is a lane based controller. Pins `A0-A3` serve as lap trigger inputs to support 1-4 lanes/racers. When enabled during an active race, a triggering signal on any given pin is counted as a lap for the associated racer. In the breadboard layout and wiring diagram push buttons are used to simulate lap triggers. In practice, any number of analog or digital triggering methods can be used. Essentially, any signal change on the pin will be considered a gate trigger.
 
 ## **Port Register Pin Change Interrupts**  
-In order to detect laps as fast as possible this project uses pin change interrupts. One reason to use pins A0-A3 for our lap sensors is that they can be analog or digital, the other is that they all share the same port interrupt (PCINT1).
+In order to detect laps as fast as possible this project uses pin change interrupts. One reason to use pins A0-A3 for our lap sensors is that they can be treated as analog or digital, the other is that they all share the same port interrupt vector (PCINT1_vect), which means we can read them all at the same time.
 
-Arduino pin change interrupts is a huge topic covered in great detail by the defacto Arduino Bible on [Interrupts by Nick Gammon](http://gammon.com.au/interrupts). The part discussing the interrupts used in this project, is under the post "Pin Change Interrupts" about 3/4 down the page.
+This article is a very good explanation of [pin change interrupts](http://electronoobs.com/eng_arduino_tut132.php) which are the type of interrupts we are using here.
+
+> *There are other kinds of interrupts that can be used with Arduino as well. For a more comprehensive guide, see Nick Gammon's posts on [Interrupts](http://gammon.com.au/interrupts). The part discussing the interrupts used in this project, is "Pin Change Interrupts" about 3/4 down the page.*
 
 When an interrupt on a pin is enabled, any signal change on any pin in the interrupt block will trigger immediate execution of the 'Interrupt Service Routine' function, `ISR()`. The main code loop will be paused until this function is finished and then it will go back to the point in the main loop that it previously left.
 
@@ -482,14 +489,16 @@ void clearPCI(byte pin) {
 ## **The Interrupt Service Routine Function, ISR()**
 When an interrupt is triggered, the ISR() is executed. While in the interrupt function, interrupts are turned off so any additional triggers will not be detected. This is why it's important to keep the ISR() short and ensure that the lap sensing trigger signal is of a sufficient duration that it is still active in the event its contact was initiated while the program was in the interrupt for another pin.
 
-> ***ISR Execution Time** - The execution time of the ISR in this project, with 4 lanes active, is between 0.004 - 0.180 ms (ie max 180uS). This is considerably shorter than inherent debounce periods of most switches.*
+> ***ISR Execution Time** - The execution time of the ISR in this project, with 4 lanes active, is between 0.004 - 0.180 ms (ie max 180uS).*
 
 ### **Debouncing**
 Because these interrupts will trigger on each, and every, signal change event we need to filter out unwanted re-triggers. We do this by setting a debounce time after the initial detection, within which any re-triggers on the same pin are ignored. Each lap trigger pin has its own timing array, so while the debounce period may be active for one pin causing it to be ignored, another may be newly triggered and will be accepted.
 
 Currently the default debounce is set to 1sec (1000ms). This is kind of excessive for a debounce period, but laps are still much longer than this. If this time is an issue, it can be changed by editing the `debounceTimeout` in the code.
 
-This is the ISR() for this project. It may seem a bit busy and long, but the actual number of execution steps is minimal and no issues have yet been seen in practice.
+This is the ISR() for this project. It may seem a bit busy and long, but the actual number of execution steps is minimal.
+
+### The implementation of the ISR() in this `RaceTimerAndController.ino`
 
 ```cpp
 // ISR is a special Arduino Macro or routine that handles interrupts ISR(vector, attributes)
@@ -506,7 +515,7 @@ ISR (PCINT1_vect) {
   // When a button is pressed, or sensor triggered, it should bring the pin LOW.
   // A LOW pin is indicated by a 0 on its port register.
   // Because all of the lap sensors are on the same port regirster
-  // it will be possible to detect simulataneous triggers.
+  // it will be possible to detect simultaneous triggers.
 
   // Lane 1 positive trigger PINC = 0xXXXXXXX0
   // Lane 1 is on pin A0 which uses the 1st bit of the register; idx 0, of PINC Byte

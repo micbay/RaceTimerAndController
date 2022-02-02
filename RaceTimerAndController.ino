@@ -1050,8 +1050,8 @@ ISR (PCINT1_vect) {
   // This means the pins have been set to HIGH, indicated by a 1 on its register bit.
   // When a button is pressed, or sensor triggered, it should bring the pin LOW.
   // A LOW pin is indicated by a 0 on its port register.
-  // Because all of the lap sensors are on the same port regirster
-  // it will be possible to detect simulataneous triggers.
+  // Because all of the lap sensors are on the same port register
+  // it will be possible to detect simultaneous triggers.
 
   // Lane 1 positive trigger PINC = 0xXXXXXXX0
   // Lane 1 is on pin A0 which uses the 1st bit of the register; idx 0, of PINC Byte
