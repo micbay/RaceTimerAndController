@@ -21,7 +21,7 @@
 #include <avr/pgmspace.h>
 
 // The 'Wire' library is for I2C, and is included in the Arduino installation.
-// Specific implemntation is determined by the board selected in Arduino IDE.
+// Specific implementation is determined by the board selected in Arduino IDE.
 #include <Wire.h>
 // LCD driver libraries
 #include <hd44780.h>						            // main hd44780 header file

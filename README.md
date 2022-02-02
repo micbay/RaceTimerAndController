@@ -7,7 +7,7 @@ Download this repository into a local folder with the same name as the contained
 <br>
 
 # **Arduino Race Timer and Lap Gate Controller**
-This is an Arduino based project that implements an inexpensive, reliable, race game controller that can be used for timed racing games. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
+This is an Arduino based project that implements an inexpensive, reliable, race game controller that can be used for timed racing games. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap count & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
 
 In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate. The working demo of this project uses two paper clips integrated into a mechanical lap counter to create a simple, yet effective lap sensor.
 
@@ -17,21 +17,21 @@ In the presented configuration, the lap sensing input is simulated using buttons
 
 The implementation shown here is immediately useable for 1-4 player racing games. The original application for this controller was slot car racing, as such, the controller was designed expecting a dedicated lane/gate for each racer. The down side of this, if attempting to adapt for drone racing, is that each racer needs a dedicated gate, but in turn, this also means that the racing object is irrelevant and does not need to communicate its identity.
 > ***Code Snippets in Readme** - the code snippets shown in this readme file are not meant to be cut and paste working examples. They are only illustrating the general setup and syntax for usage using the implementation in this project as a reference.*  
-> ***Note on Reference Sources** - All links are for reference only and are not to be taken as an endorsement of any particular component supplier. I attempt to reference official Arduino resources whenever possible, but this is also not an endorsment for or against using the Arduino store.*
+> ***Note on Reference Sources** - All links are for reference only and are not to be taken as an endorsement of any particular component supplier. I attempt to reference official Arduino resources whenever possible, but this is also not an endorsement for or against using the Arduino store.*
 
 ### **Prerequisites**  
 This project involves a lot of different hardware and software concepts and implements some more intermediate to advanced code for Arduino.  
-However, I have endevored to explain what I understand, in enough detail that someone with almost no experience can still implement and even modify to their own use.
+However, I have endeavored to explain what I understand, in enough detail that someone with almost no experience can still implement and even modify to their own use.
 It is expected the reader understands how to use the Arduino IDE, connect wires, and program boards. To get up to speed on those basics, there are many great resources from [Arduino](https://www.arduino.cc/en/Guide) and around the web, covering them exhaustively.
 
 <br>
 
 # **Hardware Configuration**  
 All of the components are readily available and can be connected with basic jumper leads or simple conductor and header pin soldering.
-> ***Note on Housing and Mechanical Interface** - This project only documents the functional electrical and software configuration. It can be wired, and used as illustrated for demonstration, however, for repeated, practical usage, the construction of a permanant housing, and mechanical trigger interface, is left up to the implementer to develop per their unique setup.*  
+> ***Note on Housing and Mechanical Interface** - This project only documents the functional electrical and software configuration. It can be wired, and used as illustrated for demonstration, however, for repeated, practical usage, the construction of a permanent housing, and mechanical trigger interface, is left up to the implementer to develop per their unique setup.*  
 
 ## **Parts for Race Controller**  
-- [Arduino Nano](https://www.arduino.cc/en/pmwiki.php?n=Main/ArduinoBoardNano) (or equivalent microntroller module)
+- [Arduino Nano](https://www.arduino.cc/en/pmwiki.php?n=Main/ArduinoBoardNano) (or equivalent microcontroller module)
 - [4 x 4 membrane keypad](https://duckduckgo.com/?q=4+x+4+membrane+keypad)
 - [LCD2004 4 row x 20 character display](https://duckduckgo.com/?q=LCD2004A+4+x+20+I2C+backpack), with [I2C backpack](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
 - 2-4 Chainable, [8-digit, 7-segment LED bar with integrated MAX7219](https://duckduckgo.com/?q=8-digit%2C+7-segment+LED+display)
@@ -93,7 +93,7 @@ The game controller code uses non-blocking techniques with port register interru
 
 # **The Main Display (LCD2004 + I2C Backpack)**  
 For the main display that provides the user interface, the project uses a 4 row x 20 character LCD. LCD character displays are readily available in 2 or 4 rows, of 16 or 20 characters, fairly inexpensive, and simply to use. A 4 row x 20 character LCD display is the biggest commonly available, and is big enough to fit understandable menus and output for this application.  
-In addition to providing the setup interface, the main display will also display a live leaderboard during a race. Hoewever, it's much too small to be used as a spectator display from a distance.
+In addition to providing the setup interface, the main display will also display a live leaderboard during a race. However, it's much too small to be used as a spectator display from a distance.
 
 > ***LCD Part Numbers:** these types of character LCDs usually follow a Part Number pattern of 'LCDccrr', where rr = number of rows, and cc = the number of characters wide it is. (ie. LCD2004 = 4rows of 20ch).*
 
@@ -101,7 +101,7 @@ This display can be controlled directly using 13 Arduino pins. However, it is co
 
 [![I2C PinsImage](Images/LCD2004%20I2C%20backpack.png)](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
 
-> *Though a deeper understanding isn't necessary to use I2C in this project, one may find it helpful for troubleshooting, or if modifying the projcect hardware or software. These references can provide more details regarding I2C, and using the built-in Arduino 'Wire' library.*
+> *Though a deeper understanding isn't necessary to use I2C in this project, one may find it helpful for troubleshooting, or if modifying the project hardware or software. These references can provide more details regarding I2C, and using the built-in Arduino 'Wire' library.*
 > - [I2C Basics](https://rheingoldheavy.com/i2c-basics/) 
 > - [The Arduino Wire Library](https://rheingoldheavy.com/arduino-wire-library/)
 
@@ -112,10 +112,10 @@ In order to interact with the LCD screen, and update what is written, we are usi
   - [hd44780](https://www.arduino.cc/reference/en/libraries/hd44780/) - Of the many available, we have chosen `hd44780` as our LCD display driver and API.  
     - `hd44780_I2Cexp.h` - Because we are using an LCD with an I2C backpack we need to also include the *hd44780_I2Cexp.h* io class which is installed with the *hd44780* library.
 
-Declaration and Setup of LCD dispaly in `RaceTimerAndController.ino`
+Declaration and Setup of LCD display in `RaceTimerAndController.ino`
 ```cpp
 // The 'Wire' library is for I2C, and is included in the Arduino installation.
-// Specific implemntation is determined by the board selected in Arduino IDE.
+// Specific implementation is determined by the board selected in Arduino IDE.
 #include <Wire.h>
 // LCD driver libraries
 #include <hd44780.h>						// main hd44780 header
@@ -250,7 +250,7 @@ The MAX7219 can be particularly sensitive to noise on its power input. If the po
 |:---:|:---:|
 |![Bypass Caps](Images/BypassCaps.png) | [<img src=Images/CapacitorSymbols.png />](https://www.ifixit.com/Wiki/Troubleshhoting_logic_board_components) 
 
-> *Note that some of the pre-assembled MAX LED packages may come with one or both of these bypass caps in place. My LEDs, like the ones picture above, came with the 100nF capactor, and I added a 10uF cap, in parallel, at the same solder points. If you do this, make sure to probe which end of C1 is connected to ground to get the polarity right.*   
+> *Note that some of the pre-assembled MAX LED packages may come with one or both of these bypass caps in place. My LEDs, like the ones picture above, came with the 100nF capacitor, and I added a 10uF cap, in parallel, at the same solder points. If you do this, make sure to probe which end of C1 is connected to ground to get the polarity right.*   
 > | 100nF Cap| Added 10uF|
 > |---       |-----------|
 > |![Cap in Place](Images/C1.png) | ![10uF Cap](Images/10uF_CapSoldered2_300px.png)
@@ -261,7 +261,7 @@ The MAX7219 can be particularly sensitive to noise on its power input. If the po
 To drive the LED race timers, we will make use of the `LedControl` library which is specifically designed to operate these kinds of display packages. Similar to the LCD, this library allows us to update any given display digit with a straightforward, write number or character API.
 - [LedControl](https://www.arduino.cc/reference/en/libraries/ledcontrol/) - library supports MAX7219 & MAX7221 LED displays for the LED bars.
 
-Declaration and Setup of LED dispalys in `RaceTimerAndController.ino`
+Declaration and Setup of LED displays in `RaceTimerAndController.ino`
 ```cpp
 // library for 7-seg LED Bars
 #include <LedControl.h>
@@ -302,10 +302,11 @@ void loop(){
 
   // To send a value to LED, as a character use:
   // setChar(id# of bar to update, digit position on bar, # or char to write, if to show decimal?)
-  // This will write the letter 'S' to the far right digit of the 2nd, 8 digit LED bar.
+  // This will write the letter 'S' to the far right digit of the 2nd, 8 digit LED bar in the chain.
   lc.setChar(1, 0, 'S', false);
-  // or to send a number, this will write a 4 to the far right digit of 2nd bar.
-  lc.setDigit(1, 0, 4, false);
+  // or to send a number,
+  // This will write a 4 to the 2nd digit from the right, of the 1st bar in chain.
+  lc.setDigit(0, 1, 4, false);
 
   --- some other code ---
 }
@@ -313,7 +314,7 @@ void loop(){
 ```
 
 ## **LED Display Character Writing**  
-Though the primary purpose of the racer's lap displays is to show running lap counts and times, we also need to be able to identify the which display is being used by which racer. The most direct way to do this is to write the racer name to the corresponding LED display on startup and racer selection.
+Though the primary purpose of the racer's lap displays is to show running lap counts and times, we also need to be able to identify which display is being used by which racer. The most direct way to do this is to write the racer name to the corresponding LED display on startup and racer selection.
 
 However, a side effect of using 7-seg displays is that they cannot display all characters, and in many cases, of the characters that can be displayed, only a lower case, or upper case, option is available. 
 > *7-segment displays cannot draw any version of the following characters:*  
@@ -343,12 +344,13 @@ Normally it is not best practice to directly edit library files because next tim
 > **Replace 'userid' with appropriate windows user profile name
 > ```
 
-To edit the displayed character shape, we can edit the code value of the corresponding index of the `charTable[]` array found in `LedControl.h`. We could also use any of the unwrittable characters as an alias for our own character, such as changing 'M' (i.e. ASCII 77) to be `B01001001`, which will draw a triple bar symbol when an 'M' character is commanded.
+To edit the displayed character shape, we can edit the code value of the corresponding index of the `charTable[]` array found in `LedControl.h`. We could also use any of the unwritable characters as an alias for our own character, such as changing 'M' (i.e. ASCII 77) to be `B01001001`, which will draw a triple bar symbol when an 'M' character is commanded.
 
 | Code Value: `B0abcdefg` | Edit `charTable[]` to update `LedControl.h` with more characters. |
 |---|--|
 | <img style="width:400px" src="Images/7-seg-digit-mapping-Edemo.png" /> | The requested character's [ASCII Value](https://www.ascii-code.com/) determines the index of the array, `charTable[]`, that has the code value, indicating which segments to light up, to draw the character. <br> For example, to set what is drawn when instructing the LED to draw a capital 'E', we look up its ASCII value, which is `69`. Then go to the value at `charTable[69]`, and set the code value to **`B01001111`**.  <br> Following the format, `B0abcdefg`, this will instruct segments a, d, e, f, and g to turn on. |
 
+### **charTable[] from LedControl.h (modified)**
 ```cpp
 const static byte charTable [] PROGMEM  = {
   //00  0         1         2          3        4         5         6         7
@@ -393,7 +395,7 @@ They do, however, require 8 pins, but because of our pin savings on the displays
 <br>
 
 ## Keypad Library and Initialization in Code:  
-To handle working with the keypad input, the aptly named [Keypad](https://www.arduino.cc/reference/en/libraries/keypad/) library can be used. The keypad is not on an interrupt so it needs to be poled to detect a keypress. In this application the game has a menu state and a race state. In the menu state, which is active while using the UI, it's not a problem to pole for a key press every loop, giving a very responsive interface.  
+To handle working with the keypad input, the aptly named [Keypad](https://www.arduino.cc/reference/en/libraries/keypad/) library can be used. The keypad is not on an interrupt so it needs to be poled to detect a keypress. In this application, the game has a menu state, and a race state. In the menu state, which is active while using the UI, it's not a problem to pole for a key press every loop, giving a very responsive interface.  
 During a race, the keypad is not used so the program does not pole for presses. When a race is paused, it will pole for an asterisk `*`, but stop again if the race is restarted.
 ```cpp
 // Library to support 4 x 4 keypad
