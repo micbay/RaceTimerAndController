@@ -1095,7 +1095,7 @@ ISR (PCINT1_vect) {
             lapCount[laneNum] = 1;
           } else {
           // Else, if returning from Pause, we need to feed the new start time,
-            // into the pevious lap index spot, and not index the current lapcount.
+            // into the previous lap index spot, and not index the current lapcount.
             lastXMillis [ laneNum ][(lapCount[ laneNum ] - 1) % lapMillisQSize] = logMillis;
             // DON'T index lapcount, we're restarting the current lap
           }

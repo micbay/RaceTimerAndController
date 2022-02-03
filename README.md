@@ -42,7 +42,7 @@ All of the components are readily available and can be connected with basic jump
   - 10k Ohm Pull-Up resistor to adapt button for analog input on A6
 - Jumper leads to wire connections between peripherals & Arduino
 
-## **PinOut Diagram for Wiring Arduino Nano**
+## **PinOut for Wiring Arduino Nano**
 (these are the pins used by this code, but can be re-arranged, if desired)  
 <div style="color:orange;font-size:12px">  
 
@@ -611,7 +611,7 @@ This fits nicely with the port register interrupts to give a reliable, repeatabl
 <br>
 
 # **The Pause Button**  
-A pause button is included in this project to provide a means to temporarily suspend a race in progress and either quite, or restart when racers are ready to proceed.  
+A pause button is included in this project to provide a means to temporarily suspend a race in progress and either quit, or restart when racers are ready to proceed.  
 - Pressing the pause button the first time will put the race into the `Paused` state.
 - Pressing the pause button a second time will return the race from the `Paused` state to the `Race` state.
 - Pressing the aterisk `*` key while in the `Paused` state will end the race and return the program to the `Menu` state.
