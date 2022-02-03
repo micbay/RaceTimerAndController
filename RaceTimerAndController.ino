@@ -307,7 +307,7 @@ const char* victorySong[racerListSize] = {
   disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter
 };
 
-// sets screen cursor position names on the racer select menu
+// sets screen cursor position for the names on the racer select menu
 byte nameEndPos = 19;
 
 // *** STRING PROGMEM *************
@@ -404,6 +404,7 @@ const char* const FinishPlaceText[5] PROGMEM = {
   FourthPlace
 };
 
+
 // Reviews lane status array and updates the settings menu.
 // Run after a settings change.
 void PrintLaneSettings(){
@@ -446,10 +447,10 @@ void SplitTime(unsigned long msIN, unsigned long &ulHour, unsigned long &ulMin, 
 // Converts clock time into milliseconds
 unsigned long ClockToMillis(const byte ulHour, const byte ulMin, const byte ulSec) {
   // Sets the number of milliseconds from midnight to current time
-  // NOTE: we must us the 'UL' designation or otherwise cast to unsigned long
-  //       if we don't, then the multiplication will not be the exptected value.
+  // NOTE: we must us the 'UL' designation or otherwise cast to unsigned long.
+  //       If we don't, then the multiplication will not be the exptected value.
   //       This is because the default type of the number is a signed int which
-  //       in this case, results in 60 * 1000 is out of range for int.
+  //       in this case, results in 60 * 1000, which is out of range for int.
   //       Even though the variable it is going into is a long, the right side
   //       remains an int until after the evaluation so we would get an overflow.       
   return (ulHour * 60UL * 60UL * 1000UL) +
@@ -520,7 +521,7 @@ byte IndexRacer(byte laneID) {
   byte newRacerNameIndex = laneRacer[laneID];
   bool notUnique = true;
   // The modulus (%) of a numerator smaller than its denominator is equal to itself,
-  // while the modulus of an integer with itself is 0. Add 1 to restart a idx 1, not 0.
+  // while the modulus of an integer with itself is 0. Add 1 to restart at idx 1, not 0.
   while(notUnique){
     newRacerNameIndex = ((newRacerNameIndex + 1)%racerListSize == 0) ? 1 : (newRacerNameIndex + 1)%racerListSize;
     notUnique = false;
@@ -630,7 +631,7 @@ void PrintNumbers(const unsigned long numberIN, const byte width, const byte end
           lcd.print(" ");
         else {
           lcd.print(digitValue);
-            // once we get non-zero digit then we want all zeros
+          // once we get non-zero digit then we want all zeros
           leadingZs = true; 
         }
         placeValue--;
@@ -937,12 +938,12 @@ void ToggleLaneEnable(byte laneNumber){
     enabledLaneCount = 0;
   } else {
     if(wasSet){
-      // If lane had been on then, it's off now and the racer name should be to 0, aka 'DISABLED'
+      // If lane had been on then, it's off now and the racer name idx is set to 0.
       laneRacer[laneNumber] = 0;
       laneEnableStatus[laneNumber] = Off;
       enabledLaneCount--;
     } else {
-      // otherwise it was off, and is now on and must get an initial racer name.
+      // otherwise it was off, and is now on and must get an initial, unused, racer name.
       laneRacer[laneNumber] = IndexRacer(laneNumber);
       laneEnableStatus[laneNumber] = StandBy;
       enabledLaneCount++;
@@ -954,8 +955,8 @@ void ToggleLaneEnable(byte laneNumber){
 
 
 
-// This function enable/disables the Port Register pin hardware interrupts
-// on every pin that corresponds to a lane, set to be on, in the settings menu.
+// This function enable/disables the Port Register pin change interrupts
+// on every pin that corresponds to an enabled lane.
 void EnablePinInterrupts(bool Enable){
   for (byte i = 1; i <= laneCount; i++){
     // TURN ON PIN
@@ -1486,7 +1487,7 @@ void ResetRaceVars(){
 // // Function to play the current note index of a melody using 'tone()'.
 // // We want to pass all the variables instead of depending on their globality.
 // // This function returns, in ms, how long to wait before playing following note.
-// int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
+// int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, int tempoBPM){
 
 //   int noteDuration;
 //   int noteLength = pgm_read_word(&songLengths[curNoteIdx]);
@@ -1511,11 +1512,12 @@ void ResetRaceVars(){
 //   // The played notes have no transition time or strike impulse.
 //   // Played as written, each note sounds unaturally flat and run together.
 //   // Adding a small break between notes makes the melody sound better.
-//   // This can be done by slightly shortening the tone played vs the song temp.
+//   // This can be done by slightly shortening the tone played vs the song tempo.
 //   // or making the gap between notes slightly longer than the note length.
 //   // In which case the actual tempo will be slightly slower than the set tempo.
 //   // Here we'll factor the played tone down by 10% and keeping the tempo as set.
 //   // Play note:
+//   // pgm_read_word is used to retrieve the value from PROGMEM
 //   tone(buzzPin1, pgm_read_word(&songNotes[curNoteIdx]), .9*noteDuration);
 //   melodyIndex++;
 //   // If we have reached the end of the melody array then

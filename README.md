@@ -714,7 +714,7 @@ A portion of `pitches.h` is shown here, defining C in octave 4 (aka middle C) = 
 ```
 
 > ***The #define directive:**  
-> In the `pitches.h` files, we are using the [`#define` preprocessor directive](https://www.ibm.com/docs/en/zos/2.3.0?topic=directives-define-directive). This is a macro definition syntax (e.g. `#define NOTE_C4 262`) that contains an identifier (e.g. `NOTE_C4`), and a replacement token-string, (e.g. `262`).  
+> In the `pitches.h` files, we are using the [`#define` preprocessor directive](https://www.ibm.com/docs/en/zos/2.3.0?topic=directives-define-directive). This is a macro definition syntax (`#define NOTE_C4 262`) that contains an identifier (`NOTE_C4`), and a replacement token-string, (`262`).  
 > Just before the code is actually compiled, a preprocessor will replace all instances, in code, of the identifier, with the replacement token-string. In the case of `pitches.h` it will replace a given note id with the integer frequency in Hz. This is to be distinguished from using a constant variable.*
 
 Using the notes defined in `pitches.h`, we can build an array of the notes that make up a melody. For example, we can take the basic C-Major Scale:
@@ -835,7 +835,7 @@ int noteDelay = 0;
 // Function to play the current note index of a melody using 'tone()'.
 // We want to pass all the variables instead of depending on their globality.
 // This function returns, in ms, how long to wait before playing following note.
-int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
+int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, int tempoBPM){
 
   int noteDuration;
   int noteLength = pgm_read_word(&songLengths[curNoteIdx]);
@@ -860,7 +860,7 @@ int PlayNote(int *songNotes, int *songLengths, int curNoteIdx, byte tempoBPM){
   // The played notes have no transition time or strike impulse.
   // Played as written, each note sounds unaturally flat and run together.
   // Adding a small break between notes makes the melody sound better.
-  // This can be done by slightly shortening the tone played vs the song temp.
+  // This can be done by slightly shortening the tone played vs the song tempo.
   // or making the gap between notes slightly longer than the note length.
   // In which case the actual tempo will be slightly slower than the set tempo.
   // Here we'll factor the played tone down by 10% and keeping the tempo as set.
@@ -1043,7 +1043,7 @@ void loop(){
 
   // Must call this function every loop to keep song playing
   updatePlayRtttl();
-  // to stop an song in process use the stop function
+  // to stop a song in process use the stop function
   stopPlayRtttl();
   
   --- other code ---
