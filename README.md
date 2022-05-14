@@ -7,7 +7,7 @@ Download this repository into a local folder with the same name as the contained
 <br>
 
 # **Arduino Race Timer and Lap Gate Controller**
-This is an Arduino based project that implements an inexpensive, reliable, race game controller that can be used for timed racing games. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap count & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
+This is an Arduino based project that implements an inexpensive, reliable, race game controller that can be used for timed racing games of 1-4 racers. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap count & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
 
 In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate. The working demo of this project uses two paper clips integrated into a mechanical lap counter to create a simple, yet effective lap sensor.
 
@@ -15,7 +15,7 @@ In the presented configuration, the lap sensing input is simulated using buttons
 ![Wiring Diagram](Images/FullSystem.png)  
 ![Wiring Diagram](Images/Breadboard_4Racer.png)  
 
-The implementation shown here is immediately useable for 1-4 player racing games. The original application for this controller was slot car racing, as such, the controller was designed expecting a dedicated lane/gate for each racer. The down side of this, if attempting to adapt for drone racing, is that each racer needs a dedicated gate, but in turn, this also means that the racing object is irrelevant and does not need to communicate its identity.
+The original application for this controller was slot car racing, as such, the controller was designed expecting a dedicated lane/gate for each racer. The down side of this, if attempting to adapt for drone racing, is that each racer needs a dedicated gate, but in turn, this also means that the racing object is irrelevant and does not need to communicate its identity.
 > ***Code Snippets in Readme** - the code snippets shown in this readme file are not meant to be cut and paste working examples. They are only illustrating the general setup and syntax for usage using the implementation in this project as a reference.*  
 > ***Note on Reference Sources** - All links are for reference only and are not to be taken as an endorsement of any particular component supplier. I attempt to reference official Arduino resources whenever possible, but this is also not an endorsement for or against using the Arduino store.*
 
@@ -31,7 +31,7 @@ All of the components are readily available and can be connected with basic jump
 > ***Note on Housing and Mechanical Interface** - This project only documents the functional electrical and software configuration. It can be wired, and used as illustrated for demonstration, however, for repeated, practical usage, the construction of a permanent housing, and mechanical trigger interface, is left up to the implementer to develop per their unique setup.*  
 
 ## **Parts for Race Controller**  
-- [Arduino Nano](https://www.arduino.cc/en/pmwiki.php?n=Main/ArduinoBoardNano) (or equivalent microcontroller module)
+- [Arduino Nano](https://www.arduino.cc/en/pmwiki.php?n=Main/ArduinoBoardNano) (or equivalent microcontroller module, if using Mega2560 adjust code and wiring per annotations)
 - [4 x 4 membrane keypad](https://duckduckgo.com/?q=4+x+4+membrane+keypad)
 - [LCD2004 4 row x 20 character display](https://duckduckgo.com/?q=LCD2004A+4+x+20+I2C+backpack), with [I2C backpack](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
 - 2-4 Chainable, [8-digit, 7-segment LED bar with integrated MAX7219](https://duckduckgo.com/?q=8-digit%2C+7-segment+LED+display)
@@ -66,6 +66,16 @@ All of the components are readily available and can be connected with basic jump
 </div>  
 
 ![Wiring Diagram](Images/WiringDiagram1600x800.png)
+
+## **Changes if Using Mega2560 Based Microcontroller**
+By default the code is setup for an Arduino Nano pin out. However with minor adjustments this project will also work using an Arduino Mega2560 based module.
+The necessary mega2560 code can be found commented out, near the Nano based code it will replace.
+The summary of the changes to be made to use a Mega2560 board are:
+- Use pins D20 & D21 for LCD's SDA and SCL connection instead of A4 & A5
+- For the lane sensors, use pins on I/O port K instead of port C
+  - Wire lanes1-4 to pins A8-A11 instead of pins A0-A3
+  - For the port change interrupt service routine use `ISR(PCINT2_vect)`, instead of `ISR(PCINT1_vect)`.
+  - and accordingly, for variable `triggeredPins`, read from the port K (ie `PINK`), instead of port C (ie `PINC`) byte to check lane triggers.
 
 ## **Power Supply (+5V)**  
 All devices in this build are powered from a +5V source. The displays should draw power from the source supply and not through the Arduino which cannot support enough current to run everything without flickering.
@@ -124,7 +134,8 @@ Declaration and Setup of LCD display in `RaceTimerAndController.ino`
 //***** Variables for LCD 4x20 Display **********
 // This display communicates using I2C via the SCL and SDA pins,
 // which are dedicated by the hardware and cannot be changed by software.
-// For the Arduino Nano, pin A4 is used for SDA, pin A5 is used for SCL.
+// If using Arduino Nano, wire pin A4 for SDA, & pin A5 for SCL.
+// If using Arduino Mega2560, wire pin D20 for SDA, & pin D21 for SCL.
 // Declare 'lcd' object representing display:
 // Use class 'hd44780_I2Cexp' for LCD using i2c i/o expander backpack (PCF8574 or MCP23008)
 hd44780_I2Cexp lcd;
@@ -244,7 +255,9 @@ Another feature of the MAX7219, that makes these LED bars a good choice for this
 ![MAX7219 LED Cascade](Images/LED_MAX7219_Cascade.png)
 
 ### **Noise Sensitivity**  
-The MAX7219 can be particularly sensitive to noise on its power input. If the power lines are clean, and direct, there may not be an issue, however, the MAXIM documentation on using the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), strongly recommends using a [bypass filter](https://www.electronicdesign.com/power-management/power-supply/article/21808839/3-ways-to-reduce-powersupply-noise), consisting of a 10&mu;F (polarized, electrolytic) and 100nF (i.e. 0.1&mu;F, #104) capacitors across the input voltage into the MAX7219 and ground. I can concur from experience that there will be random, intermittent issues, if the signal, and power supply to these displays is not managed properly.
+The MAX7219 can be particularly sensitive to noise on its power input. If the power lines are clean, and direct, there may not be an issue, however, the MAXIM documentation on using the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), strongly recommends using a bypass filter, consisting of a 10&mu;F (polarized, electrolytic) and 100nF (i.e. 0.1&mu;F, #104) capacitors across the input voltage into the MAX7219 and ground. I can concur from experience that there will be random, intermittent issues, if the signal, and power supply to these displays is not managed properly.
+
+For more information on why and how bypass filters work see (ref [article](https://www.electronicdesign.com/power-management/power-supply/article/21808839/3-ways-to-reduce-powersupply-noise) or [video](https://www.youtube.com/watch?v=KKjHZpNMeik)).
  
 |Bypass Diagram| Capacitor Diagram Symbol Review|
 |:---:|:---:|
@@ -323,9 +336,9 @@ However, a side effect of using 7-seg displays is that they cannot display all c
 ### **Customization of the `LedControl` Library's Character Table**  
 The `LedControl` library, as it is downloaded, is missing some writable letters. To add them or to change how existing writable characters are written, we can edit the library's character table that contains the code value, representing the segments, to be displayed.
 
-Normally it is not best practice to directly edit library files because next time they are updated these changes will get overwritten. However, in this case, Arduino libraries are rarely updated and it is not a difficult change to re-implement vs the hassle of making our own version of the library.
+Normally it is not best practice to directly edit library files because next time they are updated these changes will get overwritten. However, in this case it is not a difficult change to re-implement vs the hassle of making our own version of the library.
 
-> ***Finding Arduino Library Files***  
+> ### ***Help Finding Arduino Library Files***  
 > Built-in libraries that are installed as part of the Arduino IDE, are found in the Arduino IDE installation folder in a sub-directory called `libraries`. On windows this is in:  
 > - *Note that `Wire` is special and not located here.*
 > ```
@@ -491,7 +504,7 @@ When an interrupt is triggered, the ISR() is executed. While in the interrupt fu
 
 > ***ISR Execution Time** - The execution time of the ISR in this project, with 4 lanes active, is between 0.004 - 0.180 ms (ie max 180uS).*
 
-### **Debouncing**
+### **Debouncing a Trigger**
 Because these interrupts will trigger on each, and every, signal change event we need to filter out unwanted re-triggers. We do this by setting a debounce time after the initial detection, within which any re-triggers on the same pin are ignored. Each lap trigger pin has its own timing array, so while the debounce period may be active for one pin causing it to be ignored, another may be newly triggered and will be accepted.
 
 Currently the default debounce is set to 1sec (1000ms). This is kind of excessive for a debounce period, but laps are still much longer than this. If this time is an issue, it can be changed by editing the `debounceTimeout` in the code.
@@ -506,7 +519,8 @@ This is the ISR() for this project. It may seem a bit busy and long, but the act
 // The execution time of this function should be as fast as possible as
 // interrupts are disabled while inside it.
 // This function takes approximately 0.004 - 0.180ms
-ISR (PCINT1_vect) {
+ISR (PCINT1_vect) {     // if using Nano
+// ISR (PCINT2_vect) {   // if using Mega2560
   // Note that millis() does not execute inside the ISR().
   // It can be called, and used as the time of entry, but it does not continue to increment.
   unsigned long logMillis = millis();
@@ -533,7 +547,9 @@ ISR (PCINT1_vect) {
   // Since we only need to check the 1st 4 bits, we'll also turn the last 4 bits to 0.
   // Flip every bit by using ('BitsToFlip' xor 0b11111111)
   // Then trim off the 4 highest bits with ('ByteToTrim' & 0b00001111)
-  byte triggeredPins = ((PINC xor 0b11111111) & 0b00001111);
+  byte triggeredPins = ((PINC xor 0b11111111) & 0b00001111);  // for Nano
+  // byte triggeredPins = ((PINK xor 0b11111111) & 0b00001111);  // for Mega2560
+
 
   // While the triggeredPins byte is > 0, one of the digits is a 1.
   // If after a shift, triggerPins = 0, then there is no need to keep checking.
@@ -596,8 +612,24 @@ ISR (PCINT1_vect) {
 } // END of ISR()
 ```
 
+# Sensor Options
+This readme would never end if it got into every kind of sensor that can be adapted for use with this project. However, here is a brief list of potential switch options that can work with this project.
+
+## Mechanical Switches
+Any button like, mechanical mechanism that closes the circuit can be used. See the project lap counter example implementation.
+
+## Magnetic Detection Switches
+> **Reed Switch** - A reed switch is a small, sealed tube containing very light wires that get pulled closed when a magnetic field is present nearby. This link is an example of Arduino integration of a reed switch, and here is an example of a reed switch implemented into a slot car track.
+
+>**Hall Effect Sensor** - A Hall Effect sensor is an integrated circuit component that can detect a nearby magnetic field. This link is an example of Arduino integration of a hall effect sensor.
+
+## Proximity Sensing
+>**IR proximity sensing** - Several types of infrared proximity sensing ICs and integrated boards exist that can be used to provide a single pin response. This link is an example of Arduino integration of IR proximity sensor, and here is an example of a Sharp GP2Y0D805Z0F implemented into a slot car track.
+
+>**Ultrasonic Proximity** - These do not come with integrated driving electronics, as often as many IR sensor modules, so usually require additional pins to be driven than a single Nano can provide. However, if using a Mega2560 or with other additional circuitry to drive the sensor, an ultrasonic trancever module can be used.
+
 ## **Example Integration - Converting Mechanical Lap Counter**
-This readme would never end if it got into every kind of sensor that can be adapted for use with this project. In my case I have a mechanical lap counter that I added two paper clips to act as contacts, creating a triggering connection every time the mechanical switch in the track is flipped. It's easy to bend the paperclips such that they have a nice, relatively long, solid contact period.
+In my case I have a mechanical lap counter that I added two paper clips to act as contacts, creating a triggering connection every time the mechanical switch in the track is flipped. It's easy to bend the paperclips such that they have a nice, relatively long, solid contact period.
 
 This fits nicely with the port register interrupts to give a reliable, repeatable, trigger. Because our contact time is much longer than our interrupt function, and we can read simultaneous contacts of all racers, we'll never miss a lap. Even if there is a tie, or if a racer is in the interrupt when another initiates its own triggering contact.
 
@@ -683,6 +715,8 @@ void Beep() {
 ## **Songs & Melodies**
 To play a melody, we need to play a series of tones corresponding to the appropriate musical notes. Presented here are two common methods of coding and playing non-blocking audio melodies on the Arduino.
 
+*NOTE: The section on Method 1 contains some general music theory that will also be useful for understanding Method 2 as well.*
+
 ## **Method 1: `Notes[]` & `Lengths[]` Arrays ( `pitches.h` )**  
 In this approach we will represent the musical notes that make up a melody, using two arrays, one array to hold the note frequencies, `Notes[]`, and one to hold the note lengths, `Lengths[]`, which will be used to determine each note's tone duration.
 
@@ -741,16 +775,22 @@ Ultimately we will need a millisecond integer value, to input as the duration in
 
 Most often, we find note length in a `Lengths[]` array using just the note length divisor value, as such:
 
-- `1` = whole note
-- `2` = half note
-- `4` = quarter note
-- `8` = eight note
-- `16` = 1/16th note
+- `1` = whole note, 4 beats
+- `2` = half note, 2 beats
+- `4` = quarter note, 1 beat
+- `8` = eight note, 1/2 beat
+- `16` = 1/16th note, 1/4 beat
 - etc.
 
-Negative numbers are used to represent dot notes which are 1.5 * note length.
-- `-1` = 1 + 1/2 = 3/2 note
-- `-2` = 1/2 + 1/4 = 3/4 note
+![Dotted Note](Images/DottedNote.png)
+
+A dotted note in sheet music indicates the note is to be played with a duration of 1.5 * the indicated note length. The example above is a dotted quarter note which gives it a duration of 1.5 beats.
+
+In our note's array, we will use a negative number to indicate a dotted note.
+- `-1` = 1 + 1/2 = 3/2 note, 6 beats
+- `-2` = 1/2 + 1/4 = 3/4 note, 3 beats
+- `-4` = 1/4 + 1/8 = 3/8 note, 1.5 beats
+- etc.
 
 All of the notes in our C-Major Scale are quarter notes, so using the note length notation, we can finish our C-major Scale arrays as follows:
 
@@ -980,8 +1020,10 @@ The RTTTL string is made up of 3 parts separated by colons ':'
 ![RTTTL](Images/RTTTL%20Format.png)
 
   - **Title** - up to 100, [ISO-8859-1](https://www.mobilefish.com/tutorials/character_encoding/character_encoding_quickguide_iso8859_1.html) characters allowed.
-  - **Parameters**  
+  - **Parameters**
     ```
+    !!! This is NOT code !!!
+
     d = duration (default = 4 if not present)
       Allowed values
         1 = whole note
@@ -999,10 +1041,14 @@ The RTTTL string is made up of 3 parts separated by colons ':'
     ```
   - **Notes** - the last part of the RTTTL string is a comma separated list of encoded notes using a duration-note-octave and optional dot, pattern.
     ```
-    Tone Pattern: duration-note-octave(.)
-    . an optional dotted note is 1.5 x duration
+    !!! This is NOT code !!!
+
+    Encoded Note: (Duration)(Note)(Octave)(.)
+    Notes are indicated by a letter (a, b, c, d, e, f, or g)
+    Sharp notes are indicated by a '#' sign
+    An optional trailing '.' signifies a dotted note of 1.5 x duration
     p = pause
-    if no duration or octave, use default
+    if no duration or octave is indicated the default value is used
 
     Examples:
     8f#5 = 1/8th note of F sharp, in the 5th octave

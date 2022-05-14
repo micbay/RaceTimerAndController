@@ -50,10 +50,16 @@ const byte buzzPin1 = 13;
 //***** Setting Up Lap Triggers and Pause-Stop button *********
 // debounceTime (ms), time within which not to accept additional signal input
 const int debounceTime = 1000;
+// If using Arduino Nano Board
 const byte lane1Pin = PIN_A0;
 const byte lane2Pin = PIN_A1;
 const byte lane3Pin = PIN_A2;
 const byte lane4Pin = PIN_A3;
+// If using Arduino Mega2560
+// const byte lane1Pin = PIN_A8;
+// const byte lane2Pin = PIN_A9;
+// const byte lane3Pin = PIN_A10;
+// const byte lane4Pin = PIN_A11;
 
 // A6 is an analog input only pin it must be read as analog.
 // An external pullup resistor must be added to button wiring.
@@ -65,7 +71,8 @@ unsigned long pauseDebounceMillis = 0;
 //***** Variables for LCD 4x20 Display **********
 // This display communicates using I2C via the SCL and SDA pins,
 // which are dedicated by the hardware and cannot be changed by software.
-// For the Arduino Nano, pin A4 is used for SDA, pin A5 is used for SCL.
+// If using Arduino Nano, pin A4 is used for SDA, pin A5 is used for SCL.
+// If using Arduino Mega2560, pin D20 can be used for SDA, & pin D21 for SCL.
 // Declare 'lcd' object representing display:
 // Use class 'hd44780_I2Cexp' to control LCD using i2c i/o expander backpack (PCF8574 or MCP23008)
 hd44780_I2Cexp lcd;
@@ -90,7 +97,7 @@ const byte LED_DIGITS = 8;
 LedControl lc = LedControl(PIN_TO_LED_DIN, PIN_TO_LED_CLK, PIN_TO_LED_CS, LED_BAR_COUNT);
 
 
-//***** Declare KeyPad Variables *****
+//***** KeyPad Variables *****
 // set keypad size
 const int KP_COLS = 4;
 const int KP_ROWS = 4;
@@ -105,7 +112,7 @@ char keys[KP_ROWS][KP_COLS] = {
 byte pin_rows[KP_ROWS] = {5,6,7,8};
 // Establish the column pinouts, {Col1,Col2,Col3,Col4} => Arduino pins 9,10,11,12
 byte pin_column[KP_COLS] = {9,10,11,12}; 
-// Declare keypad object
+// Creating keypad object
 Keypad keypad = Keypad( makeKeymap(keys), pin_rows, pin_column, KP_ROWS, KP_COLS );
 
 // using an enum to define reference id for attached diplays.
@@ -164,7 +171,7 @@ byte preStartCountDown = 5;
 // Since the default race type is standard the default countingDown is false.
 bool countingDown = false;
 
-// The millis() timestamp of the start of current program loop.
+// Used to hold the millis() timestamp of the start of current program loop.
 // This time is used by all processes in the loop so that everything happens
 // psuedo concurrently.
 unsigned long curMillis;
@@ -262,7 +269,7 @@ volatile byte flashStatus[ laneCount + 1 ] = {
   0, 0, 0, 0, 0
 };
 const int flashDisplayTime = 1500;
-// millis() timestamp at start of current flash period for each racer.
+// logs millis() timestamp at start of current flash period for each racer.
 unsigned long flashStartMillis[ laneCount + 1 ];
 
 // Index of lap time to display in first row of results window.
@@ -1039,7 +1046,8 @@ void clearPCI(byte pin) {
 // The execution time of this function should be as fast as possible as
 // interrupts are disabled while inside it.
 // This function takes approximately 0.004 - 0.180ms
-ISR (PCINT1_vect) {
+ISR (PCINT1_vect) {   // for Nano
+// ISR (PCINT2_vect) {   // for Mega2560
   // Note that millis() does not execute inside the ISR().
   // It can be called, and used as the time of entry, but it does not continue to increment.
   unsigned long logMillis = millis();
@@ -1070,7 +1078,8 @@ ISR (PCINT1_vect) {
   // Since we only need to check the 1st 4 bits, we'll also turn the last 4 bits to 0.
   // Flip every bit by using ('BitsToFlip' xor 0b11111111)
   // Then trim off the 4 highest bits with ('ByteToTrim' & 0b00001111)
-  byte triggeredPins = ((PINC xor 0b11111111) & 0b00001111);
+  byte triggeredPins = ((PINC xor 0b11111111) & 0b00001111);  // for Nano
+  // byte triggeredPins = ((PINK xor 0b11111111) & 0b00001111);  // for Mega2560
 
   // While the triggeredPins byte is > 0, one of the digits is a 1.
   // If after a shift, triggerPins = 0, then there is no need to keep checking.
@@ -1467,7 +1476,7 @@ void ResetRaceVars(){
 }
 
 
-// ------------BELOW NOT USED-------------
+// ------------NOTE ARRAY AUDIO CODE-------------
 // // *** This section for using Note and Lengths arrays for songs
 // // Globals for holding the current melody data references.
 // int *playingNotes;
@@ -1530,7 +1539,7 @@ void ResetRaceVars(){
 //   }
 //   return noteDuration;
 // }
-// -------------ABOVE NOT USED-------------------
+// -------------END NOTE ARRAY AUCIO CODE-------------------
 
 
 // *********************************************
@@ -1613,7 +1622,7 @@ void loop(){
   // Serial.println(state);
   // This function is required to be called every loop to facilitate non-blocking audio.
   updatePlayRtttl();
-  // ----- enable if using melody arrays ----------
+  // ----- enable if using Note arrays ----------
   // if(melodyPlaying){
   //   if(millis() - lastNoteMillis >= noteDelay){
   //   // stop generation of square wave triggered by 'tone()'.
@@ -2083,10 +2092,9 @@ void loop(){
               Finish();
             }
           } // END Standard Race Finish case
-          
-          // ****** TIMED FINSIH *******************
           break;
           case Timed:{
+            // ****** TIMED FINSIH *******************
             // if time <= 0 then race is over.
             if (currentTime[0] <= 0) {
               // Turn off all lap trigger interrupts.
