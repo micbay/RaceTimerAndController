@@ -68,14 +68,15 @@ All of the components are readily available and can be connected with basic jump
 ![Wiring Diagram](Images/WiringDiagram1600x800.png)
 
 ## **Changes if Using Mega2560 Based Microcontroller**
-By default the code is setup for an Arduino Nano pin out. However with minor adjustments this project will also work using an Arduino Mega2560 based module.
+By default the code is setup for an Arduino Nano pin out. However, with minor adjustments this project will also work using an Arduino Mega2560 based module.
 The necessary mega2560 code can be found commented out, near the Nano based code it will replace.
+
 The summary of the changes to be made to use a Mega2560 board are:
 - Use pins D20 & D21 for LCD's SDA and SCL connection instead of A4 & A5
 - For the lane sensors, use pins on I/O port K instead of port C
   - Wire lanes1-4 to pins A8-A11 instead of pins A0-A3
   - For the port change interrupt service routine use `ISR(PCINT2_vect)`, instead of `ISR(PCINT1_vect)`.
-  - and accordingly, for variable `triggeredPins`, read from the port K (ie `PINK`), instead of port C (ie `PINC`) byte to check lane triggers.
+  - and accordingly, for variable `triggeredPins`, read from the port K byte, `PINK`, instead of port C byte, `PINC`, to check triggered lanes.
 
 ## **Power Supply (+5V)**  
 All devices in this build are powered from a +5V source. The displays should draw power from the source supply and not through the Arduino which cannot support enough current to run everything without flickering.
@@ -613,7 +614,7 @@ ISR (PCINT1_vect) {     // if using Nano
 ```
 
 # Sensor Options
-This readme would never end if it got into every kind of sensor that can be adapted for use with this project. However, here is a brief list of potential switch options that can work with this project.
+This readme would never end if it got into every kind of sensor that can be adapted for use with this project. However, to provide some starting points, here is a brief list of potential switch options that can applied.
 
 ## Mechanical Switches
 Any button like, mechanical mechanism that closes the circuit can be used. See the project lap counter example implementation.
@@ -626,7 +627,7 @@ Any button like, mechanical mechanism that closes the circuit can be used. See t
 ## Proximity Sensing
 >**IR proximity sensing** - Several types of infrared proximity sensing ICs and integrated boards exist that can be used to provide a single pin response. This link is an example of Arduino integration of IR proximity sensor, and here is an example of a Sharp GP2Y0D805Z0F implemented into a slot car track.
 
->**Ultrasonic Proximity** - These do not come with integrated driving electronics, as often as many IR sensor modules, so usually require additional pins to be driven than a single Nano can provide. However, if using a Mega2560 or with other additional circuitry to drive the sensor, an ultrasonic trancever module can be used.
+>**Ultrasonic Proximity** - These do not come with integrated driving electronics as often as many IR sensor modules, so usually require additional pins to be driven than a single Nano can provide. However, if using a Mega2560 or other additional circuitry to drive the sensor, an ultrasonic trancever module's output can be used as a lane trigger.
 
 ## **Example Integration - Converting Mechanical Lap Counter**
 In my case I have a mechanical lap counter that I added two paper clips to act as contacts, creating a triggering connection every time the mechanical switch in the track is flipped. It's easy to bend the paperclips such that they have a nice, relatively long, solid contact period.
@@ -715,7 +716,7 @@ void Beep() {
 ## **Songs & Melodies**
 To play a melody, we need to play a series of tones corresponding to the appropriate musical notes. Presented here are two common methods of coding and playing non-blocking audio melodies on the Arduino.
 
-*NOTE: The section on Method 1 contains some general music theory that will also be useful for understanding Method 2 as well.*
+*NOTE: Even if not intending to use Method 1, understanding the approach in adapting music to code, and the underlying music theory, discussed in the section about Method 1 will also apply to using Method 2.*
 
 ## **Method 1: `Notes[]` & `Lengths[]` Arrays ( `pitches.h` )**  
 In this approach we will represent the musical notes that make up a melody, using two arrays, one array to hold the note frequencies, `Notes[]`, and one to hold the note lengths, `Lengths[]`, which will be used to determine each note's tone duration.
@@ -782,11 +783,11 @@ Most often, we find note length in a `Lengths[]` array using just the note lengt
 - `16` = 1/16th note, 1/4 beat
 - etc.
 
+A dotted note in sheet music indicates the note is to be played with a duration of 1.5 * the indicated note length. The example here is a dotted quarter note which gives it a duration of 1.5 beats.
+
 ![Dotted Note](Images/DottedNote.png)
 
-A dotted note in sheet music indicates the note is to be played with a duration of 1.5 * the indicated note length. The example above is a dotted quarter note which gives it a duration of 1.5 beats.
-
-In our note's array, we will use a negative number to indicate a dotted note.
+In our notes array, we will use a negative number to indicate a dotted note.
 - `-1` = 1 + 1/2 = 3/2 note, 6 beats
 - `-2` = 1/2 + 1/4 = 3/4 note, 3 beats
 - `-4` = 1/4 + 1/8 = 3/8 note, 1.5 beats
@@ -851,7 +852,7 @@ const int cMajorScaleCount = sizeof(cScaleNotes)/sizeof(int);
 ```
 
 ## **Playing the Melody Arrays**
-Now that we have a melody transcribed into an array of frequencies and durations, in order to play it we need to cycle through the arrays, playing each note in time. Because we want to be able to do other things while the song is playing we will need to track passing time so we know when to play the next note.
+Now that we have a melody transcribed into an array of frequencies and durations, in order to play it we need to cycle through the arrays, playing each note in time. We want to be able to do other things while the song is playing, so we will take advantage of the fact that `tone()` will play asynchronously with the main `loop()` and then use an interrupt timer, or pole the clock for when, to make each subsequent call to `tone()`.
 
 Because we have many songs to play we'll create a set of global reference variables that we can use to point to different song data variables. We use pointers to the data arrays instead of a passing copies, to save memory, and because we have songs of different sizes.
 
