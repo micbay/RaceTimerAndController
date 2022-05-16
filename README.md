@@ -620,12 +620,12 @@ This readme would never end if it got into every kind of sensor that can be adap
 Any button like, mechanical mechanism that closes the circuit can be used. See the project lap counter example implementation.
 
 ## Magnetic Detection Switches
-> **Reed Switch** - A reed switch is a small, sealed tube containing very light wires that get pulled closed when a magnetic field is present nearby. This link is an example of Arduino integration of a reed switch, and here is an example of a reed switch implemented into a slot car track.
+> **Reed Switch** - A reed switch is a small, sealed tube containing very light wires that get pulled closed when a magnetic field is present nearby. This link is an example of [Arduino integration of a reed switch](https://create.arduino.cc/projecthub/muchika/reed-switch-with-arduino-81f6d2), and here is an example of a [reed switch implemented into a slot car track](https://www.nealsstuff.com/arduinolapcounter.aspx).
 
->**Hall Effect Sensor** - A Hall Effect sensor is an integrated circuit component that can detect a nearby magnetic field. This link is an example of Arduino integration of a hall effect sensor.
+>**Hall Effect Sensor** - A Hall Effect sensor is an integrated circuit component that can detect a nearby magnetic field. This link is an example of [Arduino integration of a hall effect sensor](https://maker.pro/arduino/tutorial/how-to-use-a-hall-effect-sensor-with-arduino).
 
 ## Proximity Sensing
->**IR proximity sensing** - Several types of infrared proximity sensing ICs and integrated boards exist that can be used to provide a single pin response. This link is an example of Arduino integration of IR proximity sensor, and here is an example of a Sharp GP2Y0D805Z0F implemented into a slot car track.
+>**IR proximity sensing** - Several types of infrared proximity sensing ICs and integrated boards exist that can be used to provide a single pin response. This link is an example of [Arduino integration of IR proximity sensor](https://www.factoryforward.com/ir-proximity-sensor-arduino/), and here is an example of a [Sharp GP2Y0D805Z0F implemented into a slot car track](https://blog.tldnr.org/2020/05/08/slot-car-lap-counter/).
 
 >**Ultrasonic Proximity** - These do not come with integrated driving electronics as often as many IR sensor modules, so usually require additional pins to be driven than a single Nano can provide. However, if using a Mega2560 or other additional circuitry to drive the sensor, an ultrasonic trancever module's output can be used as a lane trigger.
 
