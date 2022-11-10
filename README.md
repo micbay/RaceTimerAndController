@@ -936,7 +936,7 @@ void loop() {
     // the next note, then reset the delay for the one after that.
     if(melodyPlaying){
         if(millis() - lastNoteMillis >= noteDelay){
-            noteDelay = PlayNote(playingNotes, playingLengths, melodyIndex, false);
+            noteDelay = PlayNote(playingNotes, playingLengths, melodyIndex, playingTempoBPM);
         }
     }
     --- other code ---
