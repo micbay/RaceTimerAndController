@@ -226,6 +226,8 @@ bool preStart = false;
 volatile int lapCount[laneCount + 1] = {
   0, 0, 0, 0, 0
 };
+// an array to hold the running total time (in ms) of each racer to complete their current lapCount
+unsigned long racersTotalTime[ laneCount + 1 ] = {};
 // For each lane/racer a list of the fastest 10 laps will be recorded.
 // This will be stored in 2, 2D arrays.
 // One array to hold the time (long), and one to hold the corresponding lap# (int).
@@ -333,6 +335,18 @@ Menus currentMenu;
 bool entryFlag;
 
 
+// enum to use names with context instead of raw numbers when coding audio state
+enum audioModes {
+  AllOn,
+  GameOnly,
+  Mute
+};
+// Setup default settings and flags
+audioModes audioState = AllOn;
+bool gameAudioOn = true;
+bool musicAudioOn = true;
+
+
 // Racer Names list.
 // Because this is an array of different length character arrays
 // there is not easy way to determine the number of racer names,
@@ -376,9 +390,10 @@ const char* const MainText[4] PROGMEM = {
 //   "D| See Results"
 // };
 
-const char Settings0[] PROGMEM = "Settings     mm:ss";
-const char Settings1[] PROGMEM = " A |Time       :";
-const char Settings2[] PROGMEM = " B |Laps";
+// const char Settings0[] PROGMEM = "Settings     mm:ss";
+const char Settings0[] PROGMEM = " A |Audio";
+const char Settings1[] PROGMEM = " B |Time       :";
+const char Settings2[] PROGMEM = " C |Laps";
 const char Settings3[] PROGMEM = "0-4|Lanes";
 const char* const SettingsText[4] PROGMEM = {
   Settings0,
@@ -507,10 +522,15 @@ unsigned long ClockToMillis(const byte ulHour, const byte ulMin, const byte ulSe
 
 
 void Beep() {
-  tone(buzzPin1, 4000, 200);
+  if (gameAudioOn) {
+    tone(buzzPin1, 4000, 200);
+  }
 }
+
 void Boop() {
-  tone(buzzPin1, 1000, 200);
+  if (gameAudioOn) {
+    tone(buzzPin1, 1000, 200);
+  }
 }
 
 // Used to set fastest lap array to high numbers that will be replaced on comparison.
@@ -521,12 +541,16 @@ void InitializeRacerArrays(){
       fastestLaps[i][j] = 0;
       fastestTimes[i][j] = 999999;
     }
-  }
-  for (byte i = 0; i <= laneCount; i++) {
     for (byte j = 0; j < lapMillisQSize; j++) {
       lastXMillis[i][j] = 0;
     }
+    racersTotalTime[i] = 0;
   }
+  // for (byte i = 0; i <= laneCount; i++) {
+  //   for (byte j = 0; j < lapMillisQSize; j++) {
+  //     lastXMillis[i][j] = 0;
+  //   }
+  // }
 }
 
 // Used to initialize results, top fastest, lap array to high numbers.
@@ -1389,6 +1413,10 @@ void UpdateResultsMenu() {
         PrintResultsList(fastestTimes[resultsMenuIdx], fastestLaps[resultsMenuIdx], lapCount[resultsMenuIdx] < fastestQSize ? lapCount[resultsMenuIdx] : fastestQSize);
         // Print Racer 'Name', after results to avoid getting written over.
         PrintText(Racers[laneRacer[resultsMenuIdx]], lcdDisp, 19, 6, true, 1);
+        // Print out the racer's total race time
+        PrintText("Total", lcdDisp, 19, 5, true, 2, false);
+        PrintClock(racersTotalTime[resultsMenuIdx], 19, 6, 1, lcdDisp, 3, false);
+
       } else {
         resultsMenuIdx++;
         UpdateResultsMenu();
@@ -1403,7 +1431,6 @@ void UpdateResultsMenu() {
     break;
   }
 } // END UpdateResultsMenu()
-
 
 
 // col0 is number of laps, col1 is the lane/racer #
@@ -1527,6 +1554,64 @@ void ResetRaceVars(){
 }
 
 
+// function to iterate through the given audioStates
+void toggleAudioMode(bool printToScreen = false) {
+  switch (audioState) {
+    case AllOn: {
+      // change state and values to be for GameOnly
+      audioState = GameOnly;
+      gameAudioOn = true;
+      musicAudioOn = false;
+    }
+    break;
+    case GameOnly: {
+      // change state and values to be for GameOnly
+      audioState = Mute;
+      gameAudioOn = false;
+      musicAudioOn = false;
+    }
+    break;
+    case Mute: {
+      // change state and values to be for GameOnly
+      audioState = AllOn;
+      gameAudioOn = true;
+      musicAudioOn = true;
+    }
+    break;
+    default:
+    break;
+  } // END of switch block
+}
+
+// this function prints the current Audio component status to the settings screen
+// This function assumes it is being called from the 'Settings' menu screen state.
+void PrintAudioStatus() {
+  // if both audio flags are off then print
+  if (gameAudioOn || musicAudioOn) {
+    // clear any residual "-OFF-" text
+    PrintSpanOfChars(lcdDisp, 0, 13, 16);
+    // print or clear, game audio icon to settings screen position
+    lcd.setCursor(14, 0);
+    if (gameAudioOn) {
+      lcd.write(4);
+    } else {
+      lcd.write(' ');
+    };
+    // if music audio column is 1 then print icon
+    // print or clear, music audio icon to settings screen position
+    lcd.setCursor(17, 0);
+    if (musicAudioOn) {
+      lcd.write(5);
+    } else {
+      lcd.write(' ');
+    };
+  } else {
+    //else both audio are off
+    lcd.setCursor(13, 0);
+    lcd.write("-OFF-");
+  }
+}
+
 // ------------NOTE ARRAY AUDIO CODE-------------
 // // *** This section for using Note and Lengths arrays for songs
 // // Globals for holding the current melody data references.
@@ -1617,12 +1702,13 @@ void setup(){
   // Clear display of any residual data, ensure it starts in a blank state
   lcd.clear();
   // --- CREATE CUSTOM LCD CHARS -------------
+  // uncommenting custom characters here may also require uncommenting the corresponding data in 'CustomChars.h'
   lcd.createChar(0, UpDownArrow);
   // lcd.createChar(1, UpArrow);
   // lcd.createChar(2, DownArrow);
   lcd.createChar(3, Skull);
-  // lcd.createChar(4, Heart);
-  // lcd.createChar(5, Alien);
+  lcd.createChar(4, GameSound);
+  lcd.createChar(5, MusicNote);
   // lcd.createChar(6, Check);
 
   // --- SETUP LED 7-SEG, 8-DIGIT MAX7219 LED Globals ------
@@ -1677,7 +1763,7 @@ void loop(){
   // This function is required to be called every loop to facilitate non-blocking audio.
   updatePlayRtttl();
   // ----- enable if using Note arrays ----------
-  // if(melodyPlaying){
+  // if(melodyPlaying && musicAudioOn){
   //   if(millis() - lastNoteMillis >= noteDelay){
   //   // stop generation of square wave triggered by 'tone()'.
   //   // This is not required as all tones should stop at end of duration.
@@ -1745,6 +1831,8 @@ void loop(){
             if (entryFlag) {
               //draw non-editable text
               UpdateLCDMenu(SettingsText);
+              // Print the current audio modes active
+              PrintAudioStatus();
               // Minute setting
               PrintNumbers(raceSetTime[1], 2, 14, lcdDisp, true, 1);
               // Seconds setting
@@ -1758,8 +1846,16 @@ void loop(){
               entryFlag = false;
             }
             switch (key) {
-              // TIME
+              // Audio Mode Select
               case 'A':{
+                toggleAudioMode();
+                PrintAudioStatus();
+              }
+              break;
+              // TIME
+              case 'B':{
+                lcd.setCursor(13, 1);
+                lcd.print("mm:ss");
                 // Change minutes
                 raceSetTime[1] = EditNumber(2, 60, 1, 13);
                 // Change seconds
@@ -1769,19 +1865,19 @@ void loop(){
               }
               break;
               // LAP
-              case 'B':{
+              case 'C':{
                 // change lap count
                 raceLaps = EditNumber(3, 999, 2, 14);
               }
               break;
-              // SECONDS
-              case 'C':{
-                // change seconds
-                raceSetTime[0] = EditNumber(2, 59, 1, 16);
-                // update the race time in ms
-                raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
-              }
-              break;
+              // // SECONDS
+              // case 'C':{
+              //   // change seconds
+              //   raceSetTime[0] = EditNumber(2, 59, 1, 16);
+              //   // update the race time in ms
+              //   raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
+              // }
+              // break;
               // ENABLED LANES
               // If a number is pressed in menu state change enabled lane.
               case '0' ... '4':{
@@ -1839,7 +1935,7 @@ void loop(){
                   // Update Racer's LED
                   PrintText(Racers[ laneRacer[laneNumber] ], displays(laneNumber), 7, 8);
                   // Play racers victory song
-                  startPlayRtttlPGM(buzzPin1, victorySong[ laneRacer[laneNumber] ]);
+                  if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[ laneRacer[laneNumber] ]);
                 }
               }
               break;
@@ -2073,6 +2169,8 @@ void loop(){
                 flashStartMillis[i] = curMillis;
                 // Calculate the lap time of the just finished lap.
                 lapTimeToLog = lastXMillis [i] [(lapCount[i]-1) % lapMillisQSize] - lastXMillis [i] [(lapCount[i]-2) % lapMillisQSize];
+                // update the total run time for racer
+                racersTotalTime[i] = racersTotalTime[i] + lapTimeToLog;
                 // Set the Results Menu data exist flag to true.
                 raceDataExists = true;
                 // Update the racer's LED with the completed lap # and laptime.
@@ -2125,20 +2223,22 @@ void loop(){
               if(laneEnableStatus[i] == Active){
                 // If a lanes's current lapCount is greater than the raceLaps that means
                 // they have finished the race. lapCount of an 'Active' lane, is +1 of finsished laps.
-                if(lapCount[i] > raceLaps){
+                // Because the final lap count can be updated at any time via interrupts,
+                // we must also verify that the flash status is not still '1'.
+                // Waiting for the flash status of the final lap to be in the hold state, '2'
+                // will ensure that the final lap data has been fully processed through flash state '1'.
+                if( (lapCount[i] > raceLaps) && (flashStatus[i] != 1) ){
                   // Change racer's status to finished
                   laneEnableStatus[i] = Finished;
                   finishedLaneCount++;
                   // Update the racer's LED display with their finishing place.
                   UpdateNameOnLED(i);
                   // Turn off lap trigger interrupt of finished lane.
-                  // clearPCI(laneSensorPin[i]);
                   clearPCI(lanes[i][0]);
                   // Stop any currently playing song
                   stopPlayRtttl();
                   // Play finishing song of racer
-                  // startPlayRtttlPGM(buzzPin1, victorySong[i]);
-                  startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[i]]);
+                  if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[i]]);
                 }
               }
             }
@@ -2166,8 +2266,7 @@ void loop(){
               // Stop any currently playing song
               stopPlayRtttl();
               // Play finishing song of 1st place racer.
-              // startPlayRtttlPGM(buzzPin1, victorySong[leaderBoard[0][1]]);
-              startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[leaderBoard[0][1]]]);
+              if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[leaderBoard[0][1]]]);
               Finish();
             }
           } // END Timed race case
