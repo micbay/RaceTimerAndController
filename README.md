@@ -520,26 +520,26 @@ This is the ISR() for this project. It may seem a bit busy and long, but the act
 // The execution time of this function should be as fast as possible as
 // interrupts are disabled while inside it.
 // This function takes approximately 0.004 - 0.180ms
-ISR (PCINT1_vect) {     // if using Nano
-// ISR (PCINT2_vect) {   // if using Mega2560
+ISR (PCINT1_vect) {   // for Nano
+// ISR (PCINT2_vect) {   // for Mega2560
   // Note that millis() does not execute inside the ISR().
   // It can be called, and used as the time of entry, but it does not continue to increment.
   unsigned long logMillis = millis();
+
+  // MICROTIMING code used for assessing the ISR execution time.
+  // unsigned long logMicros = micros();
+
   // This code expects the lap sensors are setup as inputs.
   // This means the pins have been set to HIGH, indicated by a 1 on its register bit.
   // When a button is pressed, or sensor triggered, it should bring the pin LOW.
   // A LOW pin is indicated by a 0 on its port register.
-  // Because all of the lap sensors are on the same port regirster
+  // Because all of the lap sensors are on the same port register
   // it will be possible to detect simultaneous triggers.
 
-  // Lane 1 positive trigger PINC = 0xXXXXXXX0
-  // Lane 1 is on pin A0 which uses the 1st bit of the register; idx 0, of PINC Byte
-  // Lane 2 positive trigger PINC = 0xXXXXXX0X
-  // Lane 2 is on pin A1 which uses the 2nd bit of the register; idx 1, of PINC Byte
-  // Lane 3 positive trigger PINC = 0xXXXXX0XX
-  // Lane 3 is on pin A2 which uses the 3rd bit of the register; idx 2, of PINC Byte
-  // Lane 4 positive trigger PINC = 0xXXXX0XXX
-  // Lane 4 is on pin A3 which uses the 4th bit of the register; idx 3, of PINC Byte
+  // pin A0 positive trigger indicated by zero on byte digit 1, PINC = 0xXXXXXXX0
+  // pin A1 positive trigger indicated by zero on byte digit 2, PINC = 0xXXXXXX0X
+  // pin A2 positive trigger indicated by zero on byte digit 3, PINC = 0xXXXXX0XX
+  // pin A3 positive trigger indicated by zero on byte digit 4, PINC = 0xXXXX0XXX
   
   // Because the bits we are interested in, are together at the low end,
   // we can be a little more efficient by using a bit shifting approach.
@@ -551,32 +551,33 @@ ISR (PCINT1_vect) {     // if using Nano
   byte triggeredPins = ((PINC xor 0b11111111) & 0b00001111);  // for Nano
   // byte triggeredPins = ((PINK xor 0b11111111) & 0b00001111);  // for Mega2560
 
-
   // While the triggeredPins byte is > 0, one of the digits is a 1.
-  // If after a shift, triggerPins = 0, then there is no need to keep checking.
+  // If after a check, triggerPins = 0, then there is no need to keep checking.
   // Since we only have 4 bits that can be a 1, this loop will run a max of 4 times.
-  // Lane index will determine which lane the currently checked bit is related to.
+  // laneNum is index of lanes[] that defiens the pin and intterupt byte determined by hardware.
   byte laneNum = 1;
   while(triggeredPins > 0){
     // If bit i is a 1, then process it as a trigger on lane 'laneNum'
-    if(triggeredPins & 1){
+    if(triggeredPins & lanes[laneNum][1]){
       // Depending on the status of this lane we process the trigger differently.
+        // Serial.print("lanes[laneNum][1]: ");
+        // Serial.println(lanes[laneNum][1]);
       switch (laneEnableStatus[ laneNum ]) {
 
         case StandBy:{
           // If in StandBy, no need for debounce
           // Change lane status from 'StandBy' to 'Active'
-          laneEnableStatus[laneNum] = Active;
+          laneEnableStatus[ laneNum] = Active;
           // log start time or restart time of lap
-          startMillis[laneNum] = logMillis;
+          startMillis[ laneNum ] = logMillis;
           // If the first lap of race
-          if(lapCount[laneNum] == 0) {
+          if(lapCount[ laneNum ] == 0) {
             // Log timestamp into start log and lap timestamp tracking array (lastXMillis)
-            lastXMillis[laneNum] [0] = logMillis;
-            lapCount[laneNum] = 1;
+            lastXMillis[ laneNum ][0] = logMillis;
+            lapCount[ laneNum ] = 1;
           } else {
           // Else, if returning from Pause, we need to feed the new start time,
-            // into the pevious lap index spot, and not index the current lapcount.
+            // into the previous lap index spot, and not index the current lapcount.
             lastXMillis [ laneNum ][(lapCount[ laneNum ] - 1) % lapMillisQSize] = logMillis;
             // DON'T index lapcount, we're restarting the current lap
           }
@@ -586,12 +587,12 @@ ISR (PCINT1_vect) {     // if using Nano
 
         case Active:{
           // If lane is 'Active' then check that it has not been previously triggerd within debounce period.
-          if( ( logMillis - lastXMillis [laneNum] [(lapCount[ laneNum ]-1)%lapMillisQSize] ) > debounceTime ){
+          if( ( logMillis - lastXMillis [ laneNum ] [(lapCount[ laneNum ]-1)%lapMillisQSize] ) > debounceTime ){
             // Set lap display flash status to 1, indicating entry into the flash state for the lane.
-            flashStatus[laneNum] = 1;
-            lastXMillis [laneNum][lapCount[laneNum] % lapMillisQSize] = logMillis;
-            startMillis[laneNum] = logMillis;
-            lapCount[laneNum] = lapCount[laneNum] + 1;
+            flashStatus[ laneNum ] = 1;
+            lastXMillis [ laneNum ][lapCount[ laneNum ] % lapMillisQSize] = logMillis;
+            startMillis[ laneNum ] = logMillis;
+            lapCount[ laneNum ] = lapCount[ laneNum ] + 1;
             Beep();
           }
         }
@@ -603,14 +604,22 @@ ISR (PCINT1_vect) {     // if using Nano
         }
         break;
       } // END of lane status switch
-    } // END if triggeredPin & 1
+    } // END if triggeredPin & ...
 
-    // Shift to the next bit and iterate PINC byte index.
-    triggeredPins = triggeredPins >> 1;
+    // Turn checked digit in triggeredPins to zero
+    triggeredPins = triggeredPins & (lanes[laneNum][1] xor 0b11111111);
     laneNum++;
+    // Serial.print("LaneNum: ");
+    // Serial.println(laneNum);
 
   } // END of While Loop checking each digit
+
+  // MICROTIMING code
+  // timeTest[timeTestCount] = micros() - logMicros;
+  // timeTestCount++;
+
 } // END of ISR()
+
 ```
 
 # Sensor Options

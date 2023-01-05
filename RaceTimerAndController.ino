@@ -57,7 +57,7 @@ const int debounceTime = 1000;
 // lanes[1][0] defines the physical pin used for lane #1
 // lanes[1][1] defines the byte index of the pin interrupt for lane #1
 // by default lane #1 uses pin A0 which is indicated by interrupt vector digit 0b00000001,
-// making lanes[0] = {PIN_A0, 0b00000001}.
+// making lanes[1] = {PIN_A0, 0b00000001}.
 // However, if one wants to wire pin A3 as lane#1 instead then edit lanes[] such that,
 // lanes[1] = {PIN_A3, 0b00001000} says Lane#1 will be wired to pin A3, whose trigger digit of the PINC interrupt vector is 0b00001000.
 // The Pin Change Interrupt used by this project to detect a lane gate,
