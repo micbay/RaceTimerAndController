@@ -39,8 +39,6 @@
 const byte laneCount = 4;
 
 // ********* AUDIO HARDWARE *********
-// A3 is a built in Arduino identifier that is replaced by the preprocessor,
-// with the physical pin number, of the Arduino hardware selected in the IDE.
 const byte buzzPin1 = 13;
 
 // indicator LED, disable buzzer to use
@@ -50,16 +48,51 @@ const byte buzzPin1 = 13;
 //***** Setting Up Lap Triggers and Pause-Stop button *********
 // debounceTime (ms), time within which not to accept additional signal input
 const int debounceTime = 1000;
-// If using Arduino Nano Board
-const byte lane1Pin = PIN_A0;
-const byte lane2Pin = PIN_A1;
-const byte lane3Pin = PIN_A2;
-const byte lane4Pin = PIN_A3;
-// If using Arduino Mega2560
-// const byte lane1Pin = PIN_A8;
-// const byte lane2Pin = PIN_A9;
-// const byte lane3Pin = PIN_A10;
-// const byte lane4Pin = PIN_A11;
+
+// LANES DEFININTION
+// The following array constant defines the hardware/software relationship
+// of the physical arduino gate pins and interrupt byte indices with
+// their associated 'Lane#'.
+// The row # of the lanes[] array equals the lane # such that
+// lanes[1][0] defines the physical pin used for lane #1
+// lanes[1][1] defines the byte index of the pin interrupt for lane #1
+// by default lane #1 uses pin A0 which is indicated by interrupt vector digit 0b00000001,
+// making lanes[0] = {PIN_A0, 0b00000001}.
+// However, if one wants to wire pin A3 as lane#1 instead then edit lanes[] such that,
+// lanes[1] = {PIN_A3, 0b00001000} says Lane#1 will be wired to pin A3, whose trigger digit of the PINC interrupt vector is 0b00001000.
+// The Pin Change Interrupt used by this project to detect a lane gate,
+// is a hardware based feature and dependent on the type of microprocessor used.
+// This means you cannot change the physical pins used without making sure
+// the new pin is compatible with the same interrupt feature,
+// and updating the code referencing the interrupt bytes being read.
+// The zero row, lanes[0] = {255, 255} is reserved for race level use if needed some day.
+// The following is the default lane wiring, pinA0-lane1, pinA1-lane2, pinA2-lane3, pinA3-lane4
+const byte lanes[laneCount+1][2] = {
+  {255, 255},
+  {PIN_A0, 0b00000001},
+  {PIN_A1, 0b00000010},
+  {PIN_A2, 0b00000100},
+  {PIN_A3, 0b00001000}
+};
+// The following example could be used for alternative wiring where
+// pin A3 is connected to lane1, pin A0 to lane2, pin A1 to lane3, and pin A2 to lane4
+// The pin and intettupt byte should always stay as a pair, A3 is always paired with 0b00001000.
+// const byte lanes[laneCount+1][2] = {
+//   {255, 255},
+//   {PIN_A3, 0b00001000},
+//   {PIN_A0, 0b00000001},
+//   {PIN_A1, 0b00000010},
+//   {PIN_A2, 0b00000100}
+// };
+
+// If using Arduino Mega2560, the pins should be those associated with using Port K, pins A8-A11
+// const byte lanes[laneCount+1][2] = {
+//   {255, 255},
+//   {PIN_A8, 0b00000001},
+//   {PIN_A9, 0b00000010},
+//   {PIN_A10, 0b00000100},
+//   {PIN_A11, 0b00001000}
+// };
 
 // A6 is an analog input only pin it must be read as analog.
 // An external pullup resistor must be added to button wiring.
@@ -242,9 +275,10 @@ volatile byte laneEnableStatus[ laneCount + 1 ] = {
   Off, StandBy, StandBy, Off, Off
 };
 // Logs hardware pin related to given lane/racer/sensor
-byte laneSensorPin[ laneCount + 1 ] = {
-  255, lane1Pin, lane2Pin, lane3Pin, lane4Pin
-};
+// byte laneSensorPin[ laneCount + 1 ] = {
+//   255, lane1Pin, lane2Pin, lane3Pin, lane4Pin
+//   // 255, lane3Pin, lane2Pin, lane1Pin, lane4Pin
+// };
 // These help keep code easier to read instead of calculating them repeatedly from status array.
 byte enabledLaneCount = 2;
 byte finishedLaneCount = 0;
@@ -982,12 +1016,14 @@ void EnablePinInterrupts(bool Enable){
     // TURN ON PIN
     if(laneEnableStatus[i] > 0 && Enable) {
       // If lane has finished then we don't want to turn it back on.
-      if(laneEnableStatus[i] != 3) pciSetup(laneSensorPin[i]);
+      // if(laneEnableStatus[i] != 3) pciSetup(laneSensorPin[i]);
+      if(laneEnableStatus[i] != 3) pciSetup(lanes[i][0]);
       // Serial.println("pin enabled");
     }
     // TURN OFF PIN
     else if(laneEnableStatus[i] > 0 && !Enable){
-      clearPCI(laneSensorPin[i]);
+      // clearPCI(laneSensorPin[i]);
+      clearPCI(lanes[i][0]);
       // Serial.println("pin disabled");
     }
   }
@@ -1075,14 +1111,10 @@ ISR (PCINT1_vect) {   // for Nano
   // Because all of the lap sensors are on the same port register
   // it will be possible to detect simultaneous triggers.
 
-  // Lane 1 positive trigger PINC = 0xXXXXXXX0
-  // Lane 1 is on pin A0 which uses the 1st bit of the register; idx 0, of PINC Byte
-  // Lane 2 positive trigger PINC = 0xXXXXXX0X
-  // Lane 2 is on pin A1 which uses the 2nd bit of the register; idx 1, of PINC Byte
-  // Lane 3 positive trigger PINC = 0xXXXXX0XX
-  // Lane 3 is on pin A2 which uses the 3rd bit of the register; idx 2, of PINC Byte
-  // Lane 4 positive trigger PINC = 0xXXXX0XXX
-  // Lane 4 is on pin A3 which uses the 4th bit of the register; idx 3, of PINC Byte
+  // pin A0 positive trigger indicated by zero on byte digit 1, PINC = 0xXXXXXXX0
+  // pin A1 positive trigger indicated by zero on byte digit 2, PINC = 0xXXXXXX0X
+  // pin A2 positive trigger indicated by zero on byte digit 3, PINC = 0xXXXXX0XX
+  // pin A3 positive trigger indicated by zero on byte digit 4, PINC = 0xXXXX0XXX
   
   // Because the bits we are interested in, are together at the low end,
   // we can be a little more efficient by using a bit shifting approach.
@@ -1095,27 +1127,29 @@ ISR (PCINT1_vect) {   // for Nano
   // byte triggeredPins = ((PINK xor 0b11111111) & 0b00001111);  // for Mega2560
 
   // While the triggeredPins byte is > 0, one of the digits is a 1.
-  // If after a shift, triggerPins = 0, then there is no need to keep checking.
+  // If after a check, triggerPins = 0, then there is no need to keep checking.
   // Since we only have 4 bits that can be a 1, this loop will run a max of 4 times.
-  // Lane index will determine which lane the currently checked bit is related to.
+  // laneNum is index of lanes[] that defiens the pin and intterupt byte determined by hardware.
   byte laneNum = 1;
   while(triggeredPins > 0){
     // If bit i is a 1, then process it as a trigger on lane 'laneNum'
-    if(triggeredPins & 1){
+    if(triggeredPins & lanes[laneNum][1]){
       // Depending on the status of this lane we process the trigger differently.
+        // Serial.print("lanes[laneNum][1]: ");
+        // Serial.println(lanes[laneNum][1]);
       switch (laneEnableStatus[ laneNum ]) {
 
         case StandBy:{
           // If in StandBy, no need for debounce
           // Change lane status from 'StandBy' to 'Active'
-          laneEnableStatus[laneNum] = Active;
+          laneEnableStatus[ laneNum] = Active;
           // log start time or restart time of lap
-          startMillis[laneNum] = logMillis;
+          startMillis[ laneNum ] = logMillis;
           // If the first lap of race
-          if(lapCount[laneNum] == 0) {
+          if(lapCount[ laneNum ] == 0) {
             // Log timestamp into start log and lap timestamp tracking array (lastXMillis)
-            lastXMillis[laneNum] [0] = logMillis;
-            lapCount[laneNum] = 1;
+            lastXMillis[ laneNum ][0] = logMillis;
+            lapCount[ laneNum ] = 1;
           } else {
           // Else, if returning from Pause, we need to feed the new start time,
             // into the previous lap index spot, and not index the current lapcount.
@@ -1128,12 +1162,12 @@ ISR (PCINT1_vect) {   // for Nano
 
         case Active:{
           // If lane is 'Active' then check that it has not been previously triggerd within debounce period.
-          if( ( logMillis - lastXMillis [laneNum] [(lapCount[ laneNum ]-1)%lapMillisQSize] ) > debounceTime ){
+          if( ( logMillis - lastXMillis [ laneNum ] [(lapCount[ laneNum ]-1)%lapMillisQSize] ) > debounceTime ){
             // Set lap display flash status to 1, indicating entry into the flash state for the lane.
-            flashStatus[laneNum] = 1;
-            lastXMillis [laneNum][lapCount[laneNum] % lapMillisQSize] = logMillis;
-            startMillis[laneNum] = logMillis;
-            lapCount[laneNum] = lapCount[laneNum] + 1;
+            flashStatus[ laneNum ] = 1;
+            lastXMillis [ laneNum ][lapCount[ laneNum ] % lapMillisQSize] = logMillis;
+            startMillis[ laneNum ] = logMillis;
+            lapCount[ laneNum ] = lapCount[ laneNum ] + 1;
             Beep();
           }
         }
@@ -1145,11 +1179,13 @@ ISR (PCINT1_vect) {   // for Nano
         }
         break;
       } // END of lane status switch
-    } // END if triggeredPin & 1
+    } // END if triggeredPin & ...
 
-    // Shift to the next bit and iterate PINC byte index.
-    triggeredPins = triggeredPins >> 1;
+    // Turn checked digit in triggeredPins to zero
+    triggeredPins = triggeredPins & (lanes[laneNum][1] xor 0b11111111);
     laneNum++;
+    // Serial.print("LaneNum: ");
+    // Serial.println(laneNum);
 
   } // END of While Loop checking each digit
 
@@ -1569,8 +1605,8 @@ void setup(){
   'hang', this may be the culprit if there is a connection issue.
   */
   // Open port and wait for connection before proceeding.
-  Serial.begin(9600);
-  while(!Serial);
+  // Serial.begin(9600);
+  // while(!Serial);
 
   // --- SETUP LCD DIPSLAY -----------------------------
   // Initialize LCD with begin() which will return zero on success.
@@ -1603,7 +1639,10 @@ void setup(){
   // --- SETUP LAP TRIGGERS AND BUTTONS ----------------
   // Roughly equivalent to digitalWrite(lane1Pin, HIGH)
   for (byte i = 1; i <= laneCount; i++){
-    pinMode(laneSensorPin[i], INPUT_PULLUP);
+    // pinMode(laneSensorPin[i], INPUT_PULLUP);
+    pinMode(lanes[i][0], INPUT_PULLUP);
+    // Serial.print("SensorPin: ");
+    // Serial.println(lanes[i][0]);
   }
   pinMode(pauseStopPin, INPUT);
 
@@ -2093,7 +2132,8 @@ void loop(){
                   // Update the racer's LED display with their finishing place.
                   UpdateNameOnLED(i);
                   // Turn off lap trigger interrupt of finished lane.
-                  clearPCI(laneSensorPin[i]);
+                  // clearPCI(laneSensorPin[i]);
+                  clearPCI(lanes[i][0]);
                   // Stop any currently playing song
                   stopPlayRtttl();
                   // Play finishing song of racer
