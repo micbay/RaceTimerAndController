@@ -34,12 +34,15 @@
 // Library to support 4 x 4 keypad
 #include <Keypad.h>
 
+// load local settings and menu text
+#include "defaultSettings.h"
+// if localSettings.h
 
 // The # of physical lanes that will have a counter and sensor
 const byte laneCount = 4;
 
 // ********* AUDIO HARDWARE *********
-const byte buzzPin1 = 13;
+const byte buzzPin1 = BUZZPIN;
 
 // indicator LED, disable buzzer to use
 // const byte ledPIN = 13;
@@ -47,7 +50,7 @@ const byte buzzPin1 = 13;
 
 //***** Setting Up Lap Triggers and Pause-Stop button *********
 // debounceTime (ms), time within which not to accept additional signal input
-const int debounceTime = 1000;
+const int debounceTime = DEBOUNCE;
 
 // LANES DEFININTION
 // The following array constant defines the hardware/software relationship
@@ -67,12 +70,22 @@ const int debounceTime = 1000;
 // and updating the code referencing the interrupt bytes being read.
 // The zero row, lanes[0] = {255, 255} is reserved for race level use if needed some day.
 // The following is the default lane wiring, pinA0-lane1, pinA1-lane2, pinA2-lane3, pinA3-lane4
+// const byte lanes[laneCount+1][2] = {
+//   {255, 255},
+//   {PIN_A0, 0b00000001},
+//   {PIN_A1, 0b00000010},
+//   {PIN_A2, 0b00000100},
+//   {PIN_A3, 0b00001000}
+// };
+
+// To read or edit values of 'LANE#',
+// See the 'defaultSettings.h' file or 'localSettings.h' file.
 const byte lanes[laneCount+1][2] = {
   {255, 255},
-  {PIN_A0, 0b00000001},
-  {PIN_A1, 0b00000010},
-  {PIN_A2, 0b00000100},
-  {PIN_A3, 0b00001000}
+  LANE1,
+  LANE2,
+  LANE3,
+  LANE4
 };
 // The following example could be used for alternative wiring where
 // pin A3 is connected to lane1, pin A0 to lane2, pin A1 to lane3, and pin A2 to lane4
@@ -97,7 +110,7 @@ const byte lanes[laneCount+1][2] = {
 // A6 is an analog input only pin it must be read as analog.
 // An external pullup resistor must be added to button wiring.
 // This input is expected to be HIGH and go LOW when pressed.
-const byte pauseStopPin = PIN_A6;
+const byte pauseStopPin = PAUSEPIN;
 // timestamp marking new press of pause button, used to set start of debounce period.
 unsigned long pauseDebounceMillis = 0;
 
@@ -189,17 +202,17 @@ enum clockWidth {
 //*** RACE PROPERTIESS ******
 races raceType = Standard;
 // Number of laps to win standard race type
-int raceLaps = 10;
+int raceLaps = DEFAULT_LAPS;
 // Race time for a Timed race type, most laps before time runs out wins.
 // Create a clock time array to hold converted values for easy display update.
 // raceSetTime[1] holds Min, raceSetTime[0] holds Sec, settable from menu.
-const byte raceSetMin = 0;
-const byte raceSetSec = 30;
+const byte raceSetMin = DEFAULT_SET_MIN;
+const byte raceSetSec = DEFAULT_SET_SEC;
 byte raceSetTime[2] = {raceSetSec, raceSetMin};
 // raceSetTime in milliseconds, will be initialized in setup().
 unsigned long raceSetTimeMs;
 // pre-race countdown length in seconds, settable from menu
-byte preStartCountDown = 5;
+byte preStartCountDown = DEFAULT_COUNTDOWN;
 // Flag to tell race timer if race time is going up or going down as in a time limit race.
 // Since the default race type is standard the default countingDown is false.
 bool countingDown = false;
@@ -212,7 +225,7 @@ unsigned long curMillis;
 // Interval in milliseconds that the clock displays are updated.
 // this value does not affect lap time precision, it only sets min display update rate.
 // This is done to be more efficient and give's us some control over refresh rate.
-int displayTick = 100;
+int displayTick = DEFAULT_REFRESH_TICKS;
 // A millis() timestamp marking last tick completion.
 unsigned long lastTickMillis;
 // flag indicating if race state is in preStart countdown or active race
@@ -233,7 +246,7 @@ unsigned long racersTotalTime[ laneCount + 1 ] = {};
 // One array to hold the time (long), and one to hold the corresponding lap# (int).
 // The row index indicates the associated lane/racer #.
 // Row idx = 0 is reserved, and currently not used.
-const byte fastestQSize = 10;
+const byte fastestQSize = DEFAULT_MAX_STORED_LAPS;
 unsigned int fastestLaps[laneCount + 1][fastestQSize] = {};
 unsigned long fastestTimes[laneCount + 1][fastestQSize] = {};
 
@@ -345,15 +358,17 @@ bool musicAudioOn = true;
 // there is not easy way to determine the number of racer names,
 // so we use a constant to set and read the length.
 // This must be maintained manually to match Racers[] actual content below
-byte const racerListSize = 10;
-// 7-seg digits cannot display W's, M's, X's, K's, or V's
-const char* Racers[racerListSize] = {
-  "-Off-", "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020_longer", "The OG", "5318008"
-};
-// Racer's victory song, matched by index of racer.
-const char* victorySong[racerListSize] = {
-  disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter
-};
+byte const racerListSize = RACER_LIST_SIZE;
+// // 7-seg digits cannot display W's, M's, X's, K's, or V's
+// const char* Racers[racerListSize] = {
+//   "-Off-", "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020_longer", "The OG", "5318008"
+// };
+const char* Racers[racerListSize] = RACER_NAMES_LIST;
+// // Racer's victory song, matched by index of racer.
+// const char* victorySong[racerListSize] = {
+//   disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter
+// };
+const char* victorySong[racerListSize] = RACER_SONGS_LIST;
 
 // sets screen cursor position for the names on the racer select menu
 byte nameEndPos = 19;
@@ -366,10 +381,14 @@ byte nameEndPos = 19;
 // Since our longest row of characters is on the LCD we use its column count.
 char buffer[LCD_COLS];
 
-const char Main0[] PROGMEM = "A| Select Racers";
-const char Main1[] PROGMEM = "B| Change Settings";
-const char Main2[] PROGMEM = "C| Start a Race";
-const char Main3[] PROGMEM = "D| See Results";
+// const char Main0[] PROGMEM = "A| Select Racers";
+// const char Main1[] PROGMEM = "B| Change Settings";
+// const char Main2[] PROGMEM = "C| Start a Race";
+// const char Main3[] PROGMEM = "D| See Results";
+const char Main0[] PROGMEM = A_SELECT_RACER;
+const char Main1[] PROGMEM = B_CHANGE_SETTINGS;
+const char Main2[] PROGMEM = C_START_RACE;
+const char Main3[] PROGMEM = D_SEE_RESULTS;
 const char* const MainText[4] PROGMEM = {
   Main0,
   Main1,
@@ -384,10 +403,14 @@ const char* const MainText[4] PROGMEM = {
 // };
 
 // const char Settings0[] PROGMEM = "Settings     mm:ss";
-const char Settings0[] PROGMEM = " A |Audio";
-const char Settings1[] PROGMEM = " B |Time       :";
-const char Settings2[] PROGMEM = " C |Laps";
-const char Settings3[] PROGMEM = "0-4|Lanes";
+// const char Settings0[] PROGMEM = " A |Audio";
+// const char Settings1[] PROGMEM = " B |Time       :";
+// const char Settings2[] PROGMEM = " C |Laps";
+// const char Settings3[] PROGMEM = "0-4|Lanes";
+const char Settings0[] PROGMEM = A_SETTING_AUDIO;
+const char Settings1[] PROGMEM = B_SETTING_TIME;
+const char Settings2[] PROGMEM = C_SETTING_LAPS;
+const char Settings3[] PROGMEM = D_SETTING_LANES;
 const char* const SettingsText[4] PROGMEM = {
   Settings0,
   Settings1,
@@ -402,10 +425,10 @@ const char* const SettingsText[4] PROGMEM = {
 //   "Racetime:   :"
 // };
 
-const char SelectRacers0[] PROGMEM = "A|Racer1";
-const char SelectRacers1[] PROGMEM = "B|Racer2";
-const char SelectRacers2[] PROGMEM = "C|Racer3";
-const char SelectRacers3[] PROGMEM = "D|Racer4";
+const char SelectRacers0[] PROGMEM = A_RACER1;
+const char SelectRacers1[] PROGMEM = B_RACER2;
+const char SelectRacers2[] PROGMEM = C_RACER3;
+const char SelectRacers3[] PROGMEM = D_RACER4;
 const char* const SelectRacersText[4] PROGMEM = {
   SelectRacers0,
   SelectRacers1,
@@ -419,10 +442,14 @@ const char* const SelectRacersText[4] PROGMEM = {
 //   "Racer2:"
 // };
 
-const char SelectRace0[] PROGMEM = "A|First to     Laps";
-const char SelectRace1[] PROGMEM = "B|Most Laps in   :";
-const char SelectRace2[] PROGMEM = "";
-const char SelectRace3[] PROGMEM = "D|Countdown:    Sec";
+// const char SelectRace0[] PROGMEM = "A|First to     Laps";
+// const char SelectRace1[] PROGMEM = "B|Most Laps in   :";
+// const char SelectRace2[] PROGMEM = "";
+// const char SelectRace3[] PROGMEM = "D|Countdown:    Sec";
+const char SelectRace0[] PROGMEM = A_START_RACE_STANDARD;
+const char SelectRace1[] PROGMEM = B_START_RACE_IMED;
+const char SelectRace2[] PROGMEM = START_RACE_3RD_ROW;
+const char SelectRace3[] PROGMEM = D_START_RACE_COUNTDOWN;
 const char* const StartRaceText[4] PROGMEM = {
   SelectRace0,
   SelectRace1,
@@ -438,13 +465,18 @@ const char* const StartRaceText[4] PROGMEM = {
 
 
 // additional text strings used in multiple places
-const char* Start = {"Start"};
+const char* Start = {TEXT_START};
 
-const char DidNotFinish[] PROGMEM = "DNF";
-const char FirstPlace[] PROGMEM = "1st";
-const char SecondPlace[] PROGMEM = "2nd";
-const char ThirdPlace[] PROGMEM = "3rd";
-const char FourthPlace[] PROGMEM = "4th";
+// const char DidNotFinish[] PROGMEM = "DNF";
+// const char FirstPlace[] PROGMEM = "1st";
+// const char SecondPlace[] PROGMEM = "2nd";
+// const char ThirdPlace[] PROGMEM = "3rd";
+// const char FourthPlace[] PROGMEM = "4th";
+const char DidNotFinish[] PROGMEM = FINISH_DNF;
+const char FirstPlace[] PROGMEM = FINISH_1ST;
+const char SecondPlace[] PROGMEM = FINISH_2ND;
+const char ThirdPlace[] PROGMEM = FINISH_3RD;
+const char FourthPlace[] PROGMEM = FINISH_4TH;
 const char* const FinishPlaceText[5] PROGMEM = {
   DidNotFinish,
   FirstPlace,
@@ -1378,7 +1410,7 @@ void UpdateResultsMenu() {
     // Idx = 0 is the top results menu
     case 0: {
       lcd.clear();
-      PrintText("C| TOP RESULTS", lcdDisp, 14, 15, false, 0);
+      PrintText(RESULTS_TOP_LBL, lcdDisp, 14, 15, false, 0);
       // Print custom up down arrow.
       lcd.setCursor(17,0);
       lcd.write('A');
@@ -1391,20 +1423,20 @@ void UpdateResultsMenu() {
     case 1 ... laneCount: {
       if(laneEnableStatus[resultsMenuIdx] > 0){
         lcd.clear();
-        PrintText("C| RACER ", lcdDisp, 19, 20, false, 0);
+        PrintText(RESULTS_RACER_LBL, lcdDisp, 19, 20, false, 0);
         // Print custom up down arrow.
         lcd.setCursor(17,0);
         lcd.write('A');
         lcd.write(0);
         lcd.write('B');
         // Print 'Racer #'
-        PrintNumbers(resultsMenuIdx, 1, 10, lcdDisp, false, 0);
+        PrintNumbers(resultsMenuIdx, 1, RESULTS_RACER_NUM_POS, lcdDisp, false, 0);
         // Print results, if number of recorded laps is smaller than Q size, use lap count for list size.
         PrintResultsList(fastestTimes[resultsMenuIdx], fastestLaps[resultsMenuIdx], lapCount[resultsMenuIdx] < fastestQSize ? lapCount[resultsMenuIdx] : fastestQSize);
         // Print Racer 'Name', after results to avoid getting written over.
         PrintText(Racers[laneRacer[resultsMenuIdx]], lcdDisp, 19, 6, true, 1);
         // Print out the racer's total race time
-        PrintText("Total", lcdDisp, 19, 5, true, 2, false);
+        PrintText(RESULTS_TOTAL_LBL, lcdDisp, 19, 5, true, 2, false);
         PrintClock(racersTotalTime[resultsMenuIdx], 19, 6, 1, lcdDisp, 3, false);
 
       } else {
@@ -1414,7 +1446,7 @@ void UpdateResultsMenu() {
     }
     break;
     case laneCount + 1:{
-      PrintText("C| FINISH", lcdDisp, 19, 20, false, 0);
+      PrintText(RESULTS_FINISH_LBL, lcdDisp, 19, 20, false, 0);
       PrintLeaderBoard(true);
     }
     default:
@@ -1596,7 +1628,7 @@ void PrintAudioStatus() {
   } else {
     //else both audio are off, print '-OFF-' indicator
     lcd.setCursor(13, 0);
-    lcd.write("-OFF-");
+    lcd.write(TEXT_OFF);
   }
 }
 
@@ -1822,9 +1854,9 @@ void loop(){
               // Print the current audio modes active
               PrintAudioStatus();
               // Minute setting
-              PrintNumbers(raceSetTime[1], 2, 14, lcdDisp, true, 1);
+              PrintNumbers(raceSetTime[1], 2, TIME_SETTING_POS, lcdDisp, true, 1);
               // Seconds setting
-              PrintNumbers(raceSetTime[0], 2, 17, lcdDisp, true, 1);
+              PrintNumbers(raceSetTime[0], 2, TIME_SETTING_POS+3, lcdDisp, true, 1);
               // Lap count
               PrintNumbers(raceLaps, 3, 16, lcdDisp, true, 2);
               // Lane's Enabled
@@ -1945,13 +1977,13 @@ void loop(){
               // Draw non-editable text
               UpdateLCDMenu(StartRaceText);
               // Print set LAPS #
-              PrintNumbers(raceLaps, 3, 13, lcdDisp, true, 0);
+              PrintNumbers(raceLaps, 3, START_RACE_LAPS_ENDPOS_IDX, lcdDisp, true, 0);
               // Print set race time MINUTES
-              PrintNumbers(raceSetTime[1], 2, 16, lcdDisp, true, 1);
+              PrintNumbers(raceSetTime[1], 2, START_RACE_TIME_ENDPOS_IDX, lcdDisp, true, 1);
               // Print set race time SECONDS
-              PrintNumbers(raceSetTime[0], 2, 19, lcdDisp, true, 1);
+              PrintNumbers(raceSetTime[0], 2, START_RACE_TIME_ENDPOS_IDX+3, lcdDisp, true, 1);
               // Print sey preStartCountDown
-              PrintNumbers(preStartCountDown, 2, 14, lcdDisp, true, 3);
+              PrintNumbers(preStartCountDown, 2, START_RACE_CNTDWN_ENDPOS_IDX, lcdDisp, true, 3);
               entryFlag = false;
             }
             switch (key) {
@@ -1986,11 +2018,11 @@ void loop(){
               lcd.clear();
               if(raceDataExists){
                 resultsMenuIdx = 0;
-                lcd.print("-Compiling-");
+                lcd.print(COMPILING);
                 CompileTopFastest();
                 UpdateResultsMenu();
               } else {
-                lcd.print("-NO RACE DATA-");
+                lcd.print(NO_RACE_DATA);
               }
               entryFlag = false;
             }
