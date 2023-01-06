@@ -547,16 +547,38 @@ unsigned long ClockToMillis(const byte ulHour, const byte ulMin, const byte ulSe
 
 
 void Beep() {
-  if (gameAudioOn) {
-    tone(buzzPin1, 4000, 200);
-  }
+  if (gameAudioOn) tone(buzzPin1, 4000, 200);
+}
+void Boop() {
+  if (gameAudioOn) tone(buzzPin1, 1000, 200);
+}
+void LongBoop() {
+  if (gameAudioOn) tone(buzzPin1, 1000, 1000);
 }
 
-void Boop() {
-  if (gameAudioOn) {
-    tone(buzzPin1, 1000, 200);
-  }
-}
+// enum sounds {
+//   sBeep,
+//   sBoop
+// };
+
+// void Audio(sounds sound, byte repeatX) {
+//   if (gameAudioOn) {
+//     switch (sound){
+//       case sBeep: {
+//         tone(buzzPin1, 4000, 200);
+//       }
+//       break;
+//       case sBoop: {
+//         tone(buzzPin1, 1000, 200);
+//       }
+//       break;
+//       default:
+//       break;
+//     }
+//   }
+// }
+
+
 
 // Used to set fastest lap array to high numbers that will be replaced on comparison.
 // A lap number of 0, and racer id of 255, marks these as dummy laps.
@@ -2120,6 +2142,7 @@ void loop(){
           }
           // Set flash status to initial, do nothing state.
           flashStatus[i] = 0;
+          LongBoop();
         }
         // Write static text to main LCD for live race screen
         PrintLeaderBoard(false);
@@ -2146,16 +2169,19 @@ void loop(){
             ledCountdownTemp = currentTime[0]/1000 + 1;
             // Write current seconds digit to all active LEDs
             ledWriteDigits(ledCountdownTemp);
+            Beep();
           }
         } else {
-          // ++++ Set Flags for RACE START +++++++
+          // The prestart phase has finished
+          // Set Flags for RACE START and end the prestart state
           preStart = false;
           // reset ledCountdownTemp to default for next race
           ledCountdownTemp = 0;
           // reset entry flag to true so race timing variables can be initialized
           entryFlag = true;
         }
-      } else { // ********* LIVE RACE **********
+      } else { 
+        // ********* LIVE RACE **********
         // Regardless of race type, we do these things
         // Update current racetime.
         if (countingDown) {
@@ -2200,13 +2226,10 @@ void loop(){
                 // print the lap time of just completed lap to right side of racer's LED
                 PrintClock(lapTimeToLog, 7, 4, 3, displays(i));
 
-                // During the intro to the lap flash cycle we also update the racer's fastest laps list.
-                // We chose to do this here because it's a period we know will have less
-                // load and activity in the system, since we know this display will not need
-                // to be updated again until after this flash period expires.
+                // During flash cycle 1 we process all data, so we also update the racer's fastest laps list.
                 // The current lap is the live lap so we need to subtract 1 from lapcount
                 UpdateFastestLap(fastestTimes[i], fastestLaps[i], lapCount[i] - 1, lapTimeToLog, laneRacer[i], fastestQSize);
-                // Also update main display
+                // Update main display
                 UpdateLiveRaceLCD();
                 // set the flash state to 2 = hold
                 flashStatus[i] = 2;
