@@ -35,7 +35,7 @@
 #include <Keypad.h>
 
 
-// The # of physical lanes that will have a counter sensor
+// The # of physical lanes that will have a counter and sensor
 const byte laneCount = 4;
 
 // ********* AUDIO HARDWARE *********
@@ -267,20 +267,13 @@ bool raceDataExists = false;
 
 
 // ******* LANE/RACER VARIABLES ******************
-// Throughout this code the terms 'lane', 'racer', and 'sensor' all reference,
-// detection and timing related to the triggering of a given hardware sensor.
-// In all arrays relating to this data the array index will equal the associate lane/racer/sensor #.
+// In all arrays relating to this data the array index will equal the associate lane/racer#.
 // Index 0 will be reserved for race level times and data or may not be used at present.
 
 // Logs current lane state (see enum for details)
 volatile byte laneEnableStatus[ laneCount + 1 ] = {
   Off, StandBy, StandBy, Off, Off
 };
-// Logs hardware pin related to given lane/racer/sensor
-// byte laneSensorPin[ laneCount + 1 ] = {
-//   255, lane1Pin, lane2Pin, lane3Pin, lane4Pin
-//   // 255, lane3Pin, lane2Pin, lane1Pin, lane4Pin
-// };
 // These help keep code easier to read instead of calculating them repeatedly from status array.
 byte enabledLaneCount = 2;
 byte finishedLaneCount = 0;
@@ -297,7 +290,7 @@ byte laneRacer[ laneCount + 1 ] = {
 // before the display returns to logging current lap time is the 'flash' period.
 // The lane Lap Flash variables indicate the state of this flash period.
 // 0 = update display with racer's current lap and running time.
-// 1 = write last finished lap, and its logged time, to racer's LED.
+// 1 = process data for last finished lap, and write result to racer's LED.
 // 2 = hold the last finished lap info on display until flash time is up.
 // lap flash status idx corresponds to status of lane #, idx0 reserved.
 // The flash display period does not affect active timing, or any other functions.
@@ -466,7 +459,7 @@ const char* const FinishPlaceText[5] PROGMEM = {
 void PrintLaneSettings(){
   for(int i = 1; i <= laneCount; i++){
     lcd.setCursor(10+ 2 * i, 3);
-    // Something with the lcd.print() doesn't work to use a ternery to assess this.
+    // Something about the lcd.print() function doesn't work to use a ternery to assess this.
     if (laneEnableStatus[i] == 0){
       // write a skull
       lcd.write(3);
@@ -903,10 +896,10 @@ void PrintClock(ulong timeMillis, byte clockEndPos, byte printWidth, byte precis
       leadingZs = false;
     }
 
-    // calculate total width used by time to print
+    // calculate total width needed to print time string
     // Must account for end position being included in the printWidth total.
     byte totalWidth = baseTimeWidth + (display == lcdDisp ? precision+1: precision);
-    // Clear spaces in print width that occur before clock's first display digit
+    // Clear spaces in print width that occur before clock time's first display digit
     PrintSpanOfChars(display, line, clockEndPos - printWidth +1, clockEndPos - totalWidth);
 
     // Set which precision time block to use based on available precision. 
@@ -1033,8 +1026,7 @@ void ToggleLaneEnable(byte laneNumber){
 
 
 
-// This function enable/disables the Port Register pin change interrupts
-// on every pin that corresponds to an enabled lane.
+// This function enable/disables pin change interrupts based on current status of each lane.
 void EnablePinInterrupts(bool Enable){
   for (byte i = 1; i <= laneCount; i++){
     // TURN ON PIN
@@ -1140,9 +1132,7 @@ ISR (PCINT1_vect) {   // for Nano
   // pin A2 positive trigger indicated by zero on byte digit 3, PINC = 0xXXXXX0XX
   // pin A3 positive trigger indicated by zero on byte digit 4, PINC = 0xXXXX0XXX
   
-  // Because the bits we are interested in, are together at the low end,
-  // we can be a little more efficient by using a bit shifting approach.
-  // For this, it will work better to have our triggered bits as 1s.
+  // For analysis, it will work better to have our triggered bits as 1s.
   // To convert the zero based triggers above into 1s, we can simply flip each bit.
   // Since we only need to check the 1st 4 bits, we'll also turn the last 4 bits to 0.
   // Flip every bit by using ('BitsToFlip' xor 0b11111111)
@@ -1175,7 +1165,7 @@ ISR (PCINT1_vect) {   // for Nano
             lastXMillis[ laneNum ][0] = logMillis;
             lapCount[ laneNum ] = 1;
           } else {
-          // Else, if returning from Pause, we need to feed the new start time,
+            // Else, if returning from Pause, we need to feed the new start time,
             // into the previous lap index spot, and not index the current lapcount.
             lastXMillis [ laneNum ][(lapCount[ laneNum ] - 1) % lapMillisQSize] = logMillis;
             // DON'T index lapcount, we're restarting the current lap
@@ -1586,19 +1576,17 @@ void toggleAudioMode(bool printToScreen = false) {
 // this function prints the current Audio component status to the settings screen
 // This function assumes it is being called from the 'Settings' menu screen state.
 void PrintAudioStatus() {
-  // if both audio flags are off then print
   if (gameAudioOn || musicAudioOn) {
     // clear any residual "-OFF-" text
     PrintSpanOfChars(lcdDisp, 0, 13, 16);
-    // print or clear, game audio icon to settings screen position
+    // print or clear, game audio icon
     lcd.setCursor(14, 0);
     if (gameAudioOn) {
       lcd.write(4);
     } else {
       lcd.write(' ');
     };
-    // if music audio column is 1 then print icon
-    // print or clear, music audio icon to settings screen position
+    // print or clear, music audio icon
     lcd.setCursor(17, 0);
     if (musicAudioOn) {
       lcd.write(5);
@@ -1606,7 +1594,7 @@ void PrintAudioStatus() {
       lcd.write(' ');
     };
   } else {
-    //else both audio are off
+    //else both audio are off, print '-OFF-' indicator
     lcd.setCursor(13, 0);
     lcd.write("-OFF-");
   }

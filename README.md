@@ -21,7 +21,7 @@ The original application for this controller was slot car racing, as such, the c
 
 ### **Prerequisites**  
 This project involves a lot of different hardware and software concepts and implements some more intermediate to advanced code for Arduino.  
-However, I have endeavored to explain what I understand, in enough detail that someone with almost no experience can still implement and even modify to their own use.
+However, I have endeavored to explain in enough detail that someone with almost no experience can still implement and even modify to their own use.
 It is expected the reader understands how to use the Arduino IDE, connect wires, and program boards. To get up to speed on those basics, there are many great resources from [Arduino](https://www.arduino.cc/en/Guide) and around the web, covering them exhaustively.
 
 <br>
@@ -467,6 +467,17 @@ void loop(){
 
 # **Lap/Gate Sensing**
 This project was originally designed for slot car racing, and as such, is a lane based controller. To detect a lap it makes use of a hardware feature of the microprocessor, called a ***Pin Change Interrupt***. When a signal pin's Change Interrupt is active, any signal change detected, within the processor's resolution, of any magnitude, will be considered a trigger. When a trigger occurs on a signal pin, a special immediately executing interrupt function, the `ISR()` will run. Within this function, the game controller will read, from the hardware registry, a single byte that represents the trigger state of every pin among an associated block of pins. In the case of the Arduino Nano, we are using a physical block of pins called `Port C`, that includes analog pins `A0-A3`, and whose state are represented by the registery byte, `PCINT1_vect`. This is how the game controller will determine when laps have been completed and which lanes, which triggers are related to.
+> ***Avoiding Unwanted Triggers*** - Because an interrupt is triggered by any measurable signal change, it is important that care is taken to minimize the chance that stray electromagnetic interference could induce a false trigger signal unrelated to valid lap.
+> 
+> Folks having issues with false triggers can try to use some of these typical techniques for reducing or eliminating electrical noise from a system:
+>- Use a bypass capacitor between the signal and ground. ([basic ref](http://www.learningaboutelectronics.com/Articles/What-is-a-bypass-capacitor.html)) ([advanced ref](https://www.renesas.com/us/en/document/apn/an1325-choosing-and-using-bypass-capacitors))
+>- Add a [low pass, high pass, or band pass filter ](https://www.arrow.com/en/research-and-events/articles/using-capacitors-to-filter-electrical-noise) using values of R and C that suppress frequencies of issue.
+>- Minimized the travel distance of the signal leads.
+>- Form long active and return leads into [twisted pairs](https://audiouniversityonline.com/twisted-pairs/).
+>- [Using ferrites](https://article.murata.com/en-us/article/basics-of-noise-countermeasures-lesson-8)
+>- Use [shielded leads](https://www.azosensors.com/article.aspx?ArticleID=724) (ideally shielding is grounded)
+>- Make sure everything is well grounded and isolated from radiated and conducted noise and [avoid ground loops](https://www.bapihvac.com/application_note/avoiding-ground-loops-application-note/).
+
 ## **Relationship Between Racers/Lanes and Interrupt Hardware**
 For the [ATMega328](https://www.microchip.com/en-us/product/ATmega328#document-table) based Nano we have chosen to use pins `A0-A3` as the physical wire inputs for the lap trigger signals representing racers/lanes 1-4. A `lanes[]` array constant will be used to map the association of physical hardware pins with the Racer/Lane they will represent. Throughout the code data arrays that represent racer data are structured such that the row index value holds data associated with the matching racer/lane#. For example the detection pin that will be associated with 'Racer#1' should be defined by the value of `lanes[1]`. The zero index of these racer data arrays are either used to store race level data or left resereved/unused.
 ```c++
@@ -564,9 +575,7 @@ ISR (PCINT1_vect) {   // for Nano
   // pin A2 positive trigger indicated by zero on byte digit 3, PINC = 0xXXXXX0XX
   // pin A3 positive trigger indicated by zero on byte digit 4, PINC = 0xXXXX0XXX
   
-  // Because the bits we are interested in, are together at the low end,
-  // we can be a little more efficient by using a bit shifting approach.
-  // For this, it will work better to have our triggered bits as 1s.
+  // For analysis, it will work better to have our triggered bits as 1s.
   // To convert the zero based triggers above into 1s, we can simply flip each bit.
   // Since we only need to check the 1st 4 bits, we'll also turn the last 4 bits to 0.
   // Flip every bit by using ('BitsToFlip' xor 0b11111111)
