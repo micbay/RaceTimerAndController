@@ -466,18 +466,41 @@ void loop(){
 <br>
 
 # **Lap/Gate Sensing**
-This project was originally designed for slot car racing, and as such, is a lane based controller. Pins `A0-A3` serve as lap trigger inputs to support 1-4 lanes/racers. When enabled during an active race, a triggering signal on any given pin is counted as a lap for the associated racer. In the breadboard layout and wiring diagram push buttons are used to simulate lap triggers. In practice, any number of analog or digital triggering methods can be used. Essentially, any signal change on the pin will be considered a gate trigger.
+This project was originally designed for slot car racing, and as such, is a lane based controller. To detect a lap it makes use of a hardware feature of the microprocessor, called a ***Pin Change Interrupt***. When a signal pin's Change Interrupt is active, any signal change detected, within the processor's resolution, of any magnitude, will be considered a trigger. When a trigger occurs on a signal pin, a special immediately executing interrupt function, the `ISR()` will run. Within this function, the game controller will read, from the hardware registry, a single byte that represents the trigger state of every pin among an associated block of pins. In the case of the Arduino Nano, we are using a physical block of pins called `Port C`, that includes analog pins `A0-A3`, and whose state are represented by the registery byte, `PCINT1_vect`. This is how the game controller will determine when laps have been completed and which lanes, which triggers are related to.
+## **Relationship Between Racers/Lanes and Interrupt Hardware**
+For the [ATMega328](https://www.microchip.com/en-us/product/ATmega328#document-table) based Nano we have chosen to use pins `A0-A3` as the physical wire inputs for the lap trigger signals representing racers/lanes 1-4. A `lanes[]` array constant will be used to map the association of physical hardware pins with the Racer/Lane they will represent. Throughout the code data arrays that represent racer data are structured such that the row index value holds data associated with the matching racer/lane#. For example the detection pin that will be associated with 'Racer#1' should be defined by the value of `lanes[1]`. The zero index of these racer data arrays are either used to store race level data or left resereved/unused.
+```c++
+// The following is the default lane wiring, pinA0-lane1, pinA1-lane2, pinA2-lane3, pinA3-lane4
+// The first term of each row pair is the hardware pin used by the associated racer/lane# index.
+// The second term of each row pair is a byte mask that indicates the bit on the PCINT1_vect byte that represents an interrupt trigger for that pin.
+// Each given pin# and associated byte mask value, must stay together, however, pin-mask pairs can be assigned to any racer/lane# index according to the physical wiring.
+const byte lanes[laneCount+1][2] = {
+  {255, 255},
+  {PIN_A0, 0b00000001},
+  {PIN_A1, 0b00000010},
+  {PIN_A2, 0b00000100},
+  {PIN_A3, 0b00001000}
+};
+// The following example could be used for alternative wiring where pin A3 is connected to lane1, pin A0 to lane2, pin A1 to lane3, and pin A2 to lane4
+// const byte lanes[laneCount+1][2] = {
+//   {255, 255},
+//   {PIN_A3, 0b00001000},
+//   {PIN_A0, 0b00000001},
+//   {PIN_A1, 0b00000010},
+//   {PIN_A2, 0b00000100}
+// };
+```
 
 ## **Port Register Pin Change Interrupts**  
-In order to detect laps as fast as possible this project uses pin change interrupts. One reason to use pins A0-A3 for our lap sensors is that they can be treated as analog or digital, the other is that they all share the same port interrupt vector (PCINT1_vect), which means we can read them all at the same time.
+Only certain pins can make use of Pin Change Interrupts, and the ability of these pins to trigger execution of the ISR() can be turned on and off by the software at an individual pin level.
 
-This article is a very good explanation of [pin change interrupts](http://electronoobs.com/eng_arduino_tut132.php) which are the type of interrupts we are using here.
+> For more Information this article has a very good explanation of [pin change interrupts](http://electronoobs.com/eng_arduino_tut132.php).
 
-> *There are other kinds of interrupts that can be used with Arduino as well. For a more comprehensive guide, see Nick Gammon's posts on [Interrupts](http://gammon.com.au/interrupts). The part discussing the interrupts used in this project, is "Pin Change Interrupts" about 3/4 down the page.*
+> *There are other kinds of interrupts that can be used with Arduino as well. For a more comprehensive guide, see Nick Gammon's posts on [Interrupts](http://gammon.com.au/interrupts). The part discussing the interrupts used in this project, is "Pin Change Interrupts" is in the latter 1/3 of the page.*
 
-When an interrupt on a pin is enabled, any signal change on any pin in the interrupt block will trigger immediate execution of the 'Interrupt Service Routine' function, `ISR()`. The main code loop will be paused until this function is finished and then it will go back to the point in the main loop that it previously left.
 
-Even though all pins in the interrupt block are read at the same time when an interrupt is triggered, the ability of each pin to trigger an interrupt can be individually enabled or disabled. The functions below can be used to enable or disable port change interrupts on different pins: 
+
+The functions below can be used to enable or disable port change interrupt triggering on any given, individual pins: 
 
 ```cpp
 // This function enables the port register change interrupt on the given pin.
@@ -501,14 +524,14 @@ void clearPCI(byte pin) {
 ```
 
 ## **The Interrupt Service Routine Function, ISR()**
-When an interrupt is triggered, the ISR() is executed. While in the interrupt function, interrupts are turned off so any additional triggers will not be detected. This is why it's important to keep the ISR() short and ensure that the lap sensing trigger signal is of a sufficient duration that it is still active in the event its contact was initiated while the program was in the interrupt for another pin.
+When an interrupt on a pin is enabled, any signal change on that pin will trigger immediate execution of the 'Interrupt Service Routine' function, `ISR()`. The main code loop will be paused until this function is finished and then it will go back to the point in the main loop that it previously left. While executing the interrupt function, interrupts are turned off so any additional triggers will not be detected. This is why it's important to keep the ISR() short and ensure that the lap sensing trigger signal is of a sufficient duration that it is still active in the event its contact was initiated while the program was in the interrupt for another pin.
 
 > ***ISR Execution Time** - The execution time of the ISR in this project, with 4 lanes active, is between 0.004 - 0.180 ms (ie max 180uS).*
 
 ### **Debouncing a Trigger**
-Because these interrupts will trigger on each, and every, signal change event we need to filter out unwanted re-triggers. We do this by setting a debounce time after the initial detection, within which any re-triggers on the same pin are ignored. Each lap trigger pin has its own timing array, so while the debounce period may be active for one pin causing it to be ignored, another may be newly triggered and will be accepted.
+Because these interrupts will trigger on each, and every, signal change event we need to filter out unwanted re-triggers caused by bouncing of switch contact interfaces. We do this by setting a debounce time after the initial detection, within which any re-triggers on the same pin are ignored. Each lap trigger pin has its own timing array, so while the debounce period may be active for one pin causing it to be ignored, another may be newly triggered and will be accepted.
 
-Currently the default debounce is set to 1sec (1000ms). This is kind of excessive for a debounce period, but laps are still much longer than this. If this time is an issue, it can be changed by editing the `debounceTimeout` in the code.
+Currently the default debounce is set to 1sec (1000ms). This is a bit excessive for a debounce period, but laps are still much longer than this. If this time is an issue, it can be changed by editing the `debounceTimeout` in the code.
 
 This is the ISR() for this project. It may seem a bit busy and long, but the actual number of execution steps is minimal.
 
@@ -623,7 +646,7 @@ ISR (PCINT1_vect) {   // for Nano
 ```
 
 # Sensor Options
-This readme would never end if it got into every kind of sensor that can be adapted for use with this project. However, to provide some starting points, here is a brief list of potential switch options that can applied.
+In the breadboard layout and wiring diagram push buttons are used to simulate lap triggers. In practice, any number of analog or digital triggering methods can be used. Essentially, any signal change on the pin will be considered a gate trigger. This readme would never end if it got into every kind of sensor that can be adapted for use with this project. However, to provide some starting points, here is a brief list of potential switch options that can applied.
 
 ## Mechanical Switches
 Any button like, mechanical mechanism that closes the circuit can be used. See the project lap counter example implementation.
@@ -1134,8 +1157,9 @@ Pressing the `A` key, from the main menu will go to the **Select Racers Menu**. 
 
 ## Main Menu -> B| Change Settings
 Pressing the `B` key, from the main menu will bring up the **Settings Menu**. On this menu the general race settings can be adjusted.
-- **Change Race Time** - Press `A`, to activate edit mode, then use keypad numbers to enter mm:ss. Race time is only used in a 'Timed' race type, where the winner is the one who finishes the most laps in the set amount of time.
-- **Change Laps to Finish** - Press `B`, to activate edit, then enter the number of laps. This setting is only used by the 'Standard' race type where the first to finish the set number of laps is the winner.
+- **Change Audio Mode** - Press `A`, to toggle through the available audio modes. The default mode is 'AllOn' with game and music audio both active. The 2nd toggled mode is 'GameOnly' where only UI feedback and lap trigger beeps and boops are active, but the music audio is turned off. The final audio mode is 'Mute' where all audio is turned '-OFF-'.
+- **Change Race Time** - Press `B`, to activate edit mode, then use keypad numbers to enter mm:ss. Race time is only used in a 'Timed' race type, where the winner is the one who finishes the most laps in the set amount of time.
+- **Change Laps to Finish** - Press `C`, to activate edit, then enter the number of laps. This setting is only used by the 'Standard' race type where the first to finish the set number of laps is the winner.
 - **Enable/Disable Lanes** - Pressing `1-4` will toggle the enabled status of the give lane/racer number. Pressing `0` will disable all of the lanes/racers.
 - Press `*` to return to main menu.
 
@@ -1176,7 +1200,7 @@ Pressing `A` or `B` on any of the fastest lap lists will scroll up or down the l
 
 ![Top Results Scrolled](Images/ScreenShots/TopResults_ScrolledDown_Menu.png)
 
-Pressing `C` will cycle through the available results sub-menus. There is a results list page for the top overall laps, a page for each racer's individual top laps, and a page that displays the final leader board.
+Pressing `C` will cycle through the available results sub-menus. There is a results list page for the top overall laps, a page for each racer's individual top laps, and a page that displays the final leader board. On the individual racer pages the total time it took the racer to finish all indicated laps is also displayed at the lower right of the screen.
 
 ![Racer1 Results Menu](Images/ScreenShots/Racer1Results_Menu.png)
 ![Finish Results Menu](Images/ScreenShots/FinishResults_Menu.png)

@@ -1565,14 +1565,14 @@ void toggleAudioMode(bool printToScreen = false) {
     }
     break;
     case GameOnly: {
-      // change state and values to be for GameOnly
+      // change state and values to be for Mute
       audioState = Mute;
       gameAudioOn = false;
       musicAudioOn = false;
     }
     break;
     case Mute: {
-      // change state and values to be for GameOnly
+      // change state and values to be for AllOn
       audioState = AllOn;
       gameAudioOn = true;
       musicAudioOn = true;
