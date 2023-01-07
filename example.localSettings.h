@@ -40,6 +40,7 @@
 
 // // set default countdown time on boot up
 // #define DEFAULT_COUNTDOWN 5
+
 // // set the default number of ticks (ms) between display updates
 // #define DEFAULT_REFRESH_TICKS 100
 
@@ -48,6 +49,8 @@
 // // recommended max is 10-15, a max of 20 has been shown to be problematic
 // #define DEFAULT_MAX_STORED_LAPS 10
 
+
+
 // // Lane/Racer's associated with which pin and interrupt byte mask pairs
 // #define LANE1 {PIN_A0, 0b00000001}
 // #define LANE2 {PIN_A1, 0b00000010}
@@ -55,18 +58,22 @@
 // #define LANE4 {PIN_A3, 0b00001000}
 
 
+
 // // Pin used for the pause button
 // #define PAUSEPIN PIN_A6
+
 // // Pin used for the auido buzzer
 // #define BUZZPIN 13
 
 
-// // Main Menu Screen options labels
+
+// // Main Menu Screen option labels
 // // max: 17ch
 // #define A_SELECT_RACER "A| Select Racers"
 // #define B_CHANGE_SETTINGS "B| Change Settings"
 // #define C_START_RACE "C| Start a Race"
 // #define D_SEE_RESULTS "D| See Results"
+
 
 
 // // Select Racer's Menu Text
@@ -78,27 +85,31 @@
 // #define D_RACER4 "D|Racer4"
 
 
+
 // // Change Settings Menu Text
 // // max: 11ch
 // #define A_SETTING_AUDIO " A |Audio"
 
 // // Set the end position of where the race time should be printed.
-// // Should be chosen to align number printing with 'B_SETTING_TIME' label text.
+// // Should be chosen to align time digits with 'B_SETTING_TIME' label text.
 // #define TIME_SETTING_POS 14
 // #define B_SETTING_TIME " B |Time       :"
+
 // #define C_SETTING_LAPS " C |Laps"
+
 // #define D_SETTING_LANES "0-4|Lanes"
+
 
 
 // // START A RACE MENU
 // // max: 11ch
 // // Set the end position of where the lap number should be printed.
-// // Should be chosen to align number printing with label text.
+// // Should be chosen to align number with A_START_RACE_STANDARD text.
 // #define START_RACE_LAPS_ENDPOS_IDX 13
 // #define A_START_RACE_STANDARD "A|First to     Laps"
 
 // // Set the end position of where the race time is printed to the screen
-// // Should be chosen to align number printing with label text.
+// // Should be chosen to align time with label text.
 // #define START_RACE_TIME_ENDPOS_IDX 16
 // // Remember to place a ':' at START_RACE_TIME_ENDPOS_IDX - 2
 // #define B_START_RACE_IMED "B|Most Laps in   :"
@@ -106,9 +117,10 @@
 // #define START_RACE_3RD_ROW ""
 
 // // Set the end position of the countdown number
-// // Should be chosen to align number printing with label text.
+// // Should be chosen to align countdown value with D_START_RACE_COUNTDOWN text.
 // #define START_RACE_CNTDWN_ENDPOS_IDX 14
 // #define D_START_RACE_COUNTDOWN "D|Countdown:    Sec"
+
 
 
 // // Finishing Place Labels
@@ -119,22 +131,30 @@
 // #define FINISH_4TH "4th"
 
 
+
 // // Results Menu Text
 // // Text shown if no race data is present
 // #define NO_RACE_DATA "-NO RACE DATA-"
+
 // // text displayed while processing race data
 // #define COMPILING "-Compiling-"
+
 // // text displayed on top row of Top Results page
 // #define RESULTS_TOP_LBL "C| TOP RESULTS"
+
 // // text displayed on top row of individual racer results menu
 // #define RESULTS_RACER_LBL "C| RACER "
 // // position to print the racer # following/preceding RESULT_RACER_LBL text
 // #define RESULTS_RACER_NUM_POS 10
+
 // // text displayed on top row of the Finish results menu
 // #define RESULTS_FINISH_LBL "C| FINISH"
+
 // // Label displayed above race time total on individual racer's results screen
 // // max 6 characters
 // #define RESULTS_TOTAL_LBL "Total"
+
+
 
 
 // // Start text used on LEDs
@@ -145,11 +165,16 @@
 // #define TEXT_OFF "-Off-"
 
 
+
 // // !!! Make sure the number of terms in the racer name's & song's lists
 // // !!! matches the value of 'RACER_LIST_SIZE'
 // #define RACER_LIST_SIZE 10
+
 // // list of racer names available to select from through UI
+// // The number of terms should match the value of 'RACER_SIZE_LIST"
 // #define RACER_NAMES_LIST {TEXT_OFF, "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020_longer", "The OG", "5318008"}
+
 // // songs are associated with racer name of matching array index
 // // songs to choose from are defined in the RTTL_songs.h file
+// // The number of terms should match the value of 'RACER_SIZE_LIST"
 // #define RACER_SONGS_LIST {disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter}

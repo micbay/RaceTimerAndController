@@ -34,9 +34,9 @@
 // Library to support 4 x 4 keypad
 #include <Keypad.h>
 
-// load local settings and menu text
+// load default and local settings that define menu text and default race controller attributes.
 #include "defaultSettings.h"
-// if localSettings.h
+
 
 // The # of physical lanes that will have a counter and sensor
 const byte laneCount = 4;
@@ -61,14 +61,15 @@ const int debounceTime = DEBOUNCE;
 // lanes[1][1] defines the byte index of the pin interrupt for lane #1
 // by default lane #1 uses pin A0 which is indicated by interrupt vector digit 0b00000001,
 // making lanes[1] = {PIN_A0, 0b00000001}.
-// However, if one wants to wire pin A3 as lane#1 instead then edit lanes[] such that,
-// lanes[1] = {PIN_A3, 0b00001000} says Lane#1 will be wired to pin A3, whose trigger digit of the PINC interrupt vector is 0b00001000.
 // The Pin Change Interrupt used by this project to detect a lane gate,
 // is a hardware based feature and dependent on the type of microprocessor used.
 // This means you cannot change the physical pins used without making sure
 // the new pin is compatible with the same interrupt feature,
-// and updating the code referencing the interrupt bytes being read.
+// and updating pin-mask pair accordingly in the lanes[] array.
 // The zero row, lanes[0] = {255, 255} is reserved for race level use if needed some day.
+
+// ---- Default lane configuration
+// ------------------------------------
 // The following is the default lane wiring, pinA0-lane1, pinA1-lane2, pinA2-lane3, pinA3-lane4
 // const byte lanes[laneCount+1][2] = {
 //   {255, 255},
@@ -77,9 +78,9 @@ const int debounceTime = DEBOUNCE;
 //   {PIN_A2, 0b00000100},
 //   {PIN_A3, 0b00001000}
 // };
-
-// To read or edit values of 'LANE#',
-// See the 'defaultSettings.h' file or 'localSettings.h' file.
+// See the 'defaultSettings.h' file or 'localSettings.h' file,
+// for the actual pin-mask byte values of the 'LANE#' tokens below.
+// The default values should match those commonted out above.
 const byte lanes[laneCount+1][2] = {
   {255, 255},
   LANE1,
@@ -87,6 +88,9 @@ const byte lanes[laneCount+1][2] = {
   LANE3,
   LANE4
 };
+
+// ---- Alternate Configurations
+// -----------------------------
 // The following example could be used for alternative wiring where
 // pin A3 is connected to lane1, pin A0 to lane2, pin A1 to lane3, and pin A2 to lane4
 // The pin and intettupt byte should always stay as a pair, A3 is always paired with 0b00001000.
@@ -97,7 +101,7 @@ const byte lanes[laneCount+1][2] = {
 //   {PIN_A1, 0b00000010},
 //   {PIN_A2, 0b00000100}
 // };
-
+// ----------------------------
 // If using Arduino Mega2560, the pins should be those associated with using Port K, pins A8-A11
 // const byte lanes[laneCount+1][2] = {
 //   {255, 255},
@@ -106,6 +110,7 @@ const byte lanes[laneCount+1][2] = {
 //   {PIN_A10, 0b00000100},
 //   {PIN_A11, 0b00001000}
 // };
+// -------------------------------
 
 // A6 is an analog input only pin it must be read as analog.
 // An external pullup resistor must be added to button wiring.
@@ -119,8 +124,8 @@ unsigned long pauseDebounceMillis = 0;
 // which are dedicated by the hardware and cannot be changed by software.
 // If using Arduino Nano, pin A4 is used for SDA, pin A5 is used for SCL.
 // If using Arduino Mega2560, pin D20 can be used for SDA, & pin D21 for SCL.
-// Declare 'lcd' object representing display:
-// Use class 'hd44780_I2Cexp' to control LCD using i2c i/o expander backpack (PCF8574 or MCP23008)
+// Make sure the LCD is wired accordingly.
+// Declare 'lcd' object using class 'hd44780_I2Cexp' becasue we are using the i2c i/o expander backpack (PCF8574 or MCP23008)
 hd44780_I2Cexp lcd;
 // Constants to set display size
 const byte LCD_COLS = 20;
@@ -133,7 +138,7 @@ const byte PRESTART_CLK_POS = 11;
 const byte PIN_TO_LED_DIN = 2;
 const byte PIN_TO_LED_CS = 3;
 const byte PIN_TO_LED_CLK = 4;
-// When more than 2 MAX7219s are chained, additional chips
+// When more than 2 MAX7219s are chained, additional LED bars
 // may need direct power supply to avoid intermittent error.
 // # of attached max7219 controlled LED bars
 const byte LED_BAR_COUNT = 4;
@@ -241,7 +246,7 @@ volatile int lapCount[laneCount + 1] = {
 };
 // an array to hold the running total time (in ms) of each racer to complete their current lapCount
 unsigned long racersTotalTime[ laneCount + 1 ] = {};
-// For each lane/racer a list of the fastest 10 laps will be recorded.
+// For each lane/racer a list of the fastest X laps will be recorded.
 // This will be stored in 2, 2D arrays.
 // One array to hold the time (long), and one to hold the corresponding lap# (int).
 // The row index indicates the associated lane/racer #.
@@ -402,6 +407,7 @@ const char* const MainText[4] PROGMEM = {
 //   "D| See Results"
 // };
 
+
 // const char Settings0[] PROGMEM = "Settings     mm:ss";
 // const char Settings0[] PROGMEM = " A |Audio";
 // const char Settings1[] PROGMEM = " B |Time       :";
@@ -425,6 +431,11 @@ const char* const SettingsText[4] PROGMEM = {
 //   "Racetime:   :"
 // };
 
+
+// const char SelectRacers0[] PROGMEM = "A|Racer1";
+// const char SelectRacers1[] PROGMEM = "B|Racer2";
+// const char SelectRacers2[] PROGMEM = "C|Racer3";
+// const char SelectRacers3[] PROGMEM = "D|Racer4";
 const char SelectRacers0[] PROGMEM = A_RACER1;
 const char SelectRacers1[] PROGMEM = B_RACER2;
 const char SelectRacers2[] PROGMEM = C_RACER3;
@@ -581,7 +592,7 @@ void LongBoop() {
 
 
 // Used to set fastest lap array to high numbers that will be replaced on comparison.
-// A lap number of 0, and racer id of 255, marks these as dummy laps.
+// A lap number of 0, and laptimes of 999999, marks these as dummy laps.
 void InitializeRacerArrays(){
   for (byte i = 0; i <= laneCount; i++) {
     for (byte j = 0; j < fastestQSize; j++) {
@@ -1119,14 +1130,10 @@ void EnablePinInterrupts(bool Enable){
 
 // Because the software is single threaded any poling method used
 // to detect lap triggers can only check one pin at a time.
-// This creates a potential that simultaneous triggers would cause
-// one racer's lap to be skipped.
-// With the Arduino, however, we can use its port register interrupts
-// to read the state of an entire block of pins simultaneously.
-// This function enables port register change interrupts on given pin
-// can be used for pins among A0-A5.
+// However, using port register pin change interrupts we can
+// read the state of an entire block of pins simultaneously.
 // As long as the sensor positive trigger duration is longer than the
-// exectuion of the ISR(), then we should never miss a trigger.
+// exectuion of the ISR(), this controller should never miss a trigger.
 //
 // This function enables the port register change interrupt on the given pin.
 void pciSetup(byte pin) {
@@ -1288,14 +1295,14 @@ int buttonPressed(uint8_t analogPin) {
 
 
 // Function run when a trigger from the "Pause" button is detected.
-// Replaces the function of an interrupt function that the other buttons have.
 void ToggleRacePause(){
-  // Pause button is setup on analog A6 pin which must be handled manually with poling.
   int logMillis = millis();
   // Check the debounce
   if (logMillis - pauseDebounceMillis > debounceTime){
     Beep();
+
     switch(state){
+
       // if currently in a 'Race' state, then put in 'Paused' state
       case Race: {
         // immediately turn off the interrupts on the lap sensing pins
@@ -1309,6 +1316,7 @@ void ToggleRacePause(){
         }
       }
       break;
+
       // If already paused then return to race.
       case Paused: {
         state = Race;
@@ -1324,10 +1332,13 @@ void ToggleRacePause(){
         EnablePinInterrupts(true);
       }
       break;
+
       // otherwise ignore the button
       default:
       break;
+
     } // END switch
+
     // Reset debounce timestatmp
     pauseDebounceMillis = logMillis;
   } // END debounce if
@@ -1402,7 +1413,7 @@ void PrintLeaderBoard(bool withLeaders = true){
 // resultsRowIdx = 0 Top Fastest, = 1, 2, 3, or 4 indicates that lane's fastest.
 void PrintResultsList(unsigned long fastestTimes[], unsigned int fastestLaps[], int listSize) {
   for (byte i = 0; i < 3; i++){
-    // ignore if lap = 0 which means it's a dummy lap or if index greater than lap count
+    // ignore if lap = 0 which means it's a dummy lap, or if index greater than lap count
     if (fastestLaps[resultsRowIdx + i] > 0 && ((resultsRowIdx + i) < listSize)) {
       // print rank of time, which is index + 1
       PrintNumbers(resultsRowIdx + i + 1, 2, 1, lcdDisp, false, i + 1, false);
@@ -1799,6 +1810,8 @@ void setup(){
   Beep();
 }
 
+// ***************** MAIN **********************
+// ***************** LOOP *********************
 void loop(){
   // Serial.println("MAIN LOOP START");
   // Serial.println(state);

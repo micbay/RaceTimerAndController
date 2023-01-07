@@ -20,14 +20,15 @@ The original application for this controller was slot car racing, as such, the c
 > ***Note on Reference Sources** - All links are for reference only and are not to be taken as an endorsement of any particular component supplier. I attempt to reference official Arduino resources whenever possible, but this is also not an endorsement for or against using the Arduino store.*
 
 ### **Prerequisites**  
-This project involves a lot of different hardware and software concepts and implements some more intermediate to advanced code for Arduino.  
-However, I have endeavored to explain in enough detail that someone with almost no experience can still implement and even modify to their own use.
+This project involves a lot of different hardware and software concepts, and implements some more intermediate to advanced code for Arduino. However, I have endeavored to explain in enough detail that someone with almost no experience can still implement, and even modify to their own use.
+
+
 It is expected the reader understands how to use the Arduino IDE, connect wires, and program boards. To get up to speed on those basics, there are many great resources from [Arduino](https://www.arduino.cc/en/Guide) and around the web, covering them exhaustively.
 
 <br>
 
 # **Hardware Configuration**  
-All of the components are readily available and can be connected with basic jumper leads or simple conductor and header pin soldering.
+All of the components are readily available and can be connected with basic jumper leads or simple conductors (wires). Some components might require header pin soldering if they do not come pre-assembled.
 > ***Note on Housing and Mechanical Interface** - This project only documents the functional electrical and software configuration. It can be wired, and used as illustrated for demonstration, however, for repeated, practical usage, the construction of a permanent housing, and mechanical trigger interface, is left up to the implementer to develop per their unique setup.*  
 
 ## **Parts for Race Controller**  
@@ -96,19 +97,26 @@ All devices in this build are powered from a +5V source. The displays should dra
 # **Software Configuration**  
 In order to interact with our different peripherals, this project uses several existing [Arduino libraries](https://www.arduino.cc/reference/en/libraries/). Unless otherwise specified, these libraries can be downloaded the usual manner using the [Arduino Library Manager](https://docs.arduino.cc/software/ide-v1/tutorials/installing-libraries). Each library will be introduced with the hardware it's related to.
 
-All custom project code is in the main Arduino sketch file. The only additional files are some .h files used to store different data constants making up custom characters and melodies.
+All custom project logic is in the main Arduino `.ino` sketch file. The additional supporting `.h` files are used to store different data constants defining custom characters, songs, and default system settings.
+- `RaceTimerAndController.ino` - main sketch file containing all custom logic
+- `RTTL_songs.h` - file to hold RTTL song string constants
+- `melodies_prog.h` - file to hold Notes[] Lengths[] array based song data
+- `pitches.h` - file holding `#define` macros setting the frequency values used for Notes array based songs.
+- `CustomChars.h` - file holding byte array constants that define the shape of custom icons used in this project.
+- `defaultSettings.h` - file holding `#define` macros that establish the values used for the defalt controller UI text and race settings.
+- `example.localSettings.h` - file to be copied and used as base file for generating a `localSettings.h`, used to override `defaultSettings.h` for the local use environment.
 
 The game controller code uses non-blocking techniques with port register interrupts on the lap detection sensor pins.
 
 <br>
 
 # **The Main Display (LCD2004 + I2C Backpack)**  
-For the main display that provides the user interface, the project uses a 4 row x 20 character LCD. LCD character displays are readily available in 2 or 4 rows, of 16 or 20 characters, fairly inexpensive, and simply to use. A 4 row x 20 character LCD display is the biggest commonly available, and is big enough to fit understandable menus and output for this application.  
+For the main display that provides the user interface, the project uses a 4 row x 20 character LCD. LCD character displays are readily available in 2 or 4 rows, of 16 or 20 characters, fairly inexpensive, and simple to use. A 4 row x 20 character LCD display is the biggest commonly available, and is big enough to fit understandable menus and output for this application.  
 In addition to providing the setup interface, the main display will also display a live leaderboard during a race. However, it's much too small to be used as a spectator display from a distance.
 
 > ***LCD Part Numbers:** these types of character LCDs usually follow a Part Number pattern of 'LCDccrr', where rr = number of rows, and cc = the number of characters wide it is. (ie. LCD2004 = 4rows of 20ch).*
 
-This display can be controlled directly using 13 Arduino pins. However, it is common to add a small 'backpack' board that will allow us to control it via I2C instead. This reduces the number of signal pins from 13 to just 2. This addition is so prevalent that most LCDs of this type, sold for use with Arduino, have an I2C backpack included.
+This display can be controlled directly using 13 Arduino pins. Though, it is common to add a small 'backpack' board that will allow us to control it via I2C instead. This reduces the number of signal pins from 13 to just 2. This addition is so prevalent that most LCDs of this type, sold for use with Arduino, have an I2C backpack included.
 
 [![I2C PinsImage](Images/LCD2004%20I2C%20backpack.png)](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
 
@@ -238,7 +246,7 @@ The display must be able to fit a 3 digit lap count and a lap time with up to 4 
 
 Because the primary purpose of this display is to show numbers, a 7-segment LED is a perfect, low budget choice. A 7-seg LED digit is made up of 8 standard LEDs arranged as a digit with a decimal.
 
-As with the LCD, we could drive each LED directly from the Arduino, but the number of required pins is even worse. Each of the 8 LEDs that make up a single 7-segment digit would need its own pin. This means 7 digits x 8 LEDs is 56 pins just to drive the LEDs for a single racer.
+As with the LCD, we could drive each LED directly from the Arduino, however, this would quickly exceed our available pins. Each of the 8 LEDs that make up a single 7-segment digit & decimal, would need its own pin. This means to display 8 digits we would need 8 digits x 8 LEDs, or 64, pins to drive a timer dispaly for just a single racer.
 
 [![Arduino 7 Segment LED](Images/7-segment-led-display.png)](https://www.electroschematics.com/arduino-segment-display-counter/)
 
@@ -466,20 +474,28 @@ void loop(){
 <br>
 
 # **Lap/Gate Sensing**
-This project was originally designed for slot car racing, and as such, is a lane based controller. To detect a lap it makes use of a hardware feature of the microprocessor, called a ***Pin Change Interrupt***. When a signal pin's Change Interrupt is active, any signal change detected, within the processor's resolution, of any magnitude, will be considered a trigger. When a trigger occurs on a signal pin, a special immediately executing interrupt function, the `ISR()` will run. Within this function, the game controller will read, from the hardware registry, a single byte that represents the trigger state of every pin among an associated block of pins. In the case of the Arduino Nano, we are using a physical block of pins called `Port C`, that includes analog pins `A0-A3`, and whose state are represented by the registery byte, `PCINT1_vect`. This is how the game controller will determine when laps have been completed and which lanes, which triggers are related to.
-> ***Avoiding Unwanted Triggers*** - Because an interrupt is triggered by any measurable signal change, it is important that care is taken to minimize the chance that stray electromagnetic interference could induce a false trigger signal unrelated to valid lap.
+This project was originally designed for slot car racing, and as such, is a lane based controller. To detect a lap it makes use of a hardware feature of the microprocessor, called a ***Pin Change Interrupt***. When a signal pin's Change Interrupt is active, any signal change detected, within the processor's resolution, of any magnitude, will be considered a trigger.
+
+When a trigger occurs on a signal pin, a special immediately executing interrupt function, the `ISR()` will run. Within this function, the game controller will read, from the hardware registry, a single byte that represents the trigger state of every pin among an associated block of pins.
+
+In the case of the Arduino Nano, we are using a physical block of pins called `Port C`, that includes analog pins `A0-A3`, and whose state are represented by the registery byte, `PCINT1_vect`. This is how the game controller will determine when laps have been completed and which lanes, which triggers are related to.
+> ***Avoiding Unwanted Triggers*** - Because an interrupt is triggered by any measurable signal change, it's important that care is taken to minimize the chance that stray electromagnetic interference could induce a false trigger signal, unrelated to a valid lap completion.
 > 
-> Folks having issues with false triggers can try to use some of these typical techniques for reducing or eliminating electrical noise from a system:
+> Folks having issues with false triggers can try some of the following techniques, that are commonly used to reduce, or eliminate, electrical noise from a system:
 >- Use a bypass capacitor between the signal and ground. ([basic ref](http://www.learningaboutelectronics.com/Articles/What-is-a-bypass-capacitor.html)) ([advanced ref](https://www.renesas.com/us/en/document/apn/an1325-choosing-and-using-bypass-capacitors))
 >- Add a [low pass, high pass, or band pass filter ](https://www.arrow.com/en/research-and-events/articles/using-capacitors-to-filter-electrical-noise) using values of R and C that suppress frequencies of issue.
->- Minimized the travel distance of the signal leads.
+>- Minimize the travel distance of the signal leads.
 >- Form long active and return leads into [twisted pairs](https://audiouniversityonline.com/twisted-pairs/).
 >- [Using ferrites](https://article.murata.com/en-us/article/basics-of-noise-countermeasures-lesson-8)
 >- Use [shielded leads](https://www.azosensors.com/article.aspx?ArticleID=724) (ideally shielding is grounded)
->- Make sure everything is well grounded and isolated from radiated and conducted noise and [avoid ground loops](https://www.bapihvac.com/application_note/avoiding-ground-loops-application-note/).
+>- Make sure everything is well grounded, and isolated from, radiated and conducted noise, but [avoid ground loops](https://www.bapihvac.com/application_note/avoiding-ground-loops-application-note/).
 
 ## **Relationship Between Racers/Lanes and Interrupt Hardware**
-For the [ATMega328](https://www.microchip.com/en-us/product/ATmega328#document-table) based Nano we have chosen to use pins `A0-A3` as the physical wire inputs for the lap trigger signals representing racers/lanes 1-4. A `lanes[]` array constant will be used to map the association of physical hardware pins with the Racer/Lane they will represent. Throughout the code data arrays that represent racer data are structured such that the row index value holds data associated with the matching racer/lane#. For example the detection pin that will be associated with 'Racer#1' should be defined by the value of `lanes[1]`. The zero index of these racer data arrays are either used to store race level data or left resereved/unused.
+For the [ATMega328](https://www.microchip.com/en-us/product/ATmega328#document-table) based Nano we have chosen to use pins `A0-A3` as the physical wire inputs for the lap trigger signals representing racers/lanes 1-4. A `lanes[]` array constant will be used to map the association of physical hardware pins with the Racer/Lane they will represent.
+
+Throughout the code data arrays that represent racer data are structured such that the row index value holds data associated with the matching racer/lane#. For example the detection pin that will be associated with 'Racer#1' should be defined by the value of `lanes[1]`.
+
+The zero index of these racer data arrays are either used to store race level data or left resereved/unused.
 ```c++
 // The following is the default lane wiring, pinA0-lane1, pinA1-lane2, pinA2-lane3, pinA3-lane4
 // The first term of each row pair is the hardware pin used by the associated racer/lane# index.
@@ -503,7 +519,7 @@ const byte lanes[laneCount+1][2] = {
 ```
 
 ## **Port Register Pin Change Interrupts**  
-Only certain pins can make use of Pin Change Interrupts, and the ability of these pins to trigger execution of the ISR() can be turned on and off by the software at an individual pin level.
+Only certain pins can make use of Pin Change Interrupts, and they cannot be re-mapped with software. However, the ability of each pin to trigger an execution of the ISR(), *can* be turned on, and off, by software, providing us a way to enable or disable interrupt triggers as necessary via code.
 
 > For more Information this article has a very good explanation of [pin change interrupts](http://electronoobs.com/eng_arduino_tut132.php).
 
@@ -511,7 +527,7 @@ Only certain pins can make use of Pin Change Interrupts, and the ability of thes
 
 
 
-The functions below can be used to enable or disable port change interrupt triggering on any given, individual pins: 
+The functions below can be used to enable or disable port change interrupt triggering on any given, individual pin: 
 
 ```cpp
 // This function enables the port register change interrupt on the given pin.
@@ -535,14 +551,18 @@ void clearPCI(byte pin) {
 ```
 
 ## **The Interrupt Service Routine Function, ISR()**
-When an interrupt on a pin is enabled, any signal change on that pin will trigger immediate execution of the 'Interrupt Service Routine' function, `ISR()`. The main code loop will be paused until this function is finished and then it will go back to the point in the main loop that it previously left. While executing the interrupt function, interrupts are turned off so any additional triggers will not be detected. This is why it's important to keep the ISR() short and ensure that the lap sensing trigger signal is of a sufficient duration that it is still active in the event its contact was initiated while the program was in the interrupt for another pin.
+When an interrupt on a pin is enabled, any signal change on that pin, will trigger an immediate execution of the ***Interrupt Service Routine*** function, `ISR()`. The main code loop will be paused until this function is finished, at which point, code execution will return to the point in the main loop, from which it was initially interrupted.
+
+While executing the interrupt function, interrupts are turned off. Therefore, any additional triggers will not be detected. This is why it's important to keep the ISR() short, and ensure that the lap sensing trigger signal is of a sufficient duration, such that it is still active in the event its contact was initiated while the program was in the interrupt for another pin.
 
 > ***ISR Execution Time** - The execution time of the ISR in this project, with 4 lanes active, is between 0.004 - 0.180 ms (ie max 180uS).*
 
 ### **Debouncing a Trigger**
 Because these interrupts will trigger on each, and every, signal change event we need to filter out unwanted re-triggers caused by bouncing of switch contact interfaces. We do this by setting a debounce time after the initial detection, within which any re-triggers on the same pin are ignored. Each lap trigger pin has its own timing array, so while the debounce period may be active for one pin causing it to be ignored, another may be newly triggered and will be accepted.
 
-Currently the default debounce is set to 1sec (1000ms). This is a bit excessive for a debounce period, but laps are still much longer than this. If this time is an issue, it can be changed by editing the `debounceTimeout` in the code.
+Currently the default debounce is set to 1sec (1000ms). This is a bit excessive for a debounce period, but laps are still much longer than this. If this time is an issue, it can be changed by, uncommenting, and then editing the `DEBOUNCE` setting in the `localSettings.h` file.
+
+> If the `localSettings.h` file does not exist, create one, by copying `example.localSettings.h` and renaming it to `localSettings.h`.
 
 This is the ISR() for this project. It may seem a bit busy and long, but the actual number of execution steps is minimal.
 
@@ -655,7 +675,9 @@ ISR (PCINT1_vect) {   // for Nano
 ```
 
 # Sensor Options
-In the breadboard layout and wiring diagram push buttons are used to simulate lap triggers. In practice, any number of analog or digital triggering methods can be used. Essentially, any signal change on the pin will be considered a gate trigger. This readme would never end if it got into every kind of sensor that can be adapted for use with this project. However, to provide some starting points, here is a brief list of potential switch options that can applied.
+In the breadboard layout and wiring diagram push buttons are used to simulate lap triggers. In practice, since essentially, any signal change, on the pin will be considered a gate trigger, a countless number of analog or digital triggering methods can be used. Anything from a homemade circuit completion trigger switch, to a motion detection IC, can be adapted for use with this project.
+
+It's not possible to review them all here. However, to provide some starting points, below is a brief list of potential switch options to consider or adapt.
 
 ## Mechanical Switches
 Any button like, mechanical mechanism that closes the circuit can be used. See the project lap counter example implementation.
@@ -1215,4 +1237,16 @@ Pressing `C` will cycle through the available results sub-menus. There is a resu
 ![Finish Results Menu](Images/ScreenShots/FinishResults_Menu.png)
 
 # Customizing UI Text and General Controller Settings
-To accomodate user customization of menus and preferred games settings this project can make use of a `localSettings.h` file in which users can make and store customizations without editing the main code base. By default, the controller will use settings established in the `defaultSettings.h` file, but if a `localSettings.h` file is present, values from the `localSettings.h` will be used in place of the default. To make use of a `localSettings.h` file, start by copying and renaming the included `example.localSettings.h` file as `localSettings.h` in the local sketch folder. Uncomment and edit the settings that you desire to customize. This `localSettings.h` file is in the .gitignore list and will not be overwritten when downloading subsequent `RaceTimerAndController.ino` updates in the future. In this way your local changes will be preserved while still getting the latest controller base code.
+To accomodate user customization of menus and preferred games settings this project can make use of a `localSettings.h` file in which users can make and store customizations without editing the main code base. By default, the controller will use settings established in the `defaultSettings.h` file, but if the same setting is found in the `localSettings.h` file, the `localSettings.h` setting will be used in place of the default. To make use of a `localSettings.h` file, start by copying and renaming the included `example.localSettings.h` file to `localSettings.h` in the local sketch folder. Uncomment and edit the settings that you desire to customize. `localSettings.h` is included in the .gitignore list and will not be overwritten when downloading subsequent `RaceTimerAndController.ino` updates in the future. In this way your local changes will be preserved while still getting the latest controller base code.
+
+
+>If using a  `localSettings.h` file, make sure to uncomment the line `#include "localSettings.h"` near the top of the `defaultSettings.h` file so that the customizations will be pulled in.
+
+from `defaultSettings.h`
+```
+// ***** IF USING LOCAL SETTING CUSTOMIZATION *************
+// *****************************************************
+// Uncomment the following include after a localSettings.h file has been created.
+// #include "localSettings.h"
+```
+Unfortunately, this will have to be re-uncommented in the `defalutSettings.h` after any updates. If this line was uncommented by default, those who download the main repository for the first time will have compiling issues because the `localSettings.h` file will not exist yet. It is felt that it would be more confusing for a new user to download code that won't compile by default, than to force existing, more experienced users, to remember to uncommonet again, after an update to get their local settings back.

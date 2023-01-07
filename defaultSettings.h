@@ -9,9 +9,9 @@
 // will not be overwritten on subsequent controller code updates.
 // Edits done direclty in the 'defaultSettings.h' will be overwritten on next pull from the master repo.
 
-// ***** Load local setting customizations *************
+// ***** IF USING LOCAL SETTING CUSTOMIZATION *************
 // *****************************************************
-// Uncomment this include if a localSettings.h file has been created.
+// Uncomment the following include after a localSettings.h file has been created.
 // #include "localSettings.h"
 
 
@@ -119,7 +119,7 @@
   #define A_SETTING_AUDIO " A |Audio"
 #endif
 // Set the end position of where the race time should be printed.
-// Should be chosen to align number printing with 'B_SETTING_TIME' label text.
+// Should be chosen to align time digits with 'B_SETTING_TIME' label text.
 #if !defined( TIME_SETTING_POS)
   #define TIME_SETTING_POS 14
 #endif
@@ -137,7 +137,7 @@
 // START A RACE MENU
 // max: 11ch
 // Set the end position of where the lap number should be printed.
-// Should be chosen to align number printing with label text.
+// Should be chosen to align number with A_START_RACE_STANDARD text.
 #if !defined( START_RACE_LAPS_ENDPOS_IDX )
   #define START_RACE_LAPS_ENDPOS_IDX 13
 #endif
@@ -145,7 +145,7 @@
   #define A_START_RACE_STANDARD "A|First to     Laps"
 #endif
 // Set the end position of where the race time is printed to the screen
-// Should be chosen to align number printing with label text.
+// Should be chosen to align time with label text.
 #if !defined( START_RACE_TIME_ENDPOS_IDX )
   #define START_RACE_TIME_ENDPOS_IDX 16
 #endif
@@ -158,7 +158,7 @@
   #define START_RACE_3RD_ROW ""
 #endif
 // Set the end position of the countdown number
-// Should be chosen to align number printing with label text.
+// Should be chosen to align countdown value with D_START_RACE_COUNTDOWN text.
 #if !defined( START_RACE_CNTDWN_ENDPOS_IDX )
   #define START_RACE_CNTDWN_ENDPOS_IDX 14
 #endif
@@ -236,11 +236,13 @@
   #define RACER_LIST_SIZE 10
 #endif
 // list of racer names available to select from through UI
+// The number of terms should match the value of 'RACER_SIZE_LIST"
 #if !defined ( RACER_NAMES_LIST )
   #define RACER_NAMES_LIST {TEXT_OFF, "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020_longer", "The OG", "5318008"}
 #endif
 // songs are associated with racer name of matching array index
 // songs to choose from are defined in the RTTL_songs.h file
+// The number of terms should match the value of 'RACER_SIZE_LIST"
 #if !defined ( RACER_SONGS_LIST )
   #define RACER_SONGS_LIST {disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter}
 #endif
