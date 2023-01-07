@@ -11,7 +11,8 @@
 
 // ***** Load local setting customizations *************
 // *****************************************************
-#include "localSettings.h"
+// Uncomment this include if a localSettings.h file has been created.
+// #include "localSettings.h"
 
 
 
