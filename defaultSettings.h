@@ -1,11 +1,10 @@
 // This file defines the default hardware and UI setup used by the master branch
 
 // Many of the controller UI and default settings can be customized
-// by the user by editing the the 'localSettings.h' file.
+// by the user by editing the 'localSettings.h' file.
 
 // If a 'localSettings.h' file does not already exist, a new one can be
-// created by using the 'example.localSettings.h' file,
-// copying and renaming it 'localSettings.h'.
+// created by copying the 'example.localSettings.h' file, and renaming it 'localSettings.h'.
 // The 'localSettings.h' file should be included in the .gitignore list and
 // will not be overwritten on subsequent controller code updates.
 // Edits done direclty in the 'defaultSettings.h' will be overwritten on next pull from the master repo.
@@ -217,6 +216,7 @@
 
 
 // Start text used on LEDs
+// Should not exceed 5ch
 #if !defined( TEXT_START )
   #define TEXT_START "Start"
 #endif
