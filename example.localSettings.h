@@ -148,10 +148,8 @@
 // // !!! Make sure the number of terms in the racer name's & song's lists
 // // !!! matches the value of 'RACER_LIST_SIZE'
 // #define RACER_LIST_SIZE 10
-
 // // list of racer names available to select from through UI
 // #define RACER_NAMES_LIST {TEXT_OFF, "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020_longer", "The OG", "5318008"}
-
 // // songs are associated with racer name of matching array index
 // // songs to choose from are defined in the RTTL_songs.h file
 // #define RACER_SONGS_LIST {disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter}
