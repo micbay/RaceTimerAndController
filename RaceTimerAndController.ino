@@ -38,7 +38,7 @@
 #include "defaultSettings.h"
 
 
-// The # of physical lanes that will have a counter and sensor
+// The # of physical lanes that will have a sensor and lap timer/counter display.
 const byte laneCount = 4;
 
 // ********* AUDIO HARDWARE *********
@@ -53,20 +53,30 @@ const byte buzzPin1 = BUZZPIN;
 const int debounceTime = DEBOUNCE;
 
 // LANES DEFININTION
-// The following array constant defines the hardware/software relationship
-// of the physical arduino gate pins and interrupt byte indices with
-// their associated 'Lane#'.
-// The row # of the lanes[] array equals the lane # such that
-// lanes[1][0] defines the physical pin used for lane #1
-// lanes[1][1] defines the byte index of the pin interrupt for lane #1
-// by default lane #1 uses pin A0 which is indicated by interrupt vector digit 0b00000001,
-// making lanes[1] = {PIN_A0, 0b00000001}.
-// The Pin Change Interrupt used by this project to detect a lane gate,
-// is a hardware based feature and dependent on the type of microprocessor used.
-// This means you cannot change the physical pins used without making sure
-// the new pin is compatible with the same interrupt feature,
-// and updating pin-mask pair accordingly in the lanes[] array.
-// The zero row, lanes[0] = {255, 255} is reserved for race level use if needed some day.
+// The following array constant, lanes[], defines the hardware/software
+// relationship between the physical arduino lane gates, their interrupts,
+// and the associated 'Racer #'.
+
+// The configuration to follow, below, is for the default lane wiring;
+// Where, pinA0 is wired to lane1, pinA1-lane2, pinA2-lane3, & pinA3-lane4
+
+// The first term of each row pair, making up lanes[],
+// is the hardware pin used by the associated racer/lane# index.
+//   ex: lanes[1][0] = PIN_A0;
+//       tells controller that PIN_A0 is wired to lane used by racer #1
+
+// The second term of each row pair, making up lanes[],
+// is a byte mask, that indicates the bit, on the PCINT1_vect byte,
+// that represents an interrupt trigger for that pin.
+//   ex: lanes[1][1] = 0b00000001;
+//       tells controller that 1st bit of interrupt byte (PCINT1_vec) represents PIN_A0
+
+// Each given pin# and associated byte mask value, must stay together.
+// However, pin-mask pairs can be assigned to any racer/lane# index,
+// according to the physical wiring.
+
+// The zero row, lanes[0] = {255, 255} is reserved, but not currently used.
+// Otherwise, the settings for racerX are held in the array at index lanes[X]
 
 // ---- Default lane configuration
 // ------------------------------------
@@ -91,9 +101,10 @@ const byte lanes[laneCount+1][2] = {
 
 // ---- Alternate Configurations
 // -----------------------------
-// The following example could be used for alternative wiring where
-// pin A3 is connected to lane1, pin A0 to lane2, pin A1 to lane3, and pin A2 to lane4
-// The pin and intettupt byte should always stay as a pair, A3 is always paired with 0b00001000.
+
+// The following example could be used for alternative wiring,
+// where pinA3 is connected to lane1, pinA0-lane2, pinA1-lane3, and pinA2-lane4
+
 // const byte lanes[laneCount+1][2] = {
 //   {255, 255},
 //   {PIN_A3, 0b00001000},
@@ -101,8 +112,10 @@ const byte lanes[laneCount+1][2] = {
 //   {PIN_A1, 0b00000010},
 //   {PIN_A2, 0b00000100}
 // };
+
 // ----------------------------
-// If using Arduino Mega2560, the pins should be those associated with using Port K, pins A8-A11
+// This is the deafult configuration If using Arduino Mega2560
+// Use Port K, analog pins A8-A11
 // const byte lanes[laneCount+1][2] = {
 //   {255, 255},
 //   {PIN_A8, 0b00000001},
@@ -125,8 +138,12 @@ unsigned long pauseDebounceMillis = 0;
 // If using Arduino Nano, pin A4 is used for SDA, pin A5 is used for SCL.
 // If using Arduino Mega2560, pin D20 can be used for SDA, & pin D21 for SCL.
 // Make sure the LCD is wired accordingly.
-// Declare 'lcd' object using class 'hd44780_I2Cexp' becasue we are using the i2c i/o expander backpack (PCF8574 or MCP23008)
+
+// Declare 'lcd' object representing display using class 'hd44780_I2Cexp'
+// because we are using the i2c i/o expander backpack (PCF8574 or MCP23008)
+
 hd44780_I2Cexp lcd;
+
 // Constants to set display size
 const byte LCD_COLS = 20;
 const byte LCD_ROWS = 4;
@@ -168,7 +185,7 @@ Keypad keypad = Keypad( makeKeymap(keys), pin_rows, pin_column, KP_ROWS, KP_COLS
 
 // using an enum to define reference id for attached diplays.
 // Main LCD display should have index 0
-// Each LED dispaly should have a value equal to its lane #.
+// Each LED display should have a value equal to its lane #.
 enum displays {
   lcdDisp = 0,
   led1Disp,

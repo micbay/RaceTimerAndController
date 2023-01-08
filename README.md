@@ -145,9 +145,13 @@ Declaration and Setup of LCD display in `RaceTimerAndController.ino`
 // which are dedicated by the hardware and cannot be changed by software.
 // If using Arduino Nano, wire pin A4 for SDA, & pin A5 for SCL.
 // If using Arduino Mega2560, wire pin D20 for SDA, & pin D21 for SCL.
-// Declare 'lcd' object representing display:
-// Declare using class 'hd44780_I2Cexp' becasue we are using the i2c i/o expander backpack (PCF8574 or MCP23008)
+// Make sure the lcd is wired accordingly
+
+// Declare 'lcd' object representing display using class 'hd44780_I2Cexp'
+// because we are using the i2c i/o expander backpack (PCF8574 or MCP23008)
+
 hd44780_I2Cexp lcd;
+
 // Constants to set display size
 const byte LCD_COLS = 20;
 const byte LCD_ROWS = 4;
@@ -246,7 +250,7 @@ The display must be able to fit a 3 digit lap count and a lap time with up to 4 
 
 Because the primary purpose of this display is to show numbers, a 7-segment LED is a perfect, low budget choice. A 7-seg LED digit is made up of 8 standard LEDs arranged as a digit with a decimal.
 
-As with the LCD, we could drive each LED directly from the Arduino, however, this would quickly exceed our available pins. Each of the 8 LEDs that make up a single 7-segment digit & decimal, would need its own pin. This means to display 8 digits we would need 8 digits x 8 LEDs, or 64, pins to drive a timer dispaly for just a single racer.
+As with the LCD, we could drive each LED directly from the Arduino, however, this would quickly exceed our available pins. Each of the 8 LEDs that make up a single 7-segment digit & decimal, would need its own pin. This means to display 8 digits we would need 8 digits x 8 LEDs, or 64, pins to drive a timer display for just a single racer.
 
 [![Arduino 7 Segment LED](Images/7-segment-led-display.png)](https://www.electroschematics.com/arduino-segment-display-counter/)
 
@@ -478,7 +482,7 @@ This project was originally designed for slot car racing, and as such, is a lane
 
 When a trigger occurs on a signal pin, a special immediately executing interrupt function, the `ISR()` will run. Within this function, the game controller will read, from the hardware registry, a single byte that represents the trigger state of every pin among an associated block of pins.
 
-In the case of the Arduino Nano, we are using a physical block of pins called `Port C`, that includes analog pins `A0-A3`, and whose state are represented by the registery byte, `PCINT1_vect`. This is how the game controller will determine when laps have been completed and which lanes, which triggers are related to.
+In the case of the Arduino Nano, we are using a physical block of pins called `Port C`, that includes analog pins `A0-A3`, and whose state are represented by the registry byte, `PCINT1_vect`. This is how the game controller will determine when laps have been completed and which lanes, which triggers are related to.
 > ***Avoiding Unwanted Triggers*** - Because an interrupt is triggered by any measurable signal change, it's important that care is taken to minimize the chance that stray electromagnetic interference could induce a false trigger signal, unrelated to a valid lap completion.
 > 
 > Folks having issues with false triggers can try some of the following techniques, that are commonly used to reduce, or eliminate, electrical noise from a system:
@@ -495,12 +499,29 @@ For the [ATMega328](https://www.microchip.com/en-us/product/ATmega328#document-t
 
 Throughout the code data arrays that represent racer data are structured such that the row index value holds data associated with the matching racer/lane#. For example the detection pin that will be associated with 'Racer#1' should be defined by the value of `lanes[1]`.
 
-The zero index of these racer data arrays are either used to store race level data or left resereved/unused.
+The zero index of these racer data arrays are either used to store race level data or left reserved/unused.
 ```c++
-// The following is the default lane wiring, pinA0-lane1, pinA1-lane2, pinA2-lane3, pinA3-lane4
-// The first term of each row pair is the hardware pin used by the associated racer/lane# index.
-// The second term of each row pair is a byte mask that indicates the bit on the PCINT1_vect byte that represents an interrupt trigger for that pin.
-// Each given pin# and associated byte mask value, must stay together, however, pin-mask pairs can be assigned to any racer/lane# index according to the physical wiring.
+// The configuration to follow, below, is for the default lane wiring;
+// Where, pinA0 is wired to lane1, pinA1-lane2, pinA2-lane3, & pinA3-lane4
+
+// The first term of each row pair, making up lanes[],
+// is the hardware pin used by the associated racer/lane# index.
+//   ex: lanes[1][0] = PIN_A0;
+//       tells controller that PIN_A0 is wired to lane used by racer #1
+
+// The second term of each row pair, making up lanes[],
+// is a byte mask, that indicates the bit, on the PCINT1_vect byte,
+// that represents an interrupt trigger for that pin.
+//   ex: lanes[1][1] = 0b00000001;
+//       tells controller that 1st bit of interrupt byte (PCINT1_vec) represents PIN_A0
+
+// Each given pin# and associated byte mask value, must stay together.
+// However, pin-mask pairs can be assigned to any racer/lane# index,
+// according to the physical wiring.
+
+// The zero row, lanes[0] = {255, 255} is reserved, but not currently used.
+// Otherwise, the settings for racerX are held in the array at index lanes[X]
+
 const byte lanes[laneCount+1][2] = {
   {255, 255},
   {PIN_A0, 0b00000001},
@@ -508,7 +529,10 @@ const byte lanes[laneCount+1][2] = {
   {PIN_A2, 0b00000100},
   {PIN_A3, 0b00001000}
 };
-// The following example could be used for alternative wiring where pin A3 is connected to lane1, pin A0 to lane2, pin A1 to lane3, and pin A2 to lane4
+
+// The following example could be used for alternative wiring,
+// where pinA3 is connected to lane1, pinA0-lane2, pinA1-lane3, and pinA2-lane4
+
 // const byte lanes[laneCount+1][2] = {
 //   {255, 255},
 //   {PIN_A3, 0b00001000},
@@ -692,7 +716,7 @@ Any button like, mechanical mechanism that closes the circuit can be used. See t
 ## Proximity Sensing
 >**IR proximity sensing** - Several types of infrared proximity sensing ICs and integrated boards exist that can be used to provide a single pin response. This link is an example of [Arduino integration of IR proximity sensor](https://www.factoryforward.com/ir-proximity-sensor-arduino/), and here is an example of a [Sharp GP2Y0D805Z0F implemented into a slot car track](https://blog.tldnr.org/2020/05/08/slot-car-lap-counter/).
 
->**Ultrasonic Proximity** - These do not come with integrated driving electronics as often as many IR sensor modules, so usually require additional pins to be driven than a single Nano can provide. However, if using a Mega2560 or other additional circuitry to drive the sensor, an ultrasonic tranceiver module's output can be used as a lane trigger.
+>**Ultrasonic Proximity** - These do not come with integrated driving electronics as often as many IR sensor modules, so usually require additional pins to be driven than a single Nano can provide. However, if using a Mega2560 or other additional circuitry to drive the sensor, an ultrasonic transceiver module's output can be used as a lane trigger.
 
 ## **Example Integration - Converting Mechanical Lap Counter**
 In my case I have a mechanical lap counter that I added two paper clips to act as contacts, creating a triggering connection every time the mechanical switch in the track is flipped. It's easy to bend the paperclips such that they have a nice, relatively long, solid contact period.
@@ -896,7 +920,7 @@ This table interprets these terms into bpm and duration: ([Music Note Length Cal
 To account for tempo we could use the same tempo for everything and hard code it into the `PlayNote()` function, but it's easy enough to be flexible and let each song have its own tempo variable.
 
 ```cpp
-const int cMajorScaleTemp = 120;
+const int cMajorScaleTempo = 120;
 ```
 
 Lastly, because in C++ it can be challenging to know how many elements are in an array, when using pointers and passing them into functions, it's worth generating a `count` variable right away for referencing the array size. This will be used by the play function to determine when the melody is over.
@@ -1182,7 +1206,12 @@ When the controller boots up it will display the main menu screen. This is a sim
 
 ## Main Menu -> A| Select Racers
 Pressing the `A` key, from the main menu will go to the **Select Racers Menu**. On this menu, selecting the key corresponding to the racer will cycle through the available names and play a sample of the victory song associated to the selected name.
-  - Racer names and victory songs are a from a hard-coded list. Edit the list in software to change options. Remember that the timer LED bars will not display certain characters, when choosing racer names.
+  - Racer names and victory songs are a defined in `defaultSettings.h`.
+  > To the change list of names & songs used, uncomment, and edit the `RACER_NAMES_LIST` and `RACER_SONGS_LIST` setting in your `localSettings.h` file.
+
+  > Make sure that the number of names & songs in the new lists equal the set `RACER_LIST_SIZE`.
+
+  > Remember that the timer LED bars will not display certain characters, when choosing racer names.
   - Two racers cannot have the same name.
   - **Disabled Lanes** - If a lane sensor is disabled then it will show up as `-Off-` in the Select Racers menu. To select a name for a disabled racer, go to the **Settings Menu**, and enable the desired lanes, then return to this menu.
 
