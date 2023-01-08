@@ -20,7 +20,9 @@ The original application for this controller was slot car racing, as such, the c
 > ***Note on Reference Sources** - All links are for reference only and are not to be taken as an endorsement of any particular component supplier. I attempt to reference official Arduino resources whenever possible, but this is also not an endorsement for or against using the Arduino store.*
 
 ### **Prerequisites**  
-This project involves a lot of different hardware and software concepts, and implements some more intermediate to advanced code for Arduino. However, I have endeavored to explain in enough detail that someone with almost no experience can still implement, and even modify to their own use.
+This project involves a lot of different hardware and software concepts, and implements some more intermediate to advanced code for Arduino.
+
+However, I have endeavored to explain in enough detail that someone with almost no experience can still follow along, and sucessfully build a working controller. It will even be possible to customize menu text and default game settings, without having to write new code.
 
 
 It is expected the reader understands how to use the Arduino IDE, connect wires, and program boards. To get up to speed on those basics, there are many great resources from [Arduino](https://www.arduino.cc/en/Guide) and around the web, covering them exhaustively.
