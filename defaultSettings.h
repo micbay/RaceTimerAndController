@@ -167,6 +167,16 @@
 #endif
 
 
+// Text to display on main LCD during Pre-Start countdown
+#if !defined( TEXT_PRESTART )
+  #define TEXT_PRESTART "Your Race Starts in:"
+#endif
+// First character position of Pre-Start text string
+#if !defined( TEXT_PRESTART_STRPOS )
+  #define TEXT_PRESTART_STRPOS 0
+#endif
+
+
 // Finishing Place Labels
 #if !defined( FINISH_DNF)
   #define FINISH_DNF "DNF"
@@ -197,6 +207,21 @@
 #if !defined( RESULTS_TOP_LBL )
   #define RESULTS_TOP_LBL "C| TOP RESULTS"
 #endif
+
+// text used to label 'Best' lap, lap# on the live and FINAL leader board
+#if !defined( RESULTS_TOP_TEXT_BEST )
+  #define RESULTS_TOP_TEXT_BEST "Best"
+#endif
+// text used to label 'Best' lap, lap# on the live and FINAL leader board
+#if !defined( RESULTS_TOP_TEXT_LAP )
+  #define RESULTS_TOP_TEXT_LAP "Lap"
+#endif
+
+// Blink rate between Racer#ID and Racer Name on individual results screen.
+#if !defined( RESULTS_RACER_BLINK )
+  #define RESULTS_RACER_BLINK 2000
+#endif
+
 // text displayed on top row of individual racer results menu
 #if !defined( RESULTS_RACER_LBL )
   #define RESULTS_RACER_LBL "C| RACER "
@@ -209,10 +234,15 @@
 #if !defined( RESULTS_FINISH_LBL )
   #define RESULTS_FINISH_LBL "C| FINISH"
 #endif
-// Label displayed above race time total on individual racer's results screen
+// Label displayed above racer's total race time on individual racer's results screen
 // max 6 characters
 #if !defined( RESULTS_TOTAL_LBL )
   #define RESULTS_TOTAL_LBL "Total"
+#endif
+// 2nd line of label above racer's total race time.
+// max 6 characters
+#if !defined( RESULTS_TOTAL_LBL2 )
+  #define RESULTS_TOTAL_LBL2 "Time"
 #endif
 
 
@@ -222,6 +252,11 @@
   #define TEXT_START "Start"
 #endif
 
+// 'Pause' text displayed on LEDs
+// Should not exceed 5ch
+#if !defined( TEXT_PAUSE )
+  #define TEXT_PAUSE "PAUSE"
+#endif
 
 // text used for '-OFF-' state of audio and enabled lanes/racers
 // Code assumes this term is always 5ch long, use spaces to fill if necessary.

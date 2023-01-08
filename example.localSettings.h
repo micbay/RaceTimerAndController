@@ -29,17 +29,17 @@
 // ucomment and edit to customize general settings
 
 // // set debounce time in ms
-// #define DEBOUNCE 1000
+// #define DEBOUNCE 800
 
 // // set the default number of laps used for a standard race
-// #define DEFAULT_LAPS 10
+// #define DEFAULT_LAPS 15
 
 // // set the default min and sec used for a timed race on bootup
-// #define DEFAULT_SET_MIN 0
-// #define DEFAULT_SET_SEC 30
+// #define DEFAULT_SET_MIN 1
+// #define DEFAULT_SET_SEC 0
 
 // // set default countdown time on boot up
-// #define DEFAULT_COUNTDOWN 5
+// #define DEFAULT_COUNTDOWN 3
 
 // // set the default number of ticks (ms) between display updates
 // #define DEFAULT_REFRESH_TICKS 100
@@ -79,10 +79,10 @@
 // // Select Racer's Menu Text
 // // max: 8ch
 // // The racer name will be printed to right of this label on same row starting with the 10th character position (column index 9)
-// #define A_RACER1 "A|Racer1"
-// #define B_RACER2 "B|Racer2"
-// #define C_RACER3 "C|Racer3"
-// #define D_RACER4 "D|Racer4"
+// #define A_RACER1 "A|Lane1"
+// #define B_RACER2 "B|Lane2"
+// #define C_RACER3 "C|Lane3"
+// #define D_RACER4 "D|Lane4"
 
 
 
@@ -123,6 +123,13 @@
 
 
 
+// Text to display on main LCD during Pre-Start countdown
+// #define TEXT_PRESTART "Race Begins in:"
+// First character position of Pre-Start text string
+// #define TEXT_PRESTART_STRPOS 3
+
+
+
 // // Finishing Place Labels
 // #define FINISH_DNF "DNF"
 // #define FINISH_1ST "1st"
@@ -142,6 +149,15 @@
 // // text displayed on top row of Top Results page
 // #define RESULTS_TOP_LBL "C| TOP RESULTS"
 
+// text used to label 'Best' lap, lap# on the live and FINAL leader board
+// #define RESULTS_TOP_TEXT_BEST "Best"
+// text used to label 'Best' lap, lap# on the live and FINAL leader board
+// #define RESULTS_TOP_TEXT_LAP "Lap"
+
+
+// Blink rate between Racer#ID and Racer Name on individual results screen.
+// #define RESULTS_RACER_BLINK 2000
+
 // // text displayed on top row of individual racer results menu
 // #define RESULTS_RACER_LBL "C| RACER "
 // // position to print the racer # following/preceding RESULT_RACER_LBL text
@@ -153,12 +169,17 @@
 // // Label displayed above race time total on individual racer's results screen
 // // max 6 characters
 // #define RESULTS_TOTAL_LBL "Total"
-
-
+// // 2nd line of label above racer's total race time.
+// // max 6 characters
+// #define RESULTS_TOTAL_LBL2 "Time"
 
 
 // // Start text used on LEDs
 // #define TEXT_START "Start"
+
+// // 'Pause' text displayed on LEDs
+// // Should not exceed 5ch
+// #define TEXT_PAUSE "PAUSE"
 
 // // text used for '-OFF-' state of audio and enabled lanes/racers
 // // Code assumes this term is always 5ch long, use spaces to fill if necessary.

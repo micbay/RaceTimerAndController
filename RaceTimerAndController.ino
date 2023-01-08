@@ -474,6 +474,8 @@ const char* const StartRaceText[4] PROGMEM = {
 //   "D|Countdown:    Sec"
 // };
 
+// flag to identify state of UI text that has an A and B part flashed intermittently.
+bool titleA = true;
 
 // additional text strings used in multiple places
 const char* Start = {TEXT_START};
@@ -1050,8 +1052,8 @@ void PrintClock(ulong timeMillis, byte clockEndPos, byte printWidth, byte precis
 
 void PreStartDisplaysUpdate(){
   lcd.clear();
-  lcd.setCursor(0,1);
-  lcd.print("Your Race Starts in:");
+  lcd.setCursor(TEXT_PRESTART_STRPOS,1);
+  lcd.print(TEXT_PRESTART);
   PrintClock(currentTime[0], PRESTART_CLK_POS, 4, 1, lcdDisp, 2);
   // For active lanes, write racer's name to their corresponding lane LED.
   // If pre-start time is less than 3 seconds, this will be immediately written over.
@@ -1398,7 +1400,7 @@ void CompileTopFastest(){
 void PrintLeaderBoard(bool withLeaders = true){
   // Write static text to main LCD for live race screen
   lcd.setCursor(15, 0);
-  lcd.print("Best");
+  lcd.print(RESULTS_TOP_TEXT_BEST);
   // Draw vertical bars seperating leader list from best lap.
   for(byte row = 0; row <= LCD_ROWS; row++){
     lcd.setCursor(12, row);
@@ -1437,8 +1439,8 @@ void PrintResultsList(unsigned long fastestTimes[], unsigned int fastestLaps[], 
   }
 }
 
-void UpdateResultsMenu() {
-  lcd.clear();
+void UpdateResultsMenu(bool full = true) {
+  // lcd.clear();
   switch(resultsMenuIdx){
     // Idx = 0 is the top results menu
     case 0: {
@@ -1455,23 +1457,32 @@ void UpdateResultsMenu() {
     // All idx > 0 indicate results related to matching lane number.
     case 1 ... laneCount: {
       if(laneEnableStatus[resultsMenuIdx] > 0){
-        lcd.clear();
-        PrintText(RESULTS_RACER_LBL, lcdDisp, 19, 20, false, 0);
-        // Print custom up down arrow.
-        lcd.setCursor(17,0);
-        lcd.write('A');
-        lcd.write(0);
-        lcd.write('B');
-        // Print 'Racer #'
-        PrintNumbers(resultsMenuIdx, 1, RESULTS_RACER_NUM_POS, lcdDisp, false, 0);
-        // Print results, if number of recorded laps is smaller than Q size, use lap count for list size.
-        PrintResultsList(fastestTimes[resultsMenuIdx], fastestLaps[resultsMenuIdx], lapCount[resultsMenuIdx] < fastestQSize ? lapCount[resultsMenuIdx] : fastestQSize);
-        // Print Racer 'Name', after results to avoid getting written over.
-        PrintText(Racers[laneRacer[resultsMenuIdx]], lcdDisp, 19, 6, true, 1);
-        // Print out the racer's total race time
-        PrintText(RESULTS_TOTAL_LBL, lcdDisp, 19, 5, true, 2, false);
-        PrintClock(racersTotalTime[resultsMenuIdx], 19, 6, 1, lcdDisp, 3, false);
-
+        // if (full) lcd.clear();
+        if (titleA) {
+          // If title-A mode on, print the results racer label
+          PrintText(RESULTS_RACER_LBL, lcdDisp, 16, 17, false, 0);
+          // Print 'Racer #' of current individual results screen
+          PrintNumbers(resultsMenuIdx, 1, RESULTS_RACER_NUM_POS, lcdDisp, false, 0);
+        }
+        // else print the racer name
+        else PrintText(Racers[laneRacer[resultsMenuIdx]], lcdDisp, 16, 14, false, 0);
+        if (full) {
+          // Print custom up down arrow.
+          lcd.setCursor(17,0);
+          lcd.write('A');
+          lcd.write(0);
+          lcd.write('B');
+          // Print results, if number of recorded laps is smaller than Q size, use lap count for list size.
+          PrintResultsList(
+              fastestTimes[resultsMenuIdx], 
+              fastestLaps[resultsMenuIdx], 
+              lapCount[resultsMenuIdx] < fastestQSize ? lapCount[resultsMenuIdx] : fastestQSize
+              );
+          // Print out the racer's total race time
+          PrintText(RESULTS_TOTAL_LBL, lcdDisp, 19, 5, true, 1, false);
+          PrintText(RESULTS_TOTAL_LBL2, lcdDisp, 19, 5, true, 2, false);
+          PrintClock(racersTotalTime[resultsMenuIdx], 19, 6, 1, lcdDisp, 3, false);
+        }
       } else {
         resultsMenuIdx++;
         UpdateResultsMenu();
@@ -1479,6 +1490,7 @@ void UpdateResultsMenu() {
     }
     break;
     case laneCount + 1:{
+      lcd.clear();
       PrintText(RESULTS_FINISH_LBL, lcdDisp, 19, 20, false, 0);
       PrintLeaderBoard(true);
     }
@@ -1585,10 +1597,13 @@ void UpdateLiveRaceLCD(){
       PrintText(Racers[laneRacer[leaderBoard[k-1][1]]], lcdDisp, 11, 6, false, k);
     }
   }
-  // Update fastest overall lap time
+  // Update fastest overall lap time, lap, and racer who achieved it
   PrintClock(overallFastestTime, 19, 6, 3, lcdDisp, 1, true);
   // PrintText(Racers[overallFastestRacer], lcdDisp, 19, 6, false, 3);
-  PrintText(Racers[laneRacer[overallFastestRacer]], lcdDisp, 19, 6, false, 3);
+  PrintText(Racers[laneRacer[overallFastestRacer]], lcdDisp, 19, 6, false, 2);
+  PrintText(RESULTS_TOP_TEXT_LAP, lcdDisp, 19, 6, false, 3);
+  PrintNumbers(fastestLaps[overallFastestRacer][0], 3, 19, lcdDisp, false, 3);
+  
 } // END UpdateLiveRaceLCD()
 
 
@@ -1837,279 +1852,294 @@ void loop(){
       // and using that keypad input to navigate the menu tree and adjust settings.
       // Serial.println("entering Menu STATE");
       char key = keypad.getKey();
-      // Only if a press is detected or it is the first loop of a new state
-      // do we bother to evaluate anything.
-      if (key || entryFlag) {
-        Beep();
+      if (entryFlag) {
         // Clear the lap log interrupts on initial entry into menu state just to make sure,
         // but DON'T clear entry flag here, it is used at the menu level in the menu state.
         // This means these interrupts get disabled on every new menu, but keeps things simpler.
-        if (entryFlag) {
-          EnablePinInterrupts(false);
-        }
-        // All of the menus and sub-menus should been flattened to this single switch
-        switch (currentMenu) {
-          // The 'MainMenu' is the default and top level menu in the menu tree.
-          // Within each menu case is another switch for each available key input.
-          case MainMenu:{
-            if (entryFlag) {
-              UpdateLCDMenu(MainText);
-              // Update Racer LED Displays
-              UpdateAllNamesOnLEDs();
-              entryFlag = false;
-            }
-            // Depending on seleted option, change menu state accordingly and set entry flag.
-            switch (key) {
-              case 'A':
-                currentMenu = SelectRacersMenu;
-                entryFlag = true;
-                break;
-              case 'B':
-                currentMenu = SettingsMenu;
-                entryFlag = true;
-                break;
-              case 'C':
-                currentMenu = StartRaceMenu;
-                entryFlag = true;
-                break;
-              case 'D':
-                currentMenu = ResultsMenu;
-                resultsMenuIdx = 0;
-                entryFlag = true;
-              default:
-                break;
-            } // END key switch
-            break;
-          } // END MainMenu Menu case
+        EnablePinInterrupts(false);
+      }
+      // Only play UI feedback tone if it's the first entry (new screen) or key was pressed.
+      if (key || entryFlag) {
+        Beep();
+      };
+      // All of the menus and sub-menus should been flattened to this single switch
+      switch (currentMenu) {
+        // The 'MainMenu' is the default and top level menu in the menu tree.
+        // Within each menu case is another switch for each available key input.
+        case MainMenu:{
+          if (entryFlag) {
+            UpdateLCDMenu(MainText);
+            // Update Racer LED Displays
+            UpdateAllNamesOnLEDs();
+            entryFlag = false;
+          }
+          // Depending on seleted option, change menu state accordingly and set entry flag.
+          switch (key) {
+            case 'A':
+              currentMenu = SelectRacersMenu;
+              entryFlag = true;
+              break;
+            case 'B':
+              currentMenu = SettingsMenu;
+              entryFlag = true;
+              break;
+            case 'C':
+              currentMenu = StartRaceMenu;
+              entryFlag = true;
+              break;
+            case 'D':
+              currentMenu = ResultsMenu;
+              resultsMenuIdx = 0;
+              entryFlag = true;
+            default:
+              break;
+          } // END key switch
+          break;
+        } // END MainMenu Menu case
 
-          case SettingsMenu: {
-            if (entryFlag) {
-              //draw non-editable text
-              UpdateLCDMenu(SettingsText);
-              // Print the current audio modes active
+        case SettingsMenu: {
+          if (entryFlag) {
+            //draw non-editable text
+            UpdateLCDMenu(SettingsText);
+            // Print the current audio modes active
+            PrintAudioStatus();
+            // Minute setting
+            PrintNumbers(raceSetTime[1], 2, TIME_SETTING_POS, lcdDisp, true, 1);
+            // Seconds setting
+            PrintNumbers(raceSetTime[0], 2, TIME_SETTING_POS+3, lcdDisp, true, 1);
+            // Lap count
+            PrintNumbers(raceLaps, 3, 16, lcdDisp, true, 2);
+            // Lane's Enabled
+            PrintLaneSettings();
+            // Update Racer LED Displays
+            UpdateAllNamesOnLEDs();
+            entryFlag = false;
+          }
+          switch (key) {
+            // Audio Mode Select
+            case 'A':{
+              toggleAudioMode();
               PrintAudioStatus();
-              // Minute setting
-              PrintNumbers(raceSetTime[1], 2, TIME_SETTING_POS, lcdDisp, true, 1);
-              // Seconds setting
-              PrintNumbers(raceSetTime[0], 2, TIME_SETTING_POS+3, lcdDisp, true, 1);
-              // Lap count
-              PrintNumbers(raceLaps, 3, 16, lcdDisp, true, 2);
-              // Lane's Enabled
-              PrintLaneSettings();
-              // Update Racer LED Displays
-              UpdateAllNamesOnLEDs();
-              entryFlag = false;
             }
-            switch (key) {
-              // Audio Mode Select
-              case 'A':{
-                toggleAudioMode();
-                PrintAudioStatus();
-              }
-              break;
-              // TIME
-              case 'B':{
-                lcd.setCursor(13, 1);
-                lcd.print("mm:ss");
-                // Change minutes
-                raceSetTime[1] = EditNumber(2, 60, 1, 13);
-                // Change seconds
-                raceSetTime[0] = EditNumber(2, 59, 1, 16);
-                // update the race time in ms
-                raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
-              }
-              break;
-              // LAP
-              case 'C':{
-                // change lap count
-                raceLaps = EditNumber(3, 999, 2, 14);
-              }
-              break;
-              // // SECONDS
-              // case 'C':{
-              //   // change seconds
-              //   raceSetTime[0] = EditNumber(2, 59, 1, 16);
-              //   // update the race time in ms
-              //   raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
-              // }
-              // break;
-              // ENABLED LANES
-              // If a number is pressed in menu state change enabled lane.
-              case '0' ... '4':{
-                ToggleLaneEnable(key - '0');
-                // Update LCD with change
-                PrintLaneSettings();
-                // Update racer displays
-                UpdateAllNamesOnLEDs();
-              }
-              break;
-              case '*':{
-                // return to main menu
-                currentMenu = MainMenu;
-                entryFlag = true;
-              }
-              break;
-              default:
-              break;
-            } // END key switch
             break;
-          } // END Settings Menu case
-
-          case SelectRacersMenu: {
-            if (entryFlag) {
-              // write base, static text to screen
-              UpdateLCDMenu(SelectRacersText);
-              // Write all current racer names to LCD
-              for(byte i = 1; i <= laneCount; i++){
-                // If the lane is disabled
-                if(laneEnableStatus[i] == 0){
-                  // Print Skull icon
-                  lcd.setCursor(nameEndPos - 10, i - 1);
-                  lcd.write(3);
-                  // Then print disabled lane label (ie. '-Off-')
-                  PrintText(Racers[0], lcdDisp, nameEndPos, 9, false, i - 1);
-                  // and another skull
-                  lcd.setCursor(nameEndPos - 7 + strlen(Racers[laneRacer[0]]), i - 1);
-                  lcd.write(3);
-                } else {
-                  PrintText(Racers[laneRacer[i]], lcdDisp, nameEndPos, 11, false, i - 1);
-                }
-              }
-              entryFlag = false;
+            // TIME
+            case 'B':{
+              lcd.setCursor(13, 1);
+              lcd.print("mm:ss");
+              // Change minutes
+              raceSetTime[1] = EditNumber(2, 60, 1, 13);
+              // Change seconds
+              raceSetTime[0] = EditNumber(2, 59, 1, 16);
+              // update the race time in ms
+              raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
             }
-            switch (key) {
-              // Cycle racer name on selected row.
-              case 'A' ... 'D':{
-                byte laneNumber = key - 'A' + 1;
-                if(laneEnableStatus[laneNumber]){
-                  // Cycle to next racer name, if end of list, start back at 1 not 0.
-                  // The zero index is reserved for the disabled lane label.
-                  laneRacer[laneNumber] = IndexRacer(laneNumber);
-                  // Update LCD with new racer name
-                  PrintText(Racers[ laneRacer[laneNumber] ], lcdDisp, nameEndPos, 11, false, laneNumber-1);
-                  // Update Racer's LED
-                  PrintText(Racers[ laneRacer[laneNumber] ], displays(laneNumber), 7, 8);
-                  // Play racers victory song
-                  if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[ laneRacer[laneNumber] ]);
-                }
-              }
-              break;
-              case '*':{
-                // return to MainMenu
-                currentMenu = MainMenu;
-                entryFlag = true;
-                stopPlayRtttl();
-              }
-              break;
-              default:
-              break;
-            } // END of key switch
-          } // END SelectRacers Menu Case
-          break;
-
-          case StartRaceMenu: {
-            if (entryFlag) {
-              // Draw non-editable text
-              UpdateLCDMenu(StartRaceText);
-              // Print set LAPS #
-              PrintNumbers(raceLaps, 3, START_RACE_LAPS_ENDPOS_IDX, lcdDisp, true, 0);
-              // Print set race time MINUTES
-              PrintNumbers(raceSetTime[1], 2, START_RACE_TIME_ENDPOS_IDX, lcdDisp, true, 1);
-              // Print set race time SECONDS
-              PrintNumbers(raceSetTime[0], 2, START_RACE_TIME_ENDPOS_IDX+3, lcdDisp, true, 1);
-              // Print sey preStartCountDown
-              PrintNumbers(preStartCountDown, 2, START_RACE_CNTDWN_ENDPOS_IDX, lcdDisp, true, 3);
-              entryFlag = false;
+            break;
+            // LAP
+            case 'C':{
+              // change lap count
+              raceLaps = EditNumber(3, 999, 2, 14);
             }
-            switch (key) {
-              case 'A': case 'B': {
-                if (key == 'A') {raceType = Standard; countingDown = false;}
-                else if (key == 'B') {raceType = Timed; countingDown = true;}
-                // else {raceType = Pole; countingDown = false;};
-                state = Race;
-                preStart = true;
-                entryFlag = true;
-              }
-              break;
-              case 'D': {
-                // Change duration of pre-race countdown.
-                preStartCountDown = EditNumber(2, 30, 3, 13);
-              }
-              break;
-              case '*': {
-                // Return to main menu
-                currentMenu = MainMenu;
-                entryFlag = true;
-              }
-              break;
-              default:
-              break;
-            } // END of key switch
-          } // END of SelectRace Menu Case
+            break;
+            // // SECONDS
+            // case 'C':{
+            //   // change seconds
+            //   raceSetTime[0] = EditNumber(2, 59, 1, 16);
+            //   // update the race time in ms
+            //   raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
+            // }
+            // break;
+            // ENABLED LANES
+            // If a number is pressed in menu state change enabled lane.
+            case '0' ... '4':{
+              ToggleLaneEnable(key - '0');
+              // Update LCD with change
+              PrintLaneSettings();
+              // Update racer displays
+              UpdateAllNamesOnLEDs();
+            }
+            break;
+            case '*':{
+              // return to main menu
+              currentMenu = MainMenu;
+              entryFlag = true;
+            }
+            break;
+            default:
+            break;
+          } // END key switch
           break;
+        } // END Settings Menu case
 
-          case ResultsMenu: {
-            if (entryFlag) {
-              lcd.clear();
-              if(raceDataExists){
-                resultsMenuIdx = 0;
-                lcd.print(COMPILING);
-                CompileTopFastest();
-                UpdateResultsMenu();
+        case SelectRacersMenu: {
+          if (entryFlag) {
+            // write base, static text to screen
+            UpdateLCDMenu(SelectRacersText);
+            // Write all current racer names to LCD
+            for(byte i = 1; i <= laneCount; i++){
+              // If the lane is disabled
+              if(laneEnableStatus[i] == 0){
+                // Print Skull icon
+                lcd.setCursor(nameEndPos - 10, i - 1);
+                lcd.write(3);
+                // Then print disabled lane label (ie. '-Off-')
+                PrintText(Racers[0], lcdDisp, nameEndPos, 9, false, i - 1);
+                // and another skull
+                lcd.setCursor(nameEndPos - 7 + strlen(Racers[laneRacer[0]]), i - 1);
+                lcd.write(3);
               } else {
-                lcd.print(NO_RACE_DATA);
+                PrintText(Racers[laneRacer[i]], lcdDisp, nameEndPos, 11, false, i - 1);
               }
-              entryFlag = false;
             }
-            switch (key) {
-              // Scroll up or down the lap results list
-              case 'A': case 'B':{
-                // Only deal with data if it exists,
-                // otherwise garbage will be displayed on screen.
-                if(raceDataExists) {
-                  // Clear lines to remove extra ch from long names replace by short ones.
-                  PrintSpanOfChars(lcdDisp, 1);
-                  PrintSpanOfChars(lcdDisp, 2);
-                  PrintSpanOfChars(lcdDisp, 3);
-                  if (key == 'A' && resultsRowIdx > 0) resultsRowIdx--;
-                  // Subtract 2 because there are two rows printed after tracked index.
-                  if (key == 'B' && resultsRowIdx < fastestQSize - 2) resultsRowIdx++;
-                  UpdateResultsMenu();
-                }
+            entryFlag = false;
+          }
+          switch (key) {
+            // Cycle racer name on selected row.
+            case 'A' ... 'D':{
+              byte laneNumber = key - 'A' + 1;
+              if(laneEnableStatus[laneNumber]){
+                // Cycle to next racer name, if end of list, start back at 1 not 0.
+                // The zero index is reserved for the disabled lane label.
+                laneRacer[laneNumber] = IndexRacer(laneNumber);
+                // Update LCD with new racer name
+                PrintText(Racers[ laneRacer[laneNumber] ], lcdDisp, nameEndPos, 11, false, laneNumber-1);
+                // Update Racer's LED
+                PrintText(Racers[ laneRacer[laneNumber] ], displays(laneNumber), 7, 8);
+                // Play racers victory song
+                if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[ laneRacer[laneNumber] ]);
               }
-              break;
-              // Cycle through results sub-menus.
-              case 'C': case 'D':{
-                // Only deal with data if it exists,
-                // otherwise garbage will be displayed on screen
-                if(raceDataExists) {
-                  // Index results menu to next racer.
-                  // The +2 is to account for top results and leader board pages.
-                  resultsMenuIdx = (resultsMenuIdx + 1) % (laneCount + 2);
-                  // Reset row index to 0 so new list starts at the top
-                  resultsRowIdx = 0;
-                  UpdateResultsMenu();
-                  // Serial.println("result idx");
-                  // Serial.println(resultsRowIdx);
-                  // Serial.println(key);
-                }
+            }
+            break;
+            case '*':{
+              // return to MainMenu
+              currentMenu = MainMenu;
+              entryFlag = true;
+              stopPlayRtttl();
+            }
+            break;
+            default:
+            break;
+          } // END of key switch
+        } // END SelectRacers Menu Case
+        break;
+
+        case StartRaceMenu: {
+          if (entryFlag) {
+            // Draw non-editable text
+            UpdateLCDMenu(StartRaceText);
+            // Print set LAPS #
+            PrintNumbers(raceLaps, 3, START_RACE_LAPS_ENDPOS_IDX, lcdDisp, true, 0);
+            // Print set race time MINUTES
+            PrintNumbers(raceSetTime[1], 2, START_RACE_TIME_ENDPOS_IDX, lcdDisp, true, 1);
+            // Print set race time SECONDS
+            PrintNumbers(raceSetTime[0], 2, START_RACE_TIME_ENDPOS_IDX+3, lcdDisp, true, 1);
+            // Print sey preStartCountDown
+            PrintNumbers(preStartCountDown, 2, START_RACE_CNTDWN_ENDPOS_IDX, lcdDisp, true, 3);
+            entryFlag = false;
+          }
+          switch (key) {
+            case 'A': case 'B': {
+              if (key == 'A') {raceType = Standard; countingDown = false;}
+              else if (key == 'B') {raceType = Timed; countingDown = true;}
+              // else {raceType = Pole; countingDown = false;};
+              state = Race;
+              preStart = true;
+              entryFlag = true;
+            }
+            break;
+            case 'D': {
+              // Change duration of pre-race countdown.
+              preStartCountDown = EditNumber(2, 30, 3, 13);
+            }
+            break;
+            case '*': {
+              // Return to main menu
+              currentMenu = MainMenu;
+              entryFlag = true;
+            }
+            break;
+            default:
+            break;
+          } // END of key switch
+        } // END of SelectRace Menu Case
+        break;
+
+        case ResultsMenu: {
+          curMillis = millis();
+          if (entryFlag) {
+            lastXMillis[0][0] = curMillis;
+            // lcd.clear();
+            if(raceDataExists){
+              resultsMenuIdx = 0;
+              lcd.print(COMPILING);
+              CompileTopFastest();
+              UpdateResultsMenu();
+            } else {
+              lcd.clear();
+              lcd.print(NO_RACE_DATA);
+            }
+            entryFlag = false;
+          }
+          // This block tracks when to flip between,
+          // title A (Racer # label) and B (racer name)
+          // only execute if on an individual racer screen, not Top, or Final results.
+          if ( (curMillis - lastXMillis[0][0] > RESULTS_RACER_BLINK)
+                && (resultsMenuIdx != 0)
+                && (resultsMenuIdx != laneCount+1) ) {
+            titleA = !titleA;
+            lastXMillis[0][0] = curMillis;
+            UpdateResultsMenu(false);
+            // Serial.println("lastMillis trigger: ");
+          }
+          switch (key) {
+            // Scroll up or down the lap results list
+            case 'A': case 'B':{
+              // Only deal with data if it exists,
+              // otherwise garbage will be displayed on screen.
+              if(raceDataExists) {
+                // Clear lines to remove extra ch from long names replace by short ones.
+                PrintSpanOfChars(lcdDisp, 1);
+                PrintSpanOfChars(lcdDisp, 2);
+                PrintSpanOfChars(lcdDisp, 3);
+                if (key == 'A' && resultsRowIdx > 0) resultsRowIdx--;
+                // Subtract 2 because there are two rows printed after tracked index.
+                if (key == 'B' && resultsRowIdx < fastestQSize - 2) resultsRowIdx++;
+                UpdateResultsMenu();
+                // lastXMillis[0][0] = curMillis;
               }
-              break;
-              case '*':{
-                // Return to MainMenu
-                currentMenu = MainMenu;
-                entryFlag = true;
+            }
+            break;
+            // Cycle through results sub-menus.
+            case 'C': case 'D':{
+              // Only deal with data if it exists,
+              // otherwise garbage will be displayed on screen
+              if(raceDataExists) {
+                // Index results menu to next racer.
+                // The +2 is to account for top results and leader board pages.
+                resultsMenuIdx = (resultsMenuIdx + 1) % (laneCount + 2);
+                // Reset row index to 0 so new list starts at the top
+                resultsRowIdx = 0;
+                UpdateResultsMenu();
+                // lastXMillis[0][0] = curMillis;
+                // Serial.println("result idx");
+                // Serial.println(resultsRowIdx);
+                // Serial.println(key);
               }
-              break;
-              default:
-              break;
-            } // END of keypad switch
-          } // END of ResultsMenu Case
-          break;
-          default:
-          break;
-        }; // END of Menu switch
-      }; // END of if key pressed wrap
+            }
+            break;
+            case '*':{
+              // Return to MainMenu
+              currentMenu = MainMenu;
+              entryFlag = true;
+            }
+            break;
+            default:
+            break;
+          } // END of keypad switch
+        } // END of ResultsMenu Case
+        break;
+        default:
+        break;
+      }; // END of Menu switch
     } // END of Menu State
     break;
 
@@ -2352,7 +2382,7 @@ void loop(){
           // Only update enabled, not finished, lanes (aka lanes in StandBy).
           // The ToggleRacePause() function has already changed the enabled
           // lanes that were 'Active' to 'StandBy'.
-          if(laneEnableStatus[i] == StandBy) PrintText("PAUSE", displays(i), 7, 5, true, 0, false);
+          if(laneEnableStatus[i] == StandBy) PrintText(TEXT_PAUSE, displays(i), 7, 5, true, 0, false);
         }
         // Turn entry flag off for next loop
         entryFlag = false;
