@@ -56,6 +56,12 @@
   #define DEFAULT_MAX_STORED_LAPS 10
 #endif
 
+// Length of flash period in ms (time just completed lap is displayed to LED)
+#if !defined ( DEFAULT_FLASH_PERIOD_LENGTH )
+  #define DEFAULT_FLASH_PERIOD_LENGTH 1500
+#endif
+
+
 // Lane/Racer's associated with which pin and interrupt byte mask pairs
 #if !defined ( LANE1 )
   #define LANE1 {PIN_A0, 0b00000001}

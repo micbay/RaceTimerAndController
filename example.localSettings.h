@@ -29,17 +29,17 @@
 // ucomment and edit to customize general settings
 
 // // set debounce time in ms
-// #define DEBOUNCE 800
+// #define DEBOUNCE 1000
 
 // // set the default number of laps used for a standard race
-// #define DEFAULT_LAPS 15
+// #define DEFAULT_LAPS 10
 
 // // set the default min and sec used for a timed race on bootup
-// #define DEFAULT_SET_MIN 1
-// #define DEFAULT_SET_SEC 0
+// #define DEFAULT_SET_MIN 0
+// #define DEFAULT_SET_SEC 30
 
 // // set default countdown time on boot up
-// #define DEFAULT_COUNTDOWN 3
+// #define DEFAULT_COUNTDOWN 5
 
 // // set the default number of ticks (ms) between display updates
 // #define DEFAULT_REFRESH_TICKS 100
@@ -49,6 +49,8 @@
 // // recommended max is 10-15, a max of 20 has been shown to be problematic
 // #define DEFAULT_MAX_STORED_LAPS 10
 
+// Length of flash period in ms (time just completed lap is displayed to LED)
+// #define DEFAULT_FLASH_PERIOD_LENGTH 1500
 
 
 // // Lane/Racer's associated with which pin and interrupt byte mask pairs

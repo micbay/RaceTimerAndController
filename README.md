@@ -146,7 +146,7 @@ Declaration and Setup of LCD display in `RaceTimerAndController.ino`
 // If using Arduino Nano, wire pin A4 for SDA, & pin A5 for SCL.
 // If using Arduino Mega2560, wire pin D20 for SDA, & pin D21 for SCL.
 // Declare 'lcd' object representing display:
-// Use class 'hd44780_I2Cexp' for LCD using i2c i/o expander backpack (PCF8574 or MCP23008)
+// Declare using class 'hd44780_I2Cexp' becasue we are using the i2c i/o expander backpack (PCF8574 or MCP23008)
 hd44780_I2Cexp lcd;
 // Constants to set display size
 const byte LCD_COLS = 20;
@@ -558,7 +558,9 @@ While executing the interrupt function, interrupts are turned off. Therefore, an
 > ***ISR Execution Time** - The execution time of the ISR in this project, with 4 lanes active, is between 0.004 - 0.180 ms (ie max 180uS).*
 
 ### **Debouncing a Trigger**
-Because these interrupts will trigger on each, and every, signal change event we need to filter out unwanted re-triggers caused by bouncing of switch contact interfaces. We do this by setting a debounce time after the initial detection, within which any re-triggers on the same pin are ignored. Each lap trigger pin has its own timing array, so while the debounce period may be active for one pin causing it to be ignored, another may be newly triggered and will be accepted.
+Because these interrupts will trigger on each, and every, signal change event, we need to filter out unwanted re-triggers caused by bouncing of switch contact interfaces. It turns out to be more efficient to ignore extra triggered interrupts caused by a contact bounce than to turn the interrupts on and off.
+
+To filter extra bounce triggers, we set a debounce time after the initial detection, within which any re-triggers on the same pin are ignored. Each lap trigger pin has its own timing array, so while the debounce period may be active for one pin causing it to be ignored, another may be newly triggered and will be accepted.
 
 Currently the default debounce is set to 1sec (1000ms). This is a bit excessive for a debounce period, but laps are still much longer than this. If this time is an issue, it can be changed by, uncommenting, and then editing the `DEBOUNCE` setting in the `localSettings.h` file.
 
@@ -690,7 +692,7 @@ Any button like, mechanical mechanism that closes the circuit can be used. See t
 ## Proximity Sensing
 >**IR proximity sensing** - Several types of infrared proximity sensing ICs and integrated boards exist that can be used to provide a single pin response. This link is an example of [Arduino integration of IR proximity sensor](https://www.factoryforward.com/ir-proximity-sensor-arduino/), and here is an example of a [Sharp GP2Y0D805Z0F implemented into a slot car track](https://blog.tldnr.org/2020/05/08/slot-car-lap-counter/).
 
->**Ultrasonic Proximity** - These do not come with integrated driving electronics as often as many IR sensor modules, so usually require additional pins to be driven than a single Nano can provide. However, if using a Mega2560 or other additional circuitry to drive the sensor, an ultrasonic trancever module's output can be used as a lane trigger.
+>**Ultrasonic Proximity** - These do not come with integrated driving electronics as often as many IR sensor modules, so usually require additional pins to be driven than a single Nano can provide. However, if using a Mega2560 or other additional circuitry to drive the sensor, an ultrasonic tranceiver module's output can be used as a lane trigger.
 
 ## **Example Integration - Converting Mechanical Lap Counter**
 In my case I have a mechanical lap counter that I added two paper clips to act as contacts, creating a triggering connection every time the mechanical switch in the track is flipped. It's easy to bend the paperclips such that they have a nice, relatively long, solid contact period.
@@ -850,7 +852,7 @@ A dotted note in sheet music indicates the note is to be played with a duration 
 
 ![Dotted Note](Images/DottedNote.png)
 
-In our notes array, we will use a negative number to indicate a dotted note.
+In our `Lengths[]` array, we will use a negative number to indicate a dotted note.
 - `-1` = 1 + 1/2 = 3/2 note, 6 beats
 - `-2` = 1/2 + 1/4 = 3/4 note, 3 beats
 - `-4` = 1/4 + 1/8 = 3/8 note, 1.5 beats
@@ -1014,7 +1016,7 @@ To illustrate the process, we will transcribe the intro to Take On Me by Aha! He
 Looking at the first measure we see that the key signature is for the key of A Major. This means that all F5, C5, and G5 notes are sharp, as is indicated by the key signature sharp symbols on those lines.
 ![Take On Me Key Sig](Images/TOnMe_KeySignature.png)
 
-In addition to our notes and note lengths, we also see the tempo is 'Fast', which on our chart is around 120-168 bpm, listening it sounds on the fast end of that scale, so something around 160 bpm, is probably good.
+In addition to our notes and note lengths, we also see the tempo is 'Fast', which on our chart is around 120-168 bpm. Listening to the song, it sounds on the fast end of that scale, so something around 160 bpm, is probably good.
 
 This first measure gives us everything we need to make our melody variables and populate the first notes.
 ```cpp
@@ -1083,10 +1085,10 @@ The RTTTL string is made up of 3 parts separated by colons ':'
 
 ![RTTTL](Images/RTTTL%20Format.png)
 
-  - **Title** - up to 100, [ISO-8859-1](https://www.mobilefish.com/tutorials/character_encoding/character_encoding_quickguide_iso8859_1.html) characters allowed.
-  - **Parameters**
+  - **Title** - string of up to 100, [ISO-8859-1](https://www.mobilefish.com/tutorials/character_encoding/character_encoding_quickguide_iso8859_1.html) characters allowed.
+  - **Parameters** - establishes default duration, octave, and tempo, if not specified by the note.
     ```
-    !!! This is NOT code !!!
+    *** NOTE: This is documentation not code ***
 
     d = duration (default = 4 if not present)
       Allowed values
@@ -1105,7 +1107,7 @@ The RTTTL string is made up of 3 parts separated by colons ':'
     ```
   - **Notes** - the last part of the RTTTL string is a comma separated list of encoded notes using a duration-note-octave and optional dot, pattern.
     ```
-    !!! This is NOT code !!!
+    *** NOTE: This is documentation not code ***
 
     Encoded Note: (Duration)(Note)(Octave)(.)
     Notes are indicated by a letter (a, b, c, d, e, f, or g)
@@ -1191,7 +1193,7 @@ Pressing the `B` key, from the main menu will bring up the **Settings Menu**. On
 - **Change Audio Mode** - Press `A`, to toggle through the available audio modes. The default mode is 'AllOn' with game and music audio both active. The 2nd toggled mode is 'GameOnly' where only UI feedback and lap trigger beeps and boops are active, but the music audio is turned off. The final audio mode is 'Mute' where all audio is turned '-OFF-'.
 - **Change Race Time** - Press `B`, to activate edit mode, then use keypad numbers to enter mm:ss. Race time is only used in a 'Timed' race type, where the winner is the one who finishes the most laps in the set amount of time.
 - **Change Laps to Finish** - Press `C`, to activate edit, then enter the number of laps. This setting is only used by the 'Standard' race type where the first to finish the set number of laps is the winner.
-- **Enable/Disable Lanes** - Pressing `1-4` will toggle the enabled status of the give lane/racer number. Pressing `0` will disable all of the lanes/racers.
+- **Enable/Disable Lanes** - Pressing `1-4` will toggle the enabled status of the selected lane/racer number. Pressing `0` will disable all of the lanes/racers.
 - Press `*` to return to main menu.
 
 ![Settings Menu](Images/ScreenShots/Settings_Menu.png)
@@ -1231,13 +1233,16 @@ Pressing `A` or `B` on any of the fastest lap lists will scroll up or down the l
 
 ![Top Results Scrolled](Images/ScreenShots/TopResults_ScrolledDown_Menu.png)
 
-Pressing `C` will cycle through the available results sub-menus. There is a results list page for the top overall laps, a page for each racer's individual top laps, and a page that displays the final leader board. On the individual racer pages the total time it took the racer to finish all indicated laps is also displayed at the lower right of the screen.
+Pressing `C` will cycle through the available results sub-menus. There is a results list page for the top overall laps, a page for each racer's individual top laps, and a page that displays the final leader board. On the individual racer pages the total time it took the racer to finish all indicated laps is also displayed at the lower right of the screen. Also on individual Racer results pages, the title will blink between the Racer# ID, and the racer's name.
 
 ![Racer1 Results Menu](Images/ScreenShots/Racer1Results_Menu.png)
+![Racer1 Results ScrollDown](Images/ScreenShots/Racer1Results_ScrollDown.png)
 ![Finish Results Menu](Images/ScreenShots/FinishResults_Menu.png)
 
 # Customizing UI Text and General Controller Settings
-To accomodate user customization of menus and preferred games settings this project can make use of a `localSettings.h` file in which users can make and store customizations without editing the main code base. By default, the controller will use settings established in the `defaultSettings.h` file, but if the same setting is found in the `localSettings.h` file, the `localSettings.h` setting will be used in place of the default. To make use of a `localSettings.h` file, start by copying and renaming the included `example.localSettings.h` file to `localSettings.h` in the local sketch folder. Uncomment and edit the settings that you desire to customize. `localSettings.h` is included in the .gitignore list and will not be overwritten when downloading subsequent `RaceTimerAndController.ino` updates in the future. In this way your local changes will be preserved while still getting the latest controller base code.
+To accomodate user customization of menus and preferred games settings, this project can make use of a `localSettings.h` file, in which users can make, and store customizations, without editing the main code base. By default, the controller will use settings established in the `defaultSettings.h` file, but if the same setting is loaded from the `localSettings.h` file, the `localSettings.h` setting will be used instead.
+
+To make use of a `localSettings.h` file, start by copying and renaming the included `example.localSettings.h` file to `localSettings.h` in the local sketch folder. Uncomment and edit the settings that you desire to customize. `localSettings.h` is included in the .gitignore list and will not be overwritten when downloading subsequent `RaceTimerAndController.ino` updates in the future. In this way your local changes will be preserved while still getting the latest controller base code.
 
 
 >If using a  `localSettings.h` file, make sure to uncomment the line `#include "localSettings.h"` near the top of the `defaultSettings.h` file so that the customizations will be pulled in.
@@ -1249,4 +1254,4 @@ from `defaultSettings.h`
 // Uncomment the following include after a localSettings.h file has been created.
 // #include "localSettings.h"
 ```
-Unfortunately, this will have to be re-uncommented in the `defalutSettings.h` after any updates. If this line was uncommented by default, those who download the main repository for the first time will have compiling issues because the `localSettings.h` file will not exist yet. It is felt that it would be more confusing for a new user to download code that won't compile by default, than to force existing, more experienced users, to remember to uncommonet again, after an update to get their local settings back.
+Unfortunately, this will have to be re-uncommented in the `defalutSettings.h` after any updates. If this line was uncommented by default, those who download the main repository for the first time will have compiling issues because the `localSettings.h` file will not exist yet. It is felt that it would be more confusing for a new user to download code that won't compile by default, than to force existing, more experienced users, to remember to uncomment again, after an update to get their local settings back.

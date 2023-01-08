@@ -315,7 +315,7 @@ byte laneRacer[ laneCount + 1 ] = {
 volatile byte flashStatus[ laneCount + 1 ] = {
   0, 0, 0, 0, 0
 };
-const int flashDisplayTime = 1500;
+const int flashDisplayTime = DEFAULT_FLASH_PERIOD_LENGTH;
 // logs millis() timestamp at start of current flash period for each racer.
 unsigned long flashStartMillis[ laneCount + 1 ];
 
