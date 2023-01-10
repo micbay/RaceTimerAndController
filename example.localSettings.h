@@ -60,12 +60,47 @@
 // #define LANE4 {PIN_A3, 0b00001000}
 
 
+// // INTERRUPT HARDWARE (ONLY CHANGE if using a non-Nano based Arduino)
+// // For ATmega328 based Arduino use 'PCINT1_vect', case sensitive, no quotes
+// // For ATmega2560 based Arduino use 'PCINT2_vect', case sensitive, no quotes
+// #define PCINT_VECT PCINT1_vect
+
+// // For ATmega328 based Arduino use 'PINC', case sensitive, no quotes
+// // For ATmega2560 based Arduino use 'PINK', case sensitive, no quotes
+// #define INTERRUPT_PORT PINC
+
+
+
+// // Default enabled status of lanes on bootup
+// // To disabled laneX, enter 'Off' (case sensitive, no quotes) in matching index=X
+// // To enable laneX, enter 'StandBy' (case sensitive, no quotes) in matching index=X
+// // 1st term is index=0, array should always have 5 terms (laneCount + 1)
+// #define DEFAULT_LANES_ENABLED { Off, StandBy, StandBy, Off, Off }
+
+
 
 // // Pin used for the pause button
 // #define PAUSEPIN PIN_A6
 
 // // Pin used for the auido buzzer
 // #define BUZZPIN 13
+
+// // *** GAME SOUNDS ***
+// // BEEP - basic game tone used for button press feedback and lap completion
+// #define BEEP_FREQ 4000  // freq in Hz
+// #define BEEP_DUR 200    // duration in ms
+
+// // BOOP - secondary game tone used for menu back and start/re-start lap trigger
+// #define BOOP_FREQ 1000  // freq in Hz
+// #define BOOP_DUR 200    // duration in ms
+
+// // BlEEP - longer tone used for race start and restart after pause.
+// #define BLEEP_FREQ 2000  // freq in Hz
+// #define BLEEP_DUR 600    // duration in ms
+
+// // Audio Mode Default on bootup
+// // use only 'AllOn', 'GameOnly', or 'Mute', case sensitive, no quotes
+// #define DEFAULT_AUDIO_MODE AllOn
 
 
 
@@ -133,6 +168,7 @@
 
 
 // // Finishing Place Labels
+// // MUST be 3 character string
 // #define FINISH_DNF "DNF"
 // #define FINISH_1ST "1st"
 // #define FINISH_2ND "2nd"

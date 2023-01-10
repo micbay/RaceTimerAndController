@@ -306,18 +306,16 @@ bool raceDataExists = false;
 // Index 0 will be reserved for race level times and data or may not be used at present.
 
 // Logs current lane state (see enum for details)
-volatile byte laneEnableStatus[ laneCount + 1 ] = {
-  Off, StandBy, StandBy, Off, Off
-};
+volatile byte laneEnableStatus[ laneCount + 1 ] = DEFAULT_LANES_ENABLED;
 // These help keep code easier to read instead of calculating them repeatedly from status array.
-byte enabledLaneCount = 2;
+byte enabledLaneCount = 0;
 byte finishedLaneCount = 0;
 // Holds index of Racers[] array that indicates the name of racer associated with lane.
 // set racer name to '0' when status is Off.
 // Other than 0, the same Racer[idx] cannot be used for more than 1 racer.
 // During use, the code will prevent this, but it will not correct duplicates made here.
 byte laneRacer[ laneCount + 1 ] = {
-  0, 1, 2, 0, 0
+  0, 0, 0, 0, 0
 };
 
 // After a racer finishes a lap the logged time will be 'flashed' up
@@ -370,7 +368,8 @@ enum audioModes {
   Mute
 };
 // Setup default settings and flags
-audioModes audioState = AllOn;
+// audioModes audioState = AllOn;
+audioModes audioState = DEFAULT_AUDIO_MODE;
 bool gameAudioOn = true;
 bool musicAudioOn = true;
 
@@ -576,37 +575,16 @@ unsigned long ClockToMillis(const byte ulHour, const byte ulMin, const byte ulSe
 }
 
 
+// tone(pin with buzzer, freq in Hz, duration in ms)
 void Beep() {
-  if (gameAudioOn) tone(buzzPin1, 4000, 200);
+  if (gameAudioOn) tone(buzzPin1, BEEP_FREQ, BEEP_DUR);
 }
 void Boop() {
-  if (gameAudioOn) tone(buzzPin1, 1000, 200);
+  if (gameAudioOn) tone(buzzPin1, BOOP_FREQ, BOOP_DUR);
 }
-void LongBoop() {
-  if (gameAudioOn) tone(buzzPin1, 1000, 1000);
+void Bleep() {
+  if (gameAudioOn) tone(buzzPin1, BLEEP_FREQ, BLEEP_DUR);
 }
-
-// enum sounds {
-//   sBeep,
-//   sBoop
-// };
-
-// void Audio(sounds sound, byte repeatX) {
-//   if (gameAudioOn) {
-//     switch (sound){
-//       case sBeep: {
-//         tone(buzzPin1, 4000, 200);
-//       }
-//       break;
-//       case sBoop: {
-//         tone(buzzPin1, 1000, 200);
-//       }
-//       break;
-//       default:
-//       break;
-//     }
-//   }
-// }
 
 
 
@@ -1104,7 +1082,7 @@ void ToggleLaneEnable(byte laneNumber){
       enabledLaneCount++;
     }
   }
-  // Serial.println("Toggle Lane - Enabled Lane Count");
+  // Serial.print("Toggle() - Lane Enabled count: ");
   // Serial.println(enabledLaneCount);
 }
 
@@ -1147,9 +1125,7 @@ void EnablePinInterrupts(bool Enable){
 // --------------------------------
 
 
-// Because the software is single threaded any poling method used
-// to detect lap triggers can only check one pin at a time.
-// However, using port register pin change interrupts we can
+// Using port register pin change interrupts we can
 // read the state of an entire block of pins simultaneously.
 // As long as the sensor positive trigger duration is longer than the
 // exectuion of the ISR(), this controller should never miss a trigger.
@@ -1191,8 +1167,10 @@ void clearPCI(byte pin) {
 // The execution time of this function should be as fast as possible as
 // interrupts are disabled while inside it.
 // This function takes approximately 0.004 - 0.180ms
-ISR (PCINT1_vect) {   // for Nano
-// ISR (PCINT2_vect) {   // for Mega2560
+// Use vector 'PCINT1_vect' for ATmega328 based Arduino (ie Nano)
+// Use vector 'PCINT2_vect' for ATmega2560 based Arduino
+// 'PCINT_VECT' is defined in '...Settings.h' files
+ISR (PCINT_VECT) {
   // Note that millis() does not execute inside the ISR().
   // It can be called, and used as the time of entry, but it does not continue to increment.
   unsigned long logMillis = millis();
@@ -1217,8 +1195,10 @@ ISR (PCINT1_vect) {   // for Nano
   // Since we only need to check the 1st 4 bits, we'll also turn the last 4 bits to 0.
   // Flip every bit by using ('BitsToFlip' xor 0b11111111)
   // Then trim off the 4 highest bits with ('ByteToTrim' & 0b00001111)
-  byte triggeredPins = ((PINC xor 0b11111111) & 0b00001111);  // for Nano
-  // byte triggeredPins = ((PINK xor 0b11111111) & 0b00001111);  // for Mega2560
+  // Use pin port C, 'PINC' for ATmega328 based Arduinos (ie Nano)
+  // Use pin port K, 'PINK' for ATmega2560 based Arduinos
+  // 'INTERRUPT_PORT' is defined in the '...Settings.h' files.
+  byte triggeredPins = ((INTERRUPT_PORT xor 0b11111111) & 0b00001111);
 
   // While the triggeredPins byte is > 0, one of the digits is a 1.
   // If after a check, triggerPins = 0, then there is no need to keep checking.
@@ -1261,6 +1241,7 @@ ISR (PCINT1_vect) {   // for Nano
             flashStatus[ laneNum ] = 1;
             lastXMillis [ laneNum ][lapCount[ laneNum ] % lapMillisQSize] = logMillis;
             startMillis[ laneNum ] = logMillis;
+            // sets current lapcount to 1 greater than completed lap count
             lapCount[ laneNum ] = lapCount[ laneNum ] + 1;
             Beep();
           }
@@ -1432,6 +1413,8 @@ void PrintLeaderBoard(bool withLeaders = true){
 // resultsRowIdx = 0 Top Fastest, = 1, 2, 3, or 4 indicates that lane's fastest.
 void PrintResultsList(unsigned long fastestTimes[], unsigned int fastestLaps[], int listSize) {
   for (byte i = 0; i < 3; i++){
+    // clear row of previous data (clear all rows, not just those with new data)
+    PrintSpanOfChars(lcdDisp, 1 + i);
     // ignore if lap = 0 which means it's a dummy lap, or if index greater than lap count
     if (fastestLaps[resultsRowIdx + i] > 0 && ((resultsRowIdx + i) < listSize)) {
       // print rank of time, which is index + 1
@@ -1441,7 +1424,7 @@ void PrintResultsList(unsigned long fastestTimes[], unsigned int fastestLaps[], 
       // Print the lap TIME
       PrintClock(fastestTimes[resultsRowIdx + i], 12, 6, 3, lcdDisp, i + 1);
       // clear racer name space of any previous characters
-      PrintSpanOfChars(lcdDisp, 1 + i, 13);
+      // PrintSpanOfChars(lcdDisp, 1 + i, 13);
       // then print RACER NAME
       // if idx = 0 then it's the top results and has racer names with the lap times.
       if(resultsMenuIdx == 0){
@@ -1451,7 +1434,7 @@ void PrintResultsList(unsigned long fastestTimes[], unsigned int fastestLaps[], 
       // we want to set the index back one so it doesn't keep scrolling in empty space
       resultsRowIdx = (resultsRowIdx -1) >= 0 ? resultsRowIdx - 1 : 0;
       // if this condition exists, we want to end the loop to avoid doubles
-      break;
+      // break;
     }
   }
 }
@@ -1480,9 +1463,19 @@ void UpdateResultsMenu(bool full = true) {
           PrintText(RESULTS_RACER_LBL, lcdDisp, 16, 17, false, 0);
           // Print 'Racer #' of current individual results screen
           PrintNumbers(resultsMenuIdx, 1, RESULTS_RACER_NUM_POS, lcdDisp, false, 0);
+          // Print label for and total time
+          PrintText(RESULTS_TOTAL_LBLA, lcdDisp, 19, 6, true, 2, false);
+          PrintClock(racersTotalTime[resultsMenuIdx], 19, 6, 1, lcdDisp, 3, false);
         }
         // else print the racer name
-        else PrintText(Racers[laneRacer[resultsMenuIdx]], lcdDisp, 16, 14, false, 0);
+        else {
+          // print total laps completed
+          PrintText(Racers[laneRacer[resultsMenuIdx]], lcdDisp, 16, 14, false, 0);
+          // Print label for and total # of laps completed
+          PrintText(RESULTS_TOTAL_LBLB, lcdDisp, 19, 6, true, 2, false);
+          // int lapCountTemp = ((lapCount[resultsMenuIdx] == 0) ? 0 : (lapCount[resultsMenuIdx]-1));
+          PrintNumbers(((lapCount[resultsMenuIdx] == 0) ? 0 : (lapCount[resultsMenuIdx]-1)), 6, 19, lcdDisp, false, 3 );
+        }
         if (full) {
           // Print custom up down arrow.
           lcd.setCursor(17,0);
@@ -1495,14 +1488,12 @@ void UpdateResultsMenu(bool full = true) {
               fastestLaps[resultsMenuIdx], 
               lapCount[resultsMenuIdx] < fastestQSize ? lapCount[resultsMenuIdx] : fastestQSize
               );
-          // Print out the racer's total race time
-          PrintText(RESULTS_TOTAL_LBL, lcdDisp, 19, 5, true, 1, false);
-          PrintText(RESULTS_TOTAL_LBL2, lcdDisp, 19, 5, true, 2, false);
-          PrintClock(racersTotalTime[resultsMenuIdx], 19, 6, 1, lcdDisp, 3, false);
+          // Print title for blinking lap and time totals
+          PrintText(RESULTS_TOTAL_LBL, lcdDisp, 19, 6, true, 1, false);
         }
       } else {
         resultsMenuIdx++;
-        UpdateResultsMenu();
+        UpdateResultsMenu(full);
       }
     }
     break;
@@ -1529,6 +1520,11 @@ byte overallFastestRacer = 5;
 void UpdateLiveRaceLCD(){
   // Clear table to be rebuilt
   memset(leaderBoard, 0, sizeof(leaderBoard));
+  // for (byte a=0; a < laneCount; a++) {
+  //   for (byte b=0; b < 2; b++){
+  //     leaderBoard[a][b] = 0;
+  //   }
+  // }
   // For each lane/racer...
   for (byte racerID = 1; racerID <= laneCount; racerID++){
     bool swap = false;
@@ -1544,34 +1540,45 @@ void UpdateLiveRaceLCD(){
       }
       // Build Leader Board comparing each racer's last finished lap to each other.
       // The more finished laps, the higher the place.
-      for (byte place = 0; place < laneCount; place++){
+      // for (byte place = 0; place < laneCount; place++){
+      for (byte place = 0; place < enabledLaneCount; place++){
         if (racerLapCount > leaderBoard[place][0]) {
           swap = true;
+          // Serial.print(" swap lapCount: ");
+          // Serial.print(" current place: ");
+          // Serial.println(place);
         } else
         if (racerLapCount == leaderBoard[place][0]) {
           // If two racers have the same lap count,
           // The one with the earliest completion timestamp is in the lead.
           unsigned long racerFinishTimestamp = lastXMillis [racerID] [racerLapCount%lapMillisQSize];
           unsigned long placeFinishTimestamp = lastXMillis [leaderBoard[place][1]] [leaderBoard[place][0]%lapMillisQSize];
+
           if(racerFinishTimestamp < placeFinishTimestamp){
             swap = true;
+            // Serial.print(" swap lapTimes: ");
+            // Serial.print(" current place: ");
+            // Serial.println(place);
           } else if(racerFinishTimestamp == placeFinishTimestamp){
             // If there was a tie in the completion of the last lap,
             // then keep checking time completion of next earlier lap until a winner is found.
             for(byte n = 1; n < lapMillisQSize; n++){
               racerFinishTimestamp = lastXMillis [racerID] [(racerLapCount-n)%lapMillisQSize];
               placeFinishTimestamp = lastXMillis [leaderBoard[place][1]] [(leaderBoard[place][0]-n)%lapMillisQSize];
+
               if(racerFinishTimestamp < placeFinishTimestamp){
                 swap = true;
+                // Serial.println(" true 3");
                 break;
               }
             }
           }
         }
-        // If new racer is better then slide everyone down a place.
+        // If new racer is better, then slide everyone down a place.
         // Start at the end of the list and stop when reaching insertion place.
         if(swap){
           for(byte i = enabledLaneCount - 1; i > place; i--){
+          // for(byte i = laneCount-1; i > place; i--){
             leaderBoard[i][0] = (leaderBoard[i-1][0]);
             leaderBoard[i][1] = (leaderBoard[i-1][1]);
           }
@@ -1581,7 +1588,22 @@ void UpdateLiveRaceLCD(){
           // exit loop once a swap is made.
           break;
         }
-        // // DEBUG PRINTOUT
+
+        // DEBUG PRINTOUT
+        // Serial.print("   place: ");
+        // Serial.print(place);
+        // Serial.print("   racerID: ");
+        // Serial.print(racerID);
+        // Serial.print("   LapCount: ");
+        // Serial.println(racerLapCount);
+
+      } // END end for each PLACE
+
+    } // END if racerID Active
+
+  } // END for each racer
+
+        // DEBUG PRINTOUT
         // Serial.print("   place: ");
         // Serial.print(place);
         // Serial.print("   racerID: ");
@@ -1594,15 +1616,14 @@ void UpdateLiveRaceLCD(){
         //   Serial.print("  Racer:");
         //   Serial.println(Racers[leaderBoard[k][1]]);
         // }
-      } // END end for each PLACE
-    } // END if racerID Active
-  } // END for each racer
+
   // Even though the places list is as long as there are lanes,
   // we only have 3 lines on the screen, so limit this loop to 3.
   for(byte k = 1; k <= (enabledLaneCount<3?enabledLaneCount:3); k++){
     // Print place #
     lcd.setCursor(0,k);
     lcd.print(k);
+    // leaderboard index starts with zero as 1st place
     if((leaderBoard[k-1][0]) == 0){
       // If the lap count is zero then don't print anything.
       PrintSpanOfChars(lcdDisp, k, 0, 11);
@@ -1641,34 +1662,48 @@ void ResetRaceVars(){
 }
 
 
+
 // function to iterate through the given audioStates
-void toggleAudioMode(bool printToScreen = false) {
+void toggleAudioMode() {
+  switch (audioState) {
+    case AllOn:
+      audioState = GameOnly;
+    break;
+    case GameOnly:
+      audioState = Mute;
+    break;
+    case Mute:
+      audioState = AllOn;
+    break;
+    default:
+    break;
+  }
+  UpdateAudioBools();
+}
+
+// Set audio boolean flags per audio state
+void UpdateAudioBools() {
   switch (audioState) {
     case AllOn: {
-      // change state and values to be for GameOnly
-      audioState = GameOnly;
       gameAudioOn = true;
-      musicAudioOn = false;
+      musicAudioOn = true;
     }
     break;
     case GameOnly: {
-      // change state and values to be for Mute
-      audioState = Mute;
-      gameAudioOn = false;
+      gameAudioOn = true;
       musicAudioOn = false;
     }
     break;
     case Mute: {
-      // change state and values to be for AllOn
-      audioState = AllOn;
-      gameAudioOn = true;
-      musicAudioOn = true;
+      gameAudioOn = false;
+      musicAudioOn = false;
     }
     break;
     default:
     break;
   } // END of switch block
 }
+
 
 // this function prints the current Audio component status to the settings screen
 // This function assumes it is being called from the 'Settings' menu screen state.
@@ -1760,7 +1795,11 @@ void PrintAudioStatus() {
 //   }
 //   return noteDuration;
 // }
-// -------------END NOTE ARRAY AUCIO CODE-------------------
+// -------------END NOTE ARRAY AUDIO CODE-------------------
+
+
+
+
 
 
 // *********************************************
@@ -1810,10 +1849,18 @@ void setup(){
   // --- SETUP LAP TRIGGERS AND BUTTONS ----------------
   // Roughly equivalent to digitalWrite(lane1Pin, HIGH)
   for (byte i = 1; i <= laneCount; i++){
-    // pinMode(laneSensorPin[i], INPUT_PULLUP);
     pinMode(lanes[i][0], INPUT_PULLUP);
-    // Serial.print("SensorPin: ");
-    // Serial.println(lanes[i][0]);
+    // read default lane status, as set by the DEFAULT_LANES_ENABLED setting
+    if (laneEnableStatus[i] != Off) {
+      // failsafe to make sure default enabled state of racer is StandBy
+      laneEnableStatus[i] = StandBy;
+      // Set default racer name for each 'StandBy' racer
+      laneRacer[i] = i;
+      // count lanes enabled, aka set to 'StandBy', at bootup 
+      enabledLaneCount++;
+    } else {
+      laneRacer[i] = 0;
+    }
   }
   pinMode(pauseStopPin, INPUT);
 
@@ -1839,11 +1886,21 @@ void setup(){
 
   // Startup song
   // startPlayRtttlPGM(buzzPin1, reveille);
+
+  // Serial.println("setup enabled laneCount: ");
+  // Serial.println(enabledLaneCount);
+  
+  // setup audio flags per default audio mode
+  UpdateAudioBools();
   Beep();
 }
+// ************* END SETUP *******************
 
-// ***************** MAIN **********************
-// ***************** LOOP *********************
+
+
+
+// ***********************************************
+// *************** MAIN LOOP *********************
 void loop(){
   // Serial.println("MAIN LOOP START");
   // Serial.println(state);
@@ -1875,9 +1932,23 @@ void loop(){
         // This means these interrupts get disabled on every new menu, but keeps things simpler.
         EnablePinInterrupts(false);
       }
-      // Only play UI feedback tone if it's the first entry (new screen) or key was pressed.
-      if (key || entryFlag) {
-        Beep();
+      // if (key || entryFlag) {
+      if (key) {
+        // Serial.print("key: ");
+        // Serial.println(key);
+        switch (key) {
+          // distinguish back button sound from regular key press
+          case '*':
+            Boop();
+            break;
+          // stop any playing song if '#' is pressed while in menu state
+          case '#':
+            stopPlayRtttl();
+            break;
+          default:
+            Beep();
+            break;
+        }
       };
       // All of the menus and sub-menus should been flattened to this single switch
       switch (currentMenu) {
@@ -1957,14 +2028,6 @@ void loop(){
               raceLaps = EditNumber(3, 999, 2, 14);
             }
             break;
-            // // SECONDS
-            // case 'C':{
-            //   // change seconds
-            //   raceSetTime[0] = EditNumber(2, 59, 1, 16);
-            //   // update the race time in ms
-            //   raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
-            // }
-            // break;
             // ENABLED LANES
             // If a number is pressed in menu state change enabled lane.
             case '0' ... '4':{
@@ -2030,7 +2093,6 @@ void loop(){
               // return to MainMenu
               currentMenu = MainMenu;
               entryFlag = true;
-              stopPlayRtttl();
             }
             break;
             default:
@@ -2202,7 +2264,7 @@ void loop(){
           }
           // Set flash status to initial, do nothing state.
           flashStatus[i] = 0;
-          LongBoop();
+          Bleep();
         }
         // Write static text to main LCD for live race screen
         PrintLeaderBoard(false);
@@ -2269,7 +2331,7 @@ void loop(){
               }
               break;
               // Flash START - a lap has just been completed, show its time on LED
-              case 1:{
+              case 1: {
                 unsigned long lapTimeToLog;
                 // Log the loop timestamp at start of this flash period.
                 flashStartMillis[i] = curMillis;
@@ -2282,13 +2344,13 @@ void loop(){
                 // Update the racer's LED with the completed lap # and laptime.
                 lc.clearDisplay( displays(i) - 1 );
                 // print the just completed lap # to left side of racer's  LED
-                PrintNumbers(lapCount[i] - 1, 3, 2, displays(i));
+                PrintNumbers( (lapCount[i] - 1), 3, 2, displays(i));
                 // print the lap time of just completed lap to right side of racer's LED
                 PrintClock(lapTimeToLog, 7, 4, 3, displays(i));
 
                 // During flash cycle 1 we process all data, so we also update the racer's fastest laps list.
                 // The current lap is the live lap so we need to subtract 1 from lapcount
-                UpdateFastestLap(fastestTimes[i], fastestLaps[i], lapCount[i] - 1, lapTimeToLog, laneRacer[i], fastestQSize);
+                UpdateFastestLap(fastestTimes[i], fastestLaps[i], (lapCount[i] - 1), lapTimeToLog, laneRacer[i], fastestQSize);
                 // Update main display
                 UpdateLiveRaceLCD();
                 // set the flash state to 2 = hold
@@ -2328,9 +2390,9 @@ void loop(){
                 // they have finished the race. lapCount of an 'Active' lane, is +1 of finsished laps.
                 // Because the final lap count can be updated at any time via interrupts,
                 // we must also verify that the flash status is not still '1'.
-                // Waiting for the flash status of the final lap to be in the hold state, '2'
-                // will ensure that the final lap data has been fully processed through flash state '1'.
-                if( (lapCount[i] > raceLaps) && (flashStatus[i] != 1) ){
+                // If flash status = 1 then lap data has not been processed yet
+                // so do not process racer as finished until that is done.
+                if( (lapCount[i] > raceLaps) && (flashStatus[i] != 1)){
                   // Change racer's status to finished
                   laneEnableStatus[i] = Finished;
                   finishedLaneCount++;
@@ -2342,13 +2404,19 @@ void loop(){
                   stopPlayRtttl();
                   // Play finishing song of racer
                   if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[i]]);
+                  // Serial.print("Finished count: ");
+                  // Serial.println(finishedLaneCount);
                 }
+
               }
             }
             // The race continues until all racers have finsihed.
             if (finishedLaneCount == enabledLaneCount) {
               // If all racers have finished end race and return to results menu.
               Finish();
+              // Serial.print("Finished then enabled count: ");
+              // Serial.println(finishedLaneCount);
+              // Serial.println(enabledLaneCount);
             }
           } // END Standard Race Finish case
           break;
@@ -2419,6 +2487,7 @@ void loop(){
         if (key == '*') {
           UpdateAllNamesOnLEDs();
           Finish();
+          if (gameAudioOn) Boop();
         }
       } // END of if EntryFleg, else
     } // END of Paused state
@@ -2434,6 +2503,8 @@ void loop(){
 } // END of MAIN LOOP
 // ********************************************************
 // ********************************************************
+
+
 
 
 
@@ -2461,17 +2532,20 @@ void UpdateAllNamesOnLEDs(){
 
 // Writes the place finish to racer's LED display if in finished state.
 void UpdateNameOnLED(byte lane){
-  // if the lane is 'Active' then check place
+  // if the lane is 'Finished' then check place
   if(laneEnableStatus[lane] == Finished){
     // Find what place the racer is in
     for(byte i = 1; i <= laneCount; i++){
       // If the racer has finished then write their place then name.
       if(leaderBoard[i-1][1] == lane){
-        char finishPlace[3];
+        // remember strings have an end string character so "DEF" is a 4 element char array.
+        char finishPlace[] = "DEF";
         // Get place text prefix string
         strcpy_P(finishPlace, (char*)pgm_read_word(&(FinishPlaceText[i])));
         PrintText(finishPlace, displays(lane), 2, 3, false, 0, false);
         PrintText(Racers[laneRacer[lane]], displays(lane), 7, 4, false, 0, true);
+        // Serial.print("Finished plce LED: ");
+        // Serial.println(finishPlace);
       }
       // If the racer has not finished don't do anything.
     }
@@ -2480,7 +2554,7 @@ void UpdateNameOnLED(byte lane){
   if(laneEnableStatus[lane] == StandBy){
     PrintText(Racers[laneRacer[lane]], displays(lane), 7, 8);
   } else
-  // else if lane is in Off, print label held in resreve idx, Racers[0].
+  // else if lane is Off, print label held in resreve idx, Racers[0].
   if(laneEnableStatus[lane] == Off){
     PrintText(Racers[laneRacer[0]], displays(lane), 7, 8);
   }

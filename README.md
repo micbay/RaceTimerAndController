@@ -22,10 +22,9 @@ The original application for this controller was slot car racing, as such, the c
 ### **Prerequisites**  
 This project involves a lot of different hardware and software concepts, and implements some more intermediate to advanced code for Arduino.
 
-However, I have endeavored to explain in enough detail that someone with almost no experience can still follow along, and sucessfully build a working controller. It will even be possible to customize menu text and default game settings, without having to write new code.
+However, I have endeavored to explain in enough detail that someone with almost no experience can still follow along, and successfully build a working controller. It will even be possible to customize menu text and default game settings, without having to write new code.
 
-
-It is expected the reader understands how to use the Arduino IDE, connect wires, and program boards. To get up to speed on those basics, there are many great resources from [Arduino](https://www.arduino.cc/en/Guide) and around the web, covering them exhaustively.
+It is expected the reader understands how to use the Arduino IDE, connect wires, and program boards. To get up to speed on those basics, please check out, [Getting Started With Arduino Projects](https://www.arduino.cc/en/Guide), or many other great resources around the web.
 
 <br>
 
@@ -33,8 +32,9 @@ It is expected the reader understands how to use the Arduino IDE, connect wires,
 All of the components are readily available and can be connected with basic jumper leads or simple conductors (wires). Some components might require header pin soldering if they do not come pre-assembled.
 > ***Note on Housing and Mechanical Interface** - This project only documents the functional electrical and software configuration. It can be wired, and used as illustrated for demonstration, however, for repeated, practical usage, the construction of a permanent housing, and mechanical trigger interface, is left up to the implementer to develop per their unique setup.*  
 
-## **Parts for Race Controller**  
-- [Arduino Nano](https://www.arduino.cc/en/pmwiki.php?n=Main/ArduinoBoardNano) (or equivalent microcontroller module, if using Mega2560 adjust code and wiring per annotations)
+## **Parts for Race Controller**
+- [Arduino Nano](https://docs.arduino.cc/hardware/nano) (or equivalent microcontroller module) ([amazon search](https://www.amazon.com/arduino-nano/s?k=arduino+nano))
+  - if using Mega2560 adjust code and wiring per annotations)
 - [4 x 4 membrane keypad](https://duckduckgo.com/?q=4+x+4+membrane+keypad)
 - [LCD2004 4 row x 20 character display](https://duckduckgo.com/?q=LCD2004A+4+x+20+I2C+backpack), with [I2C backpack](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
 - 2-4 Chainable, [8-digit, 7-segment LED bar with integrated MAX7219](https://duckduckgo.com/?q=8-digit%2C+7-segment+LED+display)
@@ -70,9 +70,8 @@ All of the components are readily available and can be connected with basic jump
 
 ![Wiring Diagram](Images/WiringDiagram1600x800.png)
 
-## **Changes if Using Mega2560 Based Microcontroller**
-By default the code is setup for an Arduino Nano pin out. However, with minor adjustments this project will also work using an Arduino Mega2560 based module.
-The necessary mega2560 code can be found commented out, near the Nano based code it will replace.
+## **Changes if Using ATMega2560 Microcontroller Based Module**
+By default the code is setup for an Arduino Nano pin out. However, with minor adjustments, this project can also work with modules, like the Arduino Mega2560, that use an ATmega2560 processor. The necessary ATmega2560 code can be found commented out, near the Nano based code it will replace.
 
 The summary of the changes to be made to use a Mega2560 board are:
 - Use pins D20 & D21 for LCD's SDA and SCL connection instead of A4 & A5
@@ -98,6 +97,12 @@ All devices in this build are powered from a +5V source. The displays should dra
 
 # **Software Configuration**  
 In order to interact with our different peripherals, this project uses several existing [Arduino libraries](https://www.arduino.cc/reference/en/libraries/). Unless otherwise specified, these libraries can be downloaded the usual manner using the [Arduino Library Manager](https://docs.arduino.cc/software/ide-v1/tutorials/installing-libraries). Each library will be introduced with the hardware it's related to.
+
+Reference for add-on libraries used in this project:
+- [hd44780](https://www.arduino.cc/reference/en/libraries/hd44780/)
+- [LedControl](https://www.arduino.cc/reference/en/libraries/ledcontrol/)
+- [Keypad](https://www.arduino.cc/reference/en/libraries/keypad/)
+- [PlayRtttl](https://github.com/ArminJo/PlayRtttl)
 
 All custom project logic is in the main Arduino `.ino` sketch file. The additional supporting `.h` files are used to store different data constants defining custom characters, songs, and default system settings.
 - `RaceTimerAndController.ino` - main sketch file containing all custom logic
@@ -497,7 +502,7 @@ In the case of the Arduino Nano, we are using a physical block of pins called `P
 >- Make sure everything is well grounded, and isolated from, radiated and conducted noise, but [avoid ground loops](https://www.bapihvac.com/application_note/avoiding-ground-loops-application-note/).
 
 ## **Relationship Between Racers/Lanes and Interrupt Hardware**
-For the [ATMega328](https://www.microchip.com/en-us/product/ATmega328#document-table) based Nano we have chosen to use pins `A0-A3` as the physical wire inputs for the lap trigger signals representing racers/lanes 1-4. A `lanes[]` array constant will be used to map the association of physical hardware pins with the Racer/Lane they will represent.
+For the [ATMega328](https://www.microchip.com/en-us/product/ATmega328) based Nano we have chosen to use pins `A0-A3` as the physical wire inputs for the lap trigger signals representing racers/lanes 1-4. A `lanes[]` array constant will be used to map the association of physical hardware pins with the Racer/Lane they will represent.
 
 Throughout the code data arrays that represent racer data are structured such that the row index value holds data associated with the matching racer/lane#. For example the detection pin that will be associated with 'Racer#1' should be defined by the value of `lanes[1]`.
 
@@ -711,7 +716,7 @@ It's not possible to review them all here. However, to provide some starting poi
 Any button like, mechanical mechanism that closes the circuit can be used. See the project lap counter example implementation.
 
 ## Magnetic Detection Switches
-> **Reed Switch** - A reed switch is a small, sealed tube containing very light wires that get pulled closed when a magnetic field is present nearby. This link is an example of [Arduino integration of a reed switch](https://create.arduino.cc/projecthub/muchika/reed-switch-with-arduino-81f6d2), and here is an example of a [reed switch implemented into a slot car track](https://www.nealsstuff.com/arduinolapcounter.aspx).
+> **Reed Switch** - A reed switch is a small, sealed tube containing very light wires that get pulled closed when a magnetic field is present nearby. This link is an example of [Arduino integration of a reed switch](https://lastminuteengineers.com/reed-switch-arduino-tutorial/), and here is an example of a [reed switch implemented into a slot car track](https://www.nealsstuff.com/arduinolapcounter.aspx).
 
 >**Hall Effect Sensor** - A Hall Effect sensor is an integrated circuit component that can detect a nearby magnetic field. This link is an example of [Arduino integration of a hall effect sensor](https://maker.pro/arduino/tutorial/how-to-use-a-hall-effect-sensor-with-arduino).
 
@@ -723,7 +728,9 @@ Any button like, mechanical mechanism that closes the circuit can be used. See t
 ## **Example Integration - Converting Mechanical Lap Counter**
 In my case I have a mechanical lap counter that I added two paper clips to act as contacts, creating a triggering connection every time the mechanical switch in the track is flipped. It's easy to bend the paperclips such that they have a nice, relatively long, solid contact period.
 
-This fits nicely with the port register interrupts to give a reliable, repeatable, trigger. Because our contact time is much longer than our interrupt function, and we can read simultaneous contacts of all racers, we'll never miss a lap. Even if there is a tie, or if a racer is in the interrupt when another initiates its own triggering contact.
+This fits nicely with the port register interrupts to give a reliable, repeatable, trigger. Because our contact time is much longer than our interrupt function, and we can read simultaneous contacts of all racers, we'll never miss a lap. Even if there is a tie, or if the controller is in the interrupt when another initiates a 2nd triggering contact.
+
+In the image below, two base paper clips, are wired with black leads to ground. Then, Lane 1, seen wired with a yellow wire, is connected to PIN_A0 of the Arduino off screen. For lane 2 we see an orange lead connecting the signal contact, which is wired to PIN_A1 off screen. When a car passes, it moves the in-track trigger, swinging the contacts closed, completing the signal circuit and triggering an interrupt.
 
 [Paperclip Sensor In Action](https://youtu.be/n0GLdoQ6pg4?t=135)
 
@@ -784,15 +791,21 @@ void loop(){
 
 # **Playing Audio**  
 ## **Arduino [tone()](https://www.arduino.cc/reference/en/language/functions/advanced-io/tone/)**
-Playing simple beeps and boops on the Arduino can be done with a single call to the built-in Arduino `tone()` function. Here we use `tone()` in a wrapper function, `Beep()`, that we can call when we want to play a feedback sound, such as when a keypad button is pressed.
+Playing simple beeps and boops on the Arduino can be done with a single call to the built-in Arduino tone() function. Here we use `tone()` in some wrapper functions, `Beep()`, `Boop()`, and `Bleep()`, that we can call when we want to play a feedback sound, such as when a keypad button is pressed. The frequency and duration values are defined in `defaultSettings.h`, and can be changed by editing `localSettings.h`.
 
 ```cpp
 // A3 is a built in Arduino pin identifier
 const byte buzzPin1 = A3;
 
+// tone(pin with buzzer, freq in Hz, duration in ms)
 void Beep() {
-  // tone(pin with buzzer, freq in Hz, duration in ms)
-  tone(buzzPin1, 4000, 200);
+  if (gameAudioOn) tone(buzzPin1, BEEP_FREQ, BEEP_DUR);
+}
+void Boop() {
+  if (gameAudioOn) tone(buzzPin1, BOOP_FREQ, BOOP_DUR);
+}
+void Bleep() {
+  if (gameAudioOn) tone(buzzPin1, BLEEP_FREQ, BLEEP_DUR);
 }
 ```
 
@@ -1216,6 +1229,7 @@ Pressing the `A` key, from the main menu will go to the **Select Racers Menu**. 
   > Remember that the timer LED bars will not display certain characters, when choosing racer names.
   - Two racers cannot have the same name.
   - **Disabled Lanes** - If a lane sensor is disabled then it will show up as `-Off-` in the Select Racers menu. To select a name for a disabled racer, go to the **Settings Menu**, and enable the desired lanes, then return to this menu.
+  - Press `*` to return to the **Main Menu**.
 
 ![Racers menu](Images/ScreenShots/SelectRacers_Menu.png)
 
@@ -1225,7 +1239,7 @@ Pressing the `B` key, from the main menu will bring up the **Settings Menu**. On
 - **Change Race Time** - Press `B`, to activate edit mode, then use keypad numbers to enter mm:ss. Race time is only used in a 'Timed' race type, where the winner is the one who finishes the most laps in the set amount of time.
 - **Change Laps to Finish** - Press `C`, to activate edit, then enter the number of laps. This setting is only used by the 'Standard' race type where the first to finish the set number of laps is the winner.
 - **Enable/Disable Lanes** - Pressing `1-4` will toggle the enabled status of the selected lane/racer number. Pressing `0` will disable all of the lanes/racers.
-- Press `*` to return to main menu.
+- Press `*` to return to the **Main Menu**.
 
 ![Settings Menu](Images/ScreenShots/Settings_Menu.png)
 
@@ -1234,6 +1248,7 @@ Pressing `C` from the Main Menu will bring up the **Race Start Menu**. From this
   - Pressing `A` will begin a 'Standard', first to finish X laps, race.
   - Pressing `B` will begin a 'Timed', most laps before time runs out, race.
   - Pressing `D` to activate edit, then use number pad to change the number of seconds the pre-start countdown lasts (0-30).
+  - Press `*` to return to the **Main Menu**.
 
 ![Start Race Menu](Images/ScreenShots/StartRace_Menu.png)
 
@@ -1258,20 +1273,26 @@ After a race has finished (or paused and stopped), and lap data for racers exist
 
 ![Top Results Menu](Images/ScreenShots/TopResults_Menu.png)
 
-Due to memory limits, depending how long a race is, we cannot store data for every lap of every racer. Instead we keep a running record of just the top X fastest laps for each racer. Currently this is set to 10 laps. Implementers can feel free to adjust the `fastestQsize` variable to shorten or lengthen the stored lap data count.
+Due to memory limits, depending how long a race is, we cannot store data for every lap, of every racer. Instead we keep a running record of just the top X fastest laps for each racer. This is set to 10 by default.
+
+Implementers can adjust the number of stored laps by editing the `DEFAULT_MAX_STORED_LAPS` setting in `localSettings.h`. Setting this number too high can lead to instability and controller failure, due to memory overruns.
 
 Pressing `A` or `B` on any of the fastest lap lists will scroll up or down the list respectively.
 
 ![Top Results Scrolled](Images/ScreenShots/TopResults_ScrolledDown_Menu.png)
 
-Pressing `C` will cycle through the available results sub-menus. There is a results list page for the top overall laps, a page for each racer's individual top laps, and a page that displays the final leader board. On the individual racer pages the total time it took the racer to finish all indicated laps is also displayed at the lower right of the screen. Also on individual Racer results pages, the title will blink between the Racer# ID, and the racer's name.
+Pressing `C` will cycle through the available results sub-menus. There is a results list page for the top overall laps, a page for each, individual, racer's top laps, and a page that displays the final leader board.
 
+On the individual racer pages, the total time it took the racer to finish all completed laps, is displayed at the lower right of the screen. On individual Racer results pages, the title will blink between the Racer# ID, and the racer's name.
+
+Pressing `*` will return to the **Main Menu** for next race.
 ![Racer1 Results Menu](Images/ScreenShots/Racer1Results_Menu.png)
 ![Racer1 Results ScrollDown](Images/ScreenShots/Racer1Results_ScrollDown.png)
 ![Finish Results Menu](Images/ScreenShots/FinishResults_Menu.png)
 
+
 # Customizing UI Text and General Controller Settings
-To accomodate user customization of menus and preferred games settings, this project can make use of a `localSettings.h` file, in which users can make, and store customizations, without editing the main code base. By default, the controller will use settings established in the `defaultSettings.h` file, but if the same setting is loaded from the `localSettings.h` file, the `localSettings.h` setting will be used instead.
+To accommodate user customization of menus and preferred games settings, this project can make use of a `localSettings.h` file, in which users can make, and store customizations, without editing the main code base. By default, the controller will use settings established in the `defaultSettings.h` file, but if the same setting is loaded from the `localSettings.h` file, the `localSettings.h` setting will be used instead.
 
 To make use of a `localSettings.h` file, start by copying and renaming the included `example.localSettings.h` file to `localSettings.h` in the local sketch folder. Uncomment and edit the settings that you desire to customize. `localSettings.h` is included in the .gitignore list and will not be overwritten when downloading subsequent `RaceTimerAndController.ino` updates in the future. In this way your local changes will be preserved while still getting the latest controller base code.
 

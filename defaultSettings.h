@@ -76,6 +76,29 @@
   #define LANE4 {PIN_A3, 0b00001000}
 #endif
 
+// Interrupt Hardware (ONLY CHANGE if using a non-Nano based Arduino)
+// For ATmega328 based Arduino use 'PCINT1_vect', case sensitive, no quotes
+// For ATmega2560 based Arduino use 'PCINT2_vect', case sensitive, no quotes
+#if !defined ( PCINT_VECT )
+  #define PCINT_VECT PCINT1_vect
+#endif
+// For ATmega328 based Arduino use 'PINC', case sensitive, no quotes
+// For ATmega2560 based Arduino use 'PINK', case sensitive, no quotes
+#if !defined ( INTERRUPT_PORT )
+  #define INTERRUPT_PORT PINC
+#endif
+
+
+// Default enabled status of lanes on bootup
+// To disabled laneX, enter 'Off' (case sensitive, no quotes) in matching index=X
+// To enable laneX, enter 'StandBy' (case sensitive, no quotes) in matching index=X
+// 1st term is index=0, array should always have 5 terms (laneCount + 1)
+#if !defined ( DEFAULT_LANES_ENABLED )
+  #define DEFAULT_LANES_ENABLED { Off, StandBy, StandBy, Off, Off }
+#endif
+
+
+
 // Pin used for the pause button
 #if !defined ( PAUSEPIN )
   #define PAUSEPIN PIN_A6
@@ -84,6 +107,36 @@
 #if !defined ( BUZZPIN )
   #define BUZZPIN 13
 #endif
+
+// *** GAME SOUNDS ***
+// BEEP - basic game tone used for button press feedback and lap completion
+#if !defined ( BEEP_FREQ )
+  #define BEEP_FREQ 4000  // freq in Hz
+#endif
+#if !defined ( BEEP_DUR )
+  #define BEEP_DUR 200    // duration in ms
+#endif
+// BOOP - secondary game tone used for menu back and start/re-start lap trigger
+#if !defined ( BOOP_FREQ )
+  #define BOOP_FREQ 1000  // freq in Hz
+#endif
+#if !defined ( BOOP_DUR )
+  #define BOOP_DUR 200    // duration in ms
+#endif
+// BlEEP - longer tone used for race start and restart after pause.
+#if !defined ( BLEEP_FREQ )
+  #define BLEEP_FREQ 2000  // freq in Hz
+#endif
+#if !defined ( BLEEP_DUR )
+  #define BLEEP_DUR 600    // duration in ms
+#endif
+
+// Audio Mode Default on bootup
+// use only 'AllOn', 'GameOnly', or 'Mute', case sensitive, no quotes
+#if !defined ( DEFAULT_AUDIO_MODE )
+  #define DEFAULT_AUDIO_MODE AllOn
+#endif
+
 
 
 // Main Menu Screen options labels
@@ -184,6 +237,7 @@
 
 
 // Finishing Place Labels
+// MUST be 3 character string
 #if !defined( FINISH_DNF)
   #define FINISH_DNF "DNF"
 #endif
@@ -247,8 +301,11 @@
 #endif
 // 2nd line of label above racer's total race time.
 // max 6 characters
-#if !defined( RESULTS_TOTAL_LBL2 )
-  #define RESULTS_TOTAL_LBL2 "Time"
+#if !defined( RESULTS_TOTAL_LBLA )
+  #define RESULTS_TOTAL_LBLA "Time"
+#endif
+#if !defined( RESULTS_TOTAL_LBLB )
+  #define RESULTS_TOTAL_LBLB "Laps"
 #endif
 
 
