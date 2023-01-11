@@ -74,11 +74,11 @@ All of the components are readily available and can be connected with basic jump
 By default the code is setup for an Arduino Nano pin out. However, with minor adjustments, this project can also work with modules, like the Arduino Mega2560, that use an ATmega2560 processor. The necessary ATmega2560 code can be found commented out, near the Nano based code it will replace.
 
 The summary of the changes to be made to use a Mega2560 board are:
-- Use pins D20 & D21 for LCD's SDA and SCL connection instead of A4 & A5
-- For the lane sensors, use pins on I/O port K instead of port C
+- Use pins `D20` & `D21` for LCD's SDA and SCL connection instead of `A4` & `A5`
+- For the lane sensors, use pins on I/O `port K` instead of `port C`.
   - Wire lanes1-4 to pins A8-A11 instead of pins A0-A3
-  - For the port change interrupt service routine use `ISR(PCINT2_vect)`, instead of `ISR(PCINT1_vect)`.
-  - and accordingly, for variable `triggeredPins`, read from the port K byte, `PINK`, instead of port C byte, `PINC`, to check triggered lanes.
+  - Edit setting `PCINT_VECT` in the `localSettings.h` file, to change interrupt vector used to be `ISR(PCINT2_vect)`, instead of `ISR(PCINT1_vect)`.
+  - and accordingly, edit setting `INTERRUPT_PORT` in the `localSettings.h` file, to read from the port K byte, `PINK`, instead of port C byte, `PINC`, to check triggered lanes.
 
 ## **Power Supply (+5V)**  
 All devices in this build are powered from a +5V source. The displays should draw power from the source supply and not through the Arduino which cannot support enough current to run everything without flickering.
@@ -192,8 +192,9 @@ void loop(){
 <br>
 
 ## **Custom Characters**  
-The `h78844` library supports up to 8 custom characters.  
-To create a custom character, use a byte array to define the pixels of the character to turn on, or off. This online [LCD Custom Character Generator](https://maxpromer.github.io/LCD-Character-Creator/) makes it easy to get the array and supporting code.
+This project makes use of some custom 'icons' in the menu screen. To draw them, we'll use the custom character feature of the `h78844` display library, we're using for the LCD. This library provides support for up to 8 custom characters.  
+
+To create a custom character, define a byte array that establishes the pixels of the LCD character that are turned on, or off. This online [LCD Custom Character Generator](https://maxpromer.github.io/LCD-Character-Creator/) makes it easy to get the array and supporting code.
 
 <table>
 <tr>
@@ -1207,6 +1208,22 @@ void loop(){
 
 <br>
 
+# **Audio Modes**
+This controller has 3 Audio Modes, providing users the ability to turn on and off the game feedback audio and victory songs.
+- **AllOn** - The standard default on bootup, all audio elements are on.
+- **GameOnly** - Only the UI feedback, beeps, and lap triggers are on, victory song playing is turned off.
+- **Mute** - All audio elements are turned off
+
+Adjust the active mode from the Change Settings menu.
+
+The default audio mode used on bootup can be changed by editing the `DEFAULT_AUDIO_MODE` in your `localSettings.h` file.
+
+## **The `# key` - Stops Playing Music**
+
+Pressing the `# key` while in the **Menu** state, will stop any music playing. This provides users a way to stop the sample song played during racer selection, and the final racer's victory song after completion of a race, without having to let it play out to the end.
+
+At this time, this will not stop a victory song playing, while an active race is still going on, because the keypad is not poled during an active race.
+
 ---
 # **Race Controller Operation**
 ## Main Menu
@@ -1229,6 +1246,7 @@ Pressing the `A` key, from the main menu will go to the **Select Racers Menu**. 
   > Remember that the timer LED bars will not display certain characters, when choosing racer names.
   - Two racers cannot have the same name.
   - **Disabled Lanes** - If a lane sensor is disabled then it will show up as `-Off-` in the Select Racers menu. To select a name for a disabled racer, go to the **Settings Menu**, and enable the desired lanes, then return to this menu.
+  - Press `#` any time to stop victory song sample playing.
   - Press `*` to return to the **Main Menu**.
 
 ![Racers menu](Images/ScreenShots/SelectRacers_Menu.png)
@@ -1283,7 +1301,8 @@ Pressing `A` or `B` on any of the fastest lap lists will scroll up or down the l
 
 Pressing `C` will cycle through the available results sub-menus. There is a results list page for the top overall laps, a page for each, individual, racer's top laps, and a page that displays the final leader board.
 
-On the individual racer pages, the total time it took the racer to finish all completed laps, is displayed at the lower right of the screen. On individual Racer results pages, the title will blink between the Racer# ID, and the racer's name.
+On the individual racer pages, the completed lap total, and total time it took the racer to finish them, is displayed at the lower right of the screen. This results page blinks between an A-text and B-text phase. During the A-text phase, the title will show the Racer# ID, and the total finish time. During the B-text phase, the title will show the racer's name, and the completed lap total.
+The rate the individual results pages blink between A and B phase text can be set by editing the `RESULTS_RACER_BLINK` setting in the localSettings.h file.
 
 Pressing `*` will return to the **Main Menu** for next race.
 ![Racer1 Results Menu](Images/ScreenShots/Racer1Results_Menu.png)

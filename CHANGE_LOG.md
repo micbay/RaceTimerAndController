@@ -10,6 +10,18 @@ Ver. ##.##.## - Major.Minor.Patch
 
 ________________________
 
+## Ver 1.0.1 - Documenation Updates
+> This update is primarily to bring certain parts of the readme file up to date with the latest settings and screenshot references.
+> 
+> **Updates from Previous Commit**
+>
+> README updates
+> - In section about adapting for ATmega2560, add reference to `...Settings.h` file setting token that is used to set that pin settings.
+> - Add section explaining the audio modes
+> - Add note about using `# key` to silence any playing songs (music audio)
+> - Add clarification in custom character section that it is being used as an icon creation tool.
+> - Update section about individual results screens to mention total laps, and show latest screenshots.
+__________
 ## Ver 1.0.0 - Initial Release
 > Though other versions of this repo have been available for some time, this is the first version from which future changes will be logged and commits tagged with an identifying version.
 > 
