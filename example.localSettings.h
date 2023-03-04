@@ -28,6 +28,17 @@
 // **********************************
 // ucomment and edit to customize general settings
 
+
+// // Number of physical lanes available for the system (max of 4 allowed)
+// // Fewer lanes will support a higher number of DEFAULT_MAX_STORED_LAPS
+// #define LANE_COUNT 4
+
+// // set the maximum number of fastest laps stored during a race
+// // if this gets too large the system will run out of memory and crash
+// recommended max is 20 if LANE_COUNT = 2, 15 if LANE_COUNT = 3, and 10 if LANE_COUNT = 4
+// #define DEFAULT_MAX_STORED_LAPS 10
+
+
 // // set debounce time in ms
 // #define DEBOUNCE 1000
 
@@ -43,11 +54,6 @@
 
 // // set the default number of ticks (ms) between display updates
 // #define DEFAULT_REFRESH_TICKS 100
-
-// // set the maximum number of fastest laps stored during a race
-// // if this gets too large the system will run out of memory and crash
-// // recommended max is 10-15, a max of 20 has been shown to be problematic
-// #define DEFAULT_MAX_STORED_LAPS 10
 
 // Length of flash period in ms (time just completed lap is displayed to LED)
 // #define DEFAULT_FLASH_PERIOD_LENGTH 1500
@@ -105,7 +111,7 @@
 
 
 // // Main Menu Screen option labels
-// // max: 17ch
+// // max: 20ch
 // #define A_SELECT_RACER "A| Select Racers"
 // #define B_CHANGE_SETTINGS "B| Change Settings"
 // #define C_START_RACE "C| Start a Race"
@@ -187,13 +193,13 @@
 // // text displayed on top row of Top Results page
 // #define RESULTS_TOP_LBL "C| TOP RESULTS"
 
-// text used to label 'Best' lap, lap# on the live and FINAL leader board
+// // text used to label 'Best' lap, lap# on the live and FINAL leader board
 // #define RESULTS_TOP_TEXT_BEST "Best"
-// text used to label 'Best' lap, lap# on the live and FINAL leader board
+// // text used to label 'Best' lap, lap# on the live and FINAL leader board
 // #define RESULTS_TOP_TEXT_LAP "Lap"
 
 
-// Blink rate between Racer#ID and Racer Name on individual results screen.
+// // Blink rate between Racer#ID and Racer Name on individual results screen.
 // #define RESULTS_RACER_BLINK 2000
 
 // // text displayed on top row of individual racer results menu
@@ -209,10 +215,11 @@
 // #define RESULTS_TOTAL_LBL "Total"
 // // 2nd line of label above racer's total race time.
 // // max 6 characters
-// #define RESULTS_TOTAL_LBL2 "Time"
-
+// #define RESULTS_TOTAL_LBLA "Time"
+// #define RESULTS_TOTAL_LBLB "Laps"
 
 // // Start text used on LEDs
+// // Should not exceed 5ch
 // #define TEXT_START "Start"
 
 // // 'Pause' text displayed on LEDs
@@ -231,9 +238,11 @@
 
 // // list of racer names available to select from through UI
 // // The number of terms should match the value of 'RACER_SIZE_LIST"
+// // !!!! The first term should always be 'TEXT_OFF', it is used to represent an inactive lane
 // #define RACER_NAMES_LIST {TEXT_OFF, "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020_longer", "The OG", "5318008"}
 
 // // songs are associated with racer name of matching array index
 // // songs to choose from are defined in the RTTL_songs.h file
 // // The number of terms should match the value of 'RACER_SIZE_LIST"
+// // !!!! The first term is for the 'off' condition and should reference 'disabledTone'.
 // #define RACER_SONGS_LIST {disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter}

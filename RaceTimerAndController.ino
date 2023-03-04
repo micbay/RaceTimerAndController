@@ -1,3 +1,5 @@
+// Race Timer and Controller
+// Version 1.1.0
 
 // Enable if using RTTL type song/melody data for playing sounds
 //-------------------
@@ -39,7 +41,7 @@
 
 
 // The # of physical lanes that will have a sensor and lap timer/counter display.
-const byte laneCount = 4;
+const byte laneCount = LANE_COUNT;
 
 // ********* AUDIO HARDWARE *********
 const byte buzzPin1 = BUZZPIN;
@@ -81,7 +83,7 @@ const int debounceTime = DEBOUNCE;
 // ---- Default lane configuration
 // ------------------------------------
 // The following is the default lane wiring, pinA0-lane1, pinA1-lane2, pinA2-lane3, pinA3-lane4
-// const byte lanes[laneCount+1][2] = {
+// const byte lanes[5][2] = {
 //   {255, 255},
 //   {PIN_A0, 0b00000001},
 //   {PIN_A1, 0b00000010},
@@ -90,8 +92,9 @@ const int debounceTime = DEBOUNCE;
 // };
 // See the 'defaultSettings.h' file or 'localSettings.h' file,
 // for the actual pin-mask byte values of the 'LANE#' tokens below.
-// The default values should match those commonted out above.
-const byte lanes[laneCount+1][2] = {
+// The default values should match those commented out above.
+// Lanes greater than 'laneCount' will go unused, but 'lanes[]' is sized for system's max of 4.
+const byte lanes[5][2] = {
   {255, 255},
   LANE1,
   LANE2,
@@ -105,7 +108,7 @@ const byte lanes[laneCount+1][2] = {
 // The following example could be used for alternative wiring,
 // where pinA3 is connected to lane1, pinA0-lane2, pinA1-lane3, and pinA2-lane4
 
-// const byte lanes[laneCount+1][2] = {
+// const byte lanes[5][2] = {
 //   {255, 255},
 //   {PIN_A3, 0b00001000},
 //   {PIN_A0, 0b00000001},
@@ -116,7 +119,7 @@ const byte lanes[laneCount+1][2] = {
 // ----------------------------
 // This is the deafult configuration If using Arduino Mega2560
 // Use Port K, analog pins A8-A11
-// const byte lanes[laneCount+1][2] = {
+// const byte lanes[5][2] = {
 //   {255, 255},
 //   {PIN_A8, 0b00000001},
 //   {PIN_A9, 0b00000010},
@@ -158,7 +161,8 @@ const byte PIN_TO_LED_CLK = 4;
 // When more than 2 MAX7219s are chained, additional LED bars
 // may need direct power supply to avoid intermittent error.
 // # of attached max7219 controlled LED bars
-const byte LED_BAR_COUNT = 4;
+const byte LED_BAR_COUNT = LANE_COUNT;
+// const byte LED_BAR_COUNT = 4;
 // # of digits on each LED bar
 const byte LED_DIGITS = 8;
 // LedControl parameters (DataIn, CLK, CS/LOAD, Number of Max chips (ie 8-digit bars))
@@ -258,10 +262,8 @@ bool preStart = false;
 // Running count of the current lap a racer is on.
 // Note that this is 1 greater than the number of completed laps.
 // idx of lapCount relates to corresponding lane#, idx = 0 is reserved.
-volatile int lapCount[laneCount + 1] = {
-  0, 0, 0, 0, 0
-};
-// an array to hold the running total time (in ms) of each racer to complete their current lapCount
+volatile int lapCount[laneCount + 1] = {};
+// array to hold the running total time (in ms) of each racer to complete their current lapCount
 unsigned long racersTotalTime[ laneCount + 1 ] = {};
 // For each lane/racer a list of the fastest X laps will be recorded.
 // This will be stored in 2, 2D arrays.
@@ -292,9 +294,7 @@ volatile unsigned long lastXMillis[laneCount + 1] [ lapMillisQSize ] = {};
 // idx0 used to log overall race time.
 // idx > 0, log the current lap time of corresponding lane #.
 volatile unsigned long startMillis[laneCount + 1];
-volatile unsigned long currentTime[laneCount + 1] = {
-  0, 0, 0, 0, 0
-};
+volatile unsigned long currentTime[laneCount + 1] = {};
 
 // Flag to alert results menu whether race data has been collected.
 // If it tries to print empty tables it will print garbage to the screen.
@@ -306,7 +306,7 @@ bool raceDataExists = false;
 // Index 0 will be reserved for race level times and data or may not be used at present.
 
 // Logs current lane state (see enum for details)
-volatile byte laneEnableStatus[ laneCount + 1 ] = DEFAULT_LANES_ENABLED;
+volatile byte laneEnableStatus[ laneCount + 1 ] = {};
 // These help keep code easier to read instead of calculating them repeatedly from status array.
 byte enabledLaneCount = 0;
 byte finishedLaneCount = 0;
@@ -314,9 +314,9 @@ byte finishedLaneCount = 0;
 // set racer name to '0' when status is Off.
 // Other than 0, the same Racer[idx] cannot be used for more than 1 racer.
 // During use, the code will prevent this, but it will not correct duplicates made here.
-byte laneRacer[ laneCount + 1 ] = {
-  0, 0, 0, 0, 0
-};
+byte laneRacer[ laneCount + 1 ] = {};
+//   0, 0, 0, 0, 0
+// };
 
 // After a racer finishes a lap the logged time will be 'flashed' up
 // to that racer's LED. The period that this lap time stays displayed
@@ -327,9 +327,9 @@ byte laneRacer[ laneCount + 1 ] = {
 // 2 = hold the last finished lap info on display until flash time is up.
 // lap flash status idx corresponds to status of lane #, idx0 reserved.
 // The flash display period does not affect active timing, or any other functions.
-volatile byte flashStatus[ laneCount + 1 ] = {
-  0, 0, 0, 0, 0
-};
+volatile byte flashStatus[ laneCount + 1 ] = {};
+//   0, 0, 0, 0, 0
+// };
 const int flashDisplayTime = DEFAULT_FLASH_PERIOD_LENGTH;
 // logs millis() timestamp at start of current flash period for each racer.
 unsigned long flashStartMillis[ laneCount + 1 ];
@@ -1070,20 +1070,25 @@ void ToggleLaneEnable(byte laneNumber){
     }
     enabledLaneCount = 0;
   } else {
-    if(wasSet){
-      // If lane had been on then, it's off now and the racer name idx is set to 0.
-      laneRacer[laneNumber] = 0;
-      laneEnableStatus[laneNumber] = Off;
-      enabledLaneCount--;
-    } else {
-      // otherwise it was off, and is now on and must get an initial, unused, racer name.
-      laneRacer[laneNumber] = IndexRacer(laneNumber);
-      laneEnableStatus[laneNumber] = StandBy;
-      enabledLaneCount++;
+    // check laneNumber is a valid lane, if so then toggle
+    if (laneNumber <= laneCount) {
+      if(wasSet){
+        // If lane had been on then, it's off now and the racer name idx is set to 0.
+        laneRacer[laneNumber] = 0;
+        laneEnableStatus[laneNumber] = Off;
+        enabledLaneCount--;
+      } else {
+        // otherwise it was off, and is now on and must get an initial, unused, racer name.
+        laneRacer[laneNumber] = IndexRacer(laneNumber);
+        laneEnableStatus[laneNumber] = StandBy;
+        enabledLaneCount++;
+      }
     }
   }
   // Serial.print("Toggle() - Lane Enabled count: ");
   // Serial.println(enabledLaneCount);
+  // Serial.print("Toggle lane #: ");
+  // Serial.println(laneNumber);
 }
 
 
@@ -1515,8 +1520,8 @@ int leaderBoard[laneCount][2] = {};
 unsigned long overallFastestTime = 99999999;
 byte overallFastestRacer = 5;
 
-// Function to update main display during race,
-// with current leader board and best lap time.
+// Function to calculate and update to main display with the current leader board.
+// This function is determining the current place of all racers.
 void UpdateLiveRaceLCD(){
   // Clear table to be rebuilt
   memset(leaderBoard, 0, sizeof(leaderBoard));
@@ -1847,20 +1852,15 @@ void setup(){
   }
 
   // --- SETUP LAP TRIGGERS AND BUTTONS ----------------
-  // Roughly equivalent to digitalWrite(lane1Pin, HIGH)
   for (byte i = 1; i <= laneCount; i++){
+    // Equivalent to digitalWrite(lane_Pin, HIGH)
     pinMode(lanes[i][0], INPUT_PULLUP);
-    // read default lane status, as set by the DEFAULT_LANES_ENABLED setting
-    if (laneEnableStatus[i] != Off) {
-      // failsafe to make sure default enabled state of racer is StandBy
-      laneEnableStatus[i] = StandBy;
-      // Set default racer name for each 'StandBy' racer
-      laneRacer[i] = i;
-      // count lanes enabled, aka set to 'StandBy', at bootup 
-      enabledLaneCount++;
-    } else {
-      laneRacer[i] = 0;
-    }
+    // Set all lanes to default, enabled status, StandBy
+    laneEnableStatus[i] = StandBy;
+    // Set default racer names for each lane.
+    laneRacer[i] = i;
+    // maintain a count of the enabled lanes for indexing loops to reference.
+    enabledLaneCount++;
   }
   pinMode(pauseStopPin, INPUT);
 
@@ -1868,7 +1868,7 @@ void setup(){
   // pinMode(ledPIN, OUTPUT); 
   // digitalWrite(ledPIN, ledState);
 
-  // Reset all race variables to initial condition.
+  // Initialize racer data arrays.
   ResetRaceVars();
   // Initialize racetime millisecond to default raceSetTime.
   raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
@@ -2076,7 +2076,8 @@ void loop(){
             // Cycle racer name on selected row.
             case 'A' ... 'D':{
               byte laneNumber = key - 'A' + 1;
-              if(laneEnableStatus[laneNumber]){
+              // Make sure lane is enabled and exists before trying to set a racer name
+              if(laneEnableStatus[laneNumber] && (laneNumber <= laneCount)){
                 // Cycle to next racer name, if end of list, start back at 1 not 0.
                 // The zero index is reserved for the disabled lane label.
                 laneRacer[laneNumber] = IndexRacer(laneNumber);

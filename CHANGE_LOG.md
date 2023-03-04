@@ -8,13 +8,37 @@ Ver. ##.##.## - Major.Minor.Patch
 - **Minor version #** - Increments on changes that add/remove functionlity, but can be used, without issue, in place of earlier versions of the same major release
 - **Patch version #** - Increments when update is a bug fix, refactoring, or new data constant (like a song & custom ch arrays), as well as on updates to non functional aspects of the code repo, like documentation.
 
+
+
+________________________
+
+## Ver 1.1.0 - Implementation of Adjustable Lane Count
+> This update completes the refactoring of code to make the maximum number of lanes (ie `laneCount`) a settable variable. This change will allow users who use only 2 lanes to increase the max laps recorded during a race without data corruption. Users should now set `LANE_COUNT` in `localSettings.h` to match the number of lanes that will be wired in the system. The new default `LANE_COUNT` is 2 lanes instead of 4 as this is the most common usage. Accordingly the new, out of box, `DEFAULT_MAX_STORED_LAPS` is now 20.
+> 
+> **Updates from Previous Commit**
+>
+> New Features/Enhancements
+> - Made `laneCount` settable via macro called `LANE_COUNT` in `…Settings.h` files.
+> - Updated `ToggleLaneEnabled()`, and select racer cycle code, to account for a changeable `laneCount`.
+> - Updated `DEFAULT_MAX_STORED_LAPS` recommendations per lane count.
+>
+> Code Maintenance
+> - `DEFAULT_LANES_ENABLED` setting is no longer used and has been commented out of `...Settings.h` files. All lanes as determined by `LANE_COUNT` are enabled on startup. They can still be subsequently toggled to be enabled/disabled through the menu settings.
+> - `example.localSettings.h` settings have been synced with current `defaultSettings.h`.
+> 
+> README updates
+> - Changed the ground loop reference link to wikipedia. ([old link](https://www.bapihvac.com/application_note/avoiding-ground-loops-application-note/))([new link](https://en.wikipedia.org/wiki/Ground_loop_(electricity)))
+> - Added images and reference links for sub-miniature switches in Sensor Section.
+> - In intro paragraph, added quick link to operation menus section at end. This link is to an internal paragraph header and may not work in all markdown readers.
+> - Various typos and sentence structure clarification edits. 
+
 ________________________
 
 ## Ver 1.0.1 - Documenation Updates
 > This update is primarily to bring certain parts of the readme file up to date with the latest settings and screenshot references.
 > 
 > **Updates from Previous Commit**
->
+> 
 > README updates
 > - In section about adapting for ATmega2560, add reference to `...Settings.h` file setting token that is used to set that pin settings.
 > - Add section explaining the audio modes

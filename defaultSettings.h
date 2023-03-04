@@ -25,6 +25,21 @@
 // *** default #defines in case not Set by localSettings ***
 // *********************************************************
 
+
+// Number of physical lanes available for the system (max of 4 allowed)
+// Fewer lanes will support a higher number of DEFAULT_MAX_STORED_LAPS
+#if !defined ( LANE_COUNT )
+  #define LANE_COUNT 2
+#endif
+
+// set the maximum number of fastest laps stored during a race
+// if this gets too large the system will run out of memory and crash
+// recommended max is 20 if LANE_COUNT = 2, 15 if LANE_COUNT = 3, and 10 if LANE_COUNT = 4
+#if !defined ( DEFAULT_MAX_STORED_LAPS )
+  #define DEFAULT_MAX_STORED_LAPS 20
+#endif
+
+
 // set debounce time in ms
 #if !defined ( DEBOUNCE )
   #define DEBOUNCE 1000
@@ -49,12 +64,6 @@
 #if !defined ( DEFAULT_REFRESH_TICKS )
   #define DEFAULT_REFRESH_TICKS 100
 #endif
-// set the maximum number of fastest laps stored during a race
-// if this gets too large the system will run out of memory and crash
-// recommended max is 10-15, a max of 20 has been shown to be problematic
-#if !defined ( DEFAULT_MAX_STORED_LAPS )
-  #define DEFAULT_MAX_STORED_LAPS 10
-#endif
 
 // Length of flash period in ms (time just completed lap is displayed to LED)
 #if !defined ( DEFAULT_FLASH_PERIOD_LENGTH )
@@ -63,6 +72,7 @@
 
 
 // Lane/Racer's associated with which pin and interrupt byte mask pairs
+// !!!! ALWAYS define 4 lanes, regardless of 'LANE_COUNT'.
 #if !defined ( LANE1 )
   #define LANE1 {PIN_A0, 0b00000001}
 #endif
@@ -89,13 +99,14 @@
 #endif
 
 
+// --------- NO LONGER USED ---------
 // Default enabled status of lanes on bootup
 // To disabled laneX, enter 'Off' (case sensitive, no quotes) in matching index=X
 // To enable laneX, enter 'StandBy' (case sensitive, no quotes) in matching index=X
 // 1st term is index=0, array should always have 5 terms (laneCount + 1)
-#if !defined ( DEFAULT_LANES_ENABLED )
-  #define DEFAULT_LANES_ENABLED { Off, StandBy, StandBy, Off, Off }
-#endif
+// #if !defined ( DEFAULT_LANES_ENABLED )
+//   #define DEFAULT_LANES_ENABLED { Off, StandBy, StandBy, Off, Off }
+// #endif
 
 
 
@@ -140,7 +151,7 @@
 
 
 // Main Menu Screen options labels
-// max: 17ch
+// max: 20ch
 #if !defined( A_SELECT_RACER)
   #define A_SELECT_RACER "A| Select Racers"
 #endif
@@ -335,12 +346,14 @@
 #endif
 // list of racer names available to select from through UI
 // The number of terms should match the value of 'RACER_SIZE_LIST"
+// !!!! The first term should always be 'TEXT_OFF', it is used to represent an inactive lane
 #if !defined ( RACER_NAMES_LIST )
   #define RACER_NAMES_LIST {TEXT_OFF, "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020_longer", "The OG", "5318008"}
 #endif
 // songs are associated with racer name of matching array index
 // songs to choose from are defined in the RTTL_songs.h file
 // The number of terms should match the value of 'RACER_SIZE_LIST"
+// !!!! The first term is for the 'off' condition and should reference 'disabledTone'.
 #if !defined ( RACER_SONGS_LIST )
   #define RACER_SONGS_LIST {disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter}
 #endif

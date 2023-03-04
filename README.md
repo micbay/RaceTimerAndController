@@ -11,12 +11,14 @@ This is an Arduino based project that implements an inexpensive, reliable, race 
 
 In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate. The working demo of this project uses two paper clips integrated into a mechanical lap counter to create a simple, yet effective lap sensor.
 
+See [Race Controller Operation](#Race-Controller-Operation) at the end of this document for menu navigation and general use.
+
 ![MainMenu](Images/ScreenShots/Main_Menu.png)  
 ![Wiring Diagram](Images/FullSystem.png)  
 ![Wiring Diagram](Images/Breadboard_4Racer.png)  
 
 The original application for this controller was slot car racing, as such, the controller was designed expecting a dedicated lane/gate for each racer. The down side of this, if attempting to adapt for drone racing, is that each racer needs a dedicated gate, but in turn, this also means that the racing object is irrelevant and does not need to communicate its identity.
-> ***Code Snippets in Readme** - the code snippets shown in this readme file are not meant to be cut and paste working examples. They are only illustrating the general setup and syntax for usage using the implementation in this project as a reference.*  
+> ***Code Snippets in Readme** - the code snippets shown in this readme file are not meant to be cut and paste working examples. They are used only to illustrate the syntax for general setup and usage. For working code, reference the releated sections of the actual project code in `RaceTimerAndController.ino`*  
 > ***Note on Reference Sources** - All links are for reference only and are not to be taken as an endorsement of any particular component supplier. I attempt to reference official Arduino resources whenever possible, but this is also not an endorsement for or against using the Arduino store.*
 
 ### **Prerequisites**  
@@ -33,7 +35,7 @@ All of the components are readily available and can be connected with basic jump
 > ***Note on Housing and Mechanical Interface** - This project only documents the functional electrical and software configuration. It can be wired, and used as illustrated for demonstration, however, for repeated, practical usage, the construction of a permanent housing, and mechanical trigger interface, is left up to the implementer to develop per their unique setup.*  
 
 ## **Parts for Race Controller**
-- [Arduino Nano](https://docs.arduino.cc/hardware/nano) (or equivalent microcontroller module) ([amazon search](https://www.amazon.com/arduino-nano/s?k=arduino+nano))
+- [Arduino Nano](https://docs.arduino.cc/hardware/nano) (or equivalent ATMega328 based microcontroller module) ([amazon search](https://www.amazon.com/arduino-nano/s?k=arduino+nano))
   - if using Mega2560 adjust code and wiring per annotations)
 - [4 x 4 membrane keypad](https://duckduckgo.com/?q=4+x+4+membrane+keypad)
 - [LCD2004 4 row x 20 character display](https://duckduckgo.com/?q=LCD2004A+4+x+20+I2C+backpack), with [I2C backpack](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
@@ -71,13 +73,13 @@ All of the components are readily available and can be connected with basic jump
 ![Wiring Diagram](Images/WiringDiagram1600x800.png)
 
 ## **Changes if Using ATMega2560 Microcontroller Based Module**
-By default the code is setup for an Arduino Nano pin out. However, with minor adjustments, this project can also work with modules, like the Arduino Mega2560, that use an ATmega2560 processor. The necessary ATmega2560 code can be found commented out, near the Nano based code it will replace.
+By default the code is setup for an Arduino Nano, ATMega328 based pin out. However, with minor adjustments, this project can also work with modules, like the Arduino Mega2560, that use an ATmega2560 processor. To switch between using a ATMega328 and ATMega2560, one can edit the hardware variables referenced in the `localSettings.h` file.
 
 The summary of the changes to be made to use a Mega2560 board are:
-- Use pins `D20` & `D21` for LCD's SDA and SCL connection instead of `A4` & `A5`
+- Use pins `D20` & `D21` for LCD's SDA and SCL (respectively), instead of `A4` & `A5`.
 - For the lane sensors, use pins on I/O `port K` instead of `port C`.
   - Wire lanes1-4 to pins A8-A11 instead of pins A0-A3
-  - Edit setting `PCINT_VECT` in the `localSettings.h` file, to change interrupt vector used to be `ISR(PCINT2_vect)`, instead of `ISR(PCINT1_vect)`.
+  - Edit setting `PCINT_VECT` in the `localSettings.h` file, to change interrupt vector used to be `PCINT2_vect`, instead of `PCINT1_vect`.
   - and accordingly, edit setting `INTERRUPT_PORT` in the `localSettings.h` file, to read from the port K byte, `PINK`, instead of port C byte, `PINC`, to check triggered lanes.
 
 ## **Power Supply (+5V)**  
@@ -85,7 +87,8 @@ All devices in this build are powered from a +5V source. The displays should dra
 
 > ***Powering MAX7219 LED Bars** - Power for these can be daisy chained for the first 2 bars, but cascading 3 or more may require running the power directly to each subsequent display bar, but always keep all the signal lines daisy chained.*
 
-> ***<span style="color:yellow"> Connect Arduino GND to external ground reference </span>** - Like many projects with higher power demands, this one uses an external power supply to get enough current for the dipslays; during development and programming, we will often have the USB plugged in as well. If we do not connect the Arduino GND to the power supply ground we run the risk of a reference mismatch that can cause intermittent errors, or the device to not work at all.  
+> ***<span style="color:yellow"> Connect Arduino GND to external ground reference </span>** - Like many projects with higher power demands, this one uses an external power supply to get enough current for operation; during development and programming, we will often have the computer USB plugged in as well, which also serves as a power supply. Sometimes the computer might be using battery and sometimes it may be using wall power, this can change the ground reference of the USB with respect to the other power sources. If one is not careful, one may create a ground reference mismatch. To avoid this we should jumper all common input supply grounds into the Arduino. Ground reference mismatch can cause intermittent errors, or the device to not work at all.  
+> 
 > If we were to inadvertently find ourselves with the configuration shown here. It may appear to be ok on first look, but with the multi-meter we can see that there is a 1.9V differential between the two ground references when it should be reading close to 0.*
 > 
 > ![GroundLoop HIGH](Images/MismatchedGroundRef_HIGH.png)
@@ -110,8 +113,10 @@ All custom project logic is in the main Arduino `.ino` sketch file. The addition
 - `melodies_prog.h` - file to hold Notes[] Lengths[] array based song data
 - `pitches.h` - file holding `#define` macros setting the frequency values used for Notes array based songs.
 - `CustomChars.h` - file holding byte array constants that define the shape of custom icons used in this project.
-- `defaultSettings.h` - file holding `#define` macros that establish the values used for the defalt controller UI text and race settings.
+- `defaultSettings.h` - file holding `#define` macros that establish the values used for the default controller UI text and race settings.
 - `example.localSettings.h` - file to be copied and used as base file for generating a `localSettings.h`, used to override `defaultSettings.h` for the local use environment.
+- `README.md` - Project documentation text, written in markdown format.
+- `CHANGE_LOG.md` - Project change record, written in markdown format.
 
 The game controller code uses non-blocking techniques with port register interrupts on the lap detection sensor pins.
 
@@ -180,6 +185,9 @@ void setup(){
 void loop(){
   --- other code ---
 
+  // NOTE: normally this code would go into a function, that
+  //     would only be called as necessary from the main loop.
+
   // To write to the lcd, set the cursor position (col#, row#)
   lcd.setCursor(0, 0);
   // Then print the characrters or numbers
@@ -231,7 +239,10 @@ void setup(){
 void loop(){
   ---- some code ----
 
-  // To use the character write to lcd
+  // NOTE: normally this code would go into a function, that
+  //     would only be called as necessary from the main loop.
+  
+  // To write custom character to lcd, call asigned number
   lcd.setCuror(0,0);
   lcd.write(3);
 
@@ -333,6 +344,9 @@ void setup() {
 
 void loop(){
   --- some other code ---
+
+  // NOTE: normally this code would go into a function, that
+  //     would only be called as necessary from the main loop.
 
   // To send a value to LED, as a character use:
   // setChar(id# of bar to update, digit position on bar, # or char to write, if to show decimal?)
@@ -500,7 +514,7 @@ In the case of the Arduino Nano, we are using a physical block of pins called `P
 >- Form long active and return leads into [twisted pairs](https://audiouniversityonline.com/twisted-pairs/).
 >- [Using ferrites](https://article.murata.com/en-us/article/basics-of-noise-countermeasures-lesson-8)
 >- Use [shielded leads](https://www.azosensors.com/article.aspx?ArticleID=724) (ideally shielding is grounded)
->- Make sure everything is well grounded, and isolated from, radiated and conducted noise, but [avoid ground loops](https://www.bapihvac.com/application_note/avoiding-ground-loops-application-note/).
+>- Make sure everything is well grounded, and isolated from, radiated and conducted noise, but [avoid ground loops](https://en.wikipedia.org/wiki/Ground_loop_(electricity)).
 
 ## **Relationship Between Racers/Lanes and Interrupt Hardware**
 For the [ATMega328](https://www.microchip.com/en-us/product/ATmega328) based Nano we have chosen to use pins `A0-A3` as the physical wire inputs for the lap trigger signals representing racers/lanes 1-4. A `lanes[]` array constant will be used to map the association of physical hardware pins with the Racer/Lane they will represent.
@@ -559,7 +573,7 @@ Only certain pins can make use of Pin Change Interrupts, and they cannot be re-m
 
 
 
-The functions below can be used to enable or disable port change interrupt triggering on any given, individual pin: 
+The functions below can be used to enable or disable the pin change interrupt triggering on any given, individual pin: 
 
 ```cpp
 // This function enables the port register change interrupt on the given pin.
@@ -714,7 +728,14 @@ In the breadboard layout and wiring diagram push buttons are used to simulate la
 It's not possible to review them all here. However, to provide some starting points, below is a brief list of potential switch options to consider or adapt.
 
 ## Mechanical Switches
-Any button like, mechanical mechanism that closes the circuit can be used. See the project lap counter example implementation.
+> **Custom Switch** - Any mechanical mechanism that closes a circuit can be used. The paper-clip switch from this project is a homemade example of this type of implementation.
+
+> **Sub-miniature Switch** - There are also various super small, pre-built, mechancial switch packages available. Often used as limiting switches in moving mechanical systems. Some are even small enough to potentially be integrated directly into a slot track groove.
+- Series MS Switches ([e-switch datasheet](https://sten-eswitch-13110800-production.s3.amazonaws.com/system/asset/product_line/data_sheet/124/MS.pdf)) ([digikey e-switch MS0850502F020S1A](https://www.digikey.com/en/products/detail/e-switch/MS0850502F020S1A/1628279))
+![Rigged Lap Counter](Images/submini_body.png)
+![Rigged Lap Counter](Images/submini_schematic.png)
+![Rigged Lap Counter](Images/submini_specs.png)
+
 
 ## Magnetic Detection Switches
 > **Reed Switch** - A reed switch is a small, sealed tube containing very light wires that get pulled closed when a magnetic field is present nearby. This link is an example of [Arduino integration of a reed switch](https://lastminuteengineers.com/reed-switch-arduino-tutorial/), and here is an example of a [reed switch implemented into a slot car track](https://www.nealsstuff.com/arduinolapcounter.aspx).
@@ -755,7 +776,7 @@ A restart is the same as an initial race start except that each racer will be on
 ## **Using A6 as a Button**
 The only pins left available for the Pause button are A6 or A7. These pins are different than all the others, they do not have internal pull-up resistors and can only be used as an analog input.
 
-In order to use them as a button trigger we must add our own external Pull-Up resistor in the hardware wiring as explained in [this article](https://roboticsbackend.com/arduino-input_pullup-pinmode/). Like the keypad, to detect a press we must then pole the button. In this case, since it's not digital, we must asses the analog input value. If the value is lower than a set threshold then we consider it pressed.
+In order to use `A6` as a button trigger we must add our own external Pull-Up resistor, as illustrated in the project wiring diagram, and explained in [this article](https://roboticsbackend.com/arduino-input_pullup-pinmode/). Like the keypad, to detect a press we must then pole the button. In this case, since it's not digital, we must asses the analog input value. If the value is lower than a set threshold then we consider it pressed.
 
 ```cpp
 const byte pauseStopPin = PIN_A6;
@@ -877,7 +898,7 @@ The length of a note, or rest, in music is measured in number of beats and recor
 
 ![note lengths](Images/notes%20and%20rests.jpg)
 
-Ultimately we will need a millisecond integer value, to input as the duration into the `tone()`. We could store this directly into `Lengths[]`, however, it is more musically natural, and more versatile to capture a the note length's beat notation instead. This allows the same song data to be played at different tempos, using the same code.
+Ultimately we will need a millisecond integer value, to input as the duration into the `tone()`. We could store this directly into `Lengths[]`, however, it is more musically natural, and more versatile to capture the note length's beat notation instead. This allows the same song data to be played at different tempos, using the same code.
 
 Most often, we find note length in a `Lengths[]` array using just the note length divisor value, as such:
 
@@ -1109,9 +1130,9 @@ const int takeOnMeTempo = 160;
 const int takeOnMeSize = sizeof(takeOnMeNotes)/sizeof(int);
 ```
 ## **Sources of `tone()` Array Melodies**
-[robsoncouto/arduino-songs](https://github.com/robsoncouto/arduino-songs) is probably the biggest library of songs in this format I found. These are written as a single array of interwoven note, length, note, length, pattern. However, they can be quickly be converted into the 2 array format, used in this project, by making a copy and using search-replace to replace a few, often repeated notes and durations with nothing.
+[robsoncouto/arduino-songs](https://github.com/robsoncouto/arduino-songs) is probably the biggest library of songs in this format I found. Unfortunately, they are written as a single array, in an interwoven note, length, note, length, pattern. However, they can be quickly converted into the 2 array format, used in this project, by making a copy and using a text search-replace, to replace a few, often repeated, notes and durations with nothing.
 
-Otherwise, most available melodies in this format are one-off single song projects and must be searched for individually.
+Otherwise, most available melodies in this format are one-off, single song projects, and must be searched for individually.
 
 <br>
 
@@ -1211,7 +1232,7 @@ void loop(){
 # **Audio Modes**
 This controller has 3 Audio Modes, providing users the ability to turn on and off the game feedback audio and victory songs.
 - **AllOn** - The standard default on bootup, all audio elements are on.
-- **GameOnly** - Only the UI feedback, beeps, and lap triggers are on, victory song playing is turned off.
+- **GameOnly** - Only UI feedback, beeps, and lap triggers are on, victory song playing is turned off.
 - **Mute** - All audio elements are turned off
 
 Adjust the active mode from the Change Settings menu.
@@ -1222,7 +1243,7 @@ The default audio mode used on bootup can be changed by editing the `DEFAULT_AUD
 
 Pressing the `# key` while in the **Menu** state, will stop any music playing. This provides users a way to stop the sample song played during racer selection, and the final racer's victory song after completion of a race, without having to let it play out to the end.
 
-At this time, this will not stop a victory song playing, while an active race is still going on, because the keypad is not poled during an active race.
+At this time, this will not stop a victory song playing, while the system is in the 'race' state (ie. if all racers have not finished yet), because the keypad is not poled while in this state.
 
 ---
 # **Race Controller Operation**
@@ -1313,16 +1334,19 @@ Pressing `*` will return to the **Main Menu** for next race.
 # Customizing UI Text and General Controller Settings
 To accommodate user customization of menus and preferred games settings, this project can make use of a `localSettings.h` file, in which users can make, and store customizations, without editing the main code base. By default, the controller will use settings established in the `defaultSettings.h` file, but if the same setting is loaded from the `localSettings.h` file, the `localSettings.h` setting will be used instead.
 
-To make use of a `localSettings.h` file, start by copying and renaming the included `example.localSettings.h` file to `localSettings.h` in the local sketch folder. Uncomment and edit the settings that you desire to customize. `localSettings.h` is included in the .gitignore list and will not be overwritten when downloading subsequent `RaceTimerAndController.ino` updates in the future. In this way your local changes will be preserved while still getting the latest controller base code.
+To make use of a `localSettings.h` file:
+- Copy, and rename, the included `example.localSettings.h` file to `localSettings.h`, into the local sketch folder.
+- In your `defaultSettings.h` file uncomment the line `#include "localSettings.h"` near the top and save the change.
+  ```cpp
+  // ***** IF USING LOCAL SETTING CUSTOMIZATION *************
+  // *****************************************************
+  // Uncomment the following include after a localSettings.h file has been created.
+  
+  #include "localSettings.h"
+  ```
+- Finally, in the newly created `localSettings.h`, uncomment and make changes to the desired setting values.
+
+Your new `localSettings.h` file is included in the .gitignore list and will not be overwritten when downloading subsequent `RaceTimerAndController.ino` updates in the future. In this way your local changes will be preserved while still getting the latest controller base code.
 
 
->If using a  `localSettings.h` file, make sure to uncomment the line `#include "localSettings.h"` near the top of the `defaultSettings.h` file so that the customizations will be pulled in.
-
-from `defaultSettings.h`
-```
-// ***** IF USING LOCAL SETTING CUSTOMIZATION *************
-// *****************************************************
-// Uncomment the following include after a localSettings.h file has been created.
-// #include "localSettings.h"
-```
-Unfortunately, this will have to be re-uncommented in the `defalutSettings.h` after any updates. If this line was uncommented by default, those who download the main repository for the first time will have compiling issues because the `localSettings.h` file will not exist yet. It is felt that it would be more confusing for a new user to download code that won't compile by default, than to force existing, more experienced users, to remember to uncomment again, after an update to get their local settings back.
+However, one will still need to re-uncomment the localSettings.h include line in `defalutSettings.h` after any updates. If this line was uncommented by default, those who download the main repository for the first time will have compiling issues because the `localSettings.h` file will not exist yet. It is felt that it would be more confusing for a new user to download code that won't compile by default, than to force existing, more experienced users, to remember to uncomment again, after an update to get their local settings back.
