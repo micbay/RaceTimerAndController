@@ -40,6 +40,34 @@
 #include "defaultSettings.h"
 
 
+// --------- I2C ADAFRUIT LED BARGRAPH GLOBAL CODE --------------------------
+// Adafruit Bar LED libraries
+// code taken from built in Adafruit LEDBackpack library 'bargraph24)
+#include <Adafruit_GFX.h>
+#include "Adafruit_LEDBackpack.h"
+
+// declaring object representing Adafruit LED bar, called 'bar'.
+Adafruit_24bargraph bar = Adafruit_24bargraph();
+
+// create a global variable to track the 'on' state of LED bar
+// We'll use this flage to make if faster to check status during a race
+bool bargraphOn = false;
+
+// This function sets specified block of LEDs on bargraph to the input color.
+// 'color' can be 'LED_RED', 'LED_YELLOW', 'LED_GREEN', or 'LED_OFF'
+// 'start' is the index reference of 1st LED to change, index 0 is LED 1
+// 'end' is index of last LED to change, index 23 is LED 24
+// by default, leaving 'start' and 'end' out of function call, will set entire bar
+void setBargraph(byte color, byte end = 23, byte start = 0) {
+  // cyle through each LED to change, set new color, and update display
+  for (uint8_t i=start; i<=end; i++) {
+    bar.setBar(i, color);
+    bar.writeDisplay();
+  }
+}
+// ------------- END OF BARGRAPH GLOBALS ------------------------
+
+
 // The # of physical lanes that will have a sensor and lap timer/counter display.
 const byte laneCount = LANE_COUNT;
 
@@ -1893,6 +1921,12 @@ void setup(){
   // setup audio flags per default audio mode
   UpdateAudioBools();
   Beep();
+
+// -------- BARGRAPH CODE ---------------
+  // use actual address from documentation if not the same as '0x70'
+  bar.begin(0x70);
+// -------- END BARGRAPH CODE -----------
+
 }
 // ************* END SETUP *******************
 
@@ -2237,6 +2271,12 @@ void loop(){
         PreStartDisplaysUpdate();
         // Reset any race variables to initial values.
         ResetRaceVars();
+//----------- BARGRAPH CODE ------------
+        // set entire LED Bargraph to Red
+        setBargraph(LED_RED);
+        // set bargraph ON flag to true
+        bargraphOn = true;
+//---------END ADDED BARGRAPH CODE -----
         entryFlag = false;
       }
       // First cycle initialization of RACE and signalling of START.
@@ -2292,6 +2332,10 @@ void loop(){
             ledCountdownTemp = currentTime[0]/1000 + 1;
             // Write current seconds digit to all active LEDs
             ledWriteDigits(ledCountdownTemp);
+//----------- BARGRAPH CODE ------------
+            // set next 3rd of LED bar yellow
+            setBargraph(LED_YELLOW, ((ledCountdownTemp*8)-1), (ledCountdownTemp-1)*8);
+//---------END ADDED BARGRAPH CODE -----
             Beep();
           }
         } else {
@@ -2302,10 +2346,23 @@ void loop(){
           ledCountdownTemp = 0;
           // reset entry flag to true so race timing variables can be initialized
           entryFlag = true;
+//----------- BARGRAPH CODE ------------
+          // At completion of pre-start, set full LED bargraph to green
+          setBargraph(LED_GREEN);
+//---------END ADDED BARGRAPH CODE -----
         }
       } else { 
         // ********* LIVE RACE **********
         // Regardless of race type, we do these things
+//----------- BARGRAPH CODE ------------
+        // After 2sec (ie 2000ms), turn bargraph off
+        if(bargraphOn){
+          if (currentTime[0] >= 2000) {
+            setBargraph(LED_OFF);
+            bargraphOn = false;
+          }
+        }
+//---------END ADDED BARGRAPH CODE -----
         // Update current racetime.
         if (countingDown) {
           // When counting down we need to gaurd against negatives.
