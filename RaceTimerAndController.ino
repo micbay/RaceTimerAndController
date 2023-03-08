@@ -156,10 +156,11 @@ const byte lanes[5][2] = {
 // };
 // -------------------------------
 
-// A6 is an analog input only pin it must be read as analog.
+// A6 and A7 are analog input only pins and thus, must be read as analog.
 // An external pullup resistor must be added to button wiring.
 // This input is expected to be HIGH and go LOW when pressed.
 const byte pauseStopPin = PAUSEPIN;
+const byte dragButtonPin = DRAGPIN;
 // timestamp marking new press of pause button, used to set start of debounce period.
 unsigned long pauseDebounceMillis = 0;
 
@@ -189,7 +190,7 @@ const byte PIN_TO_LED_CLK = 4;
 // When more than 2 MAX7219s are chained, additional LED bars
 // may need direct power supply to avoid intermittent error.
 // # of attached max7219 controlled LED bars
-const byte LED_BAR_COUNT = LANE_COUNT;
+const byte LED_BAR_COUNT = LANE_COUNT + 1;
 // const byte LED_BAR_COUNT = 4;
 // # of digits on each LED bar
 const byte LED_DIGITS = 8;
@@ -229,7 +230,8 @@ enum displays {
 enum states {
   Menu,
   Race,
-  Paused
+  Paused,
+  Fault
 };
 // Lane states to indicate different status conditions a racer can be in.
 // enums default to these values, but they are written in explicitly
@@ -244,7 +246,7 @@ enum laneState {
 enum races {
   Standard,  // First to finish the set number of laps
   Timed,     // Finish the most laps before time runs out
-  Pole       // TODO - NOT IMPLEMENTED
+  Drag       // Drag racing mode first to 2nd lane trigger
 };
 // used to define desired clock time width when written to display;
 enum clockWidth {
@@ -255,8 +257,10 @@ enum clockWidth {
 
 //*** RACE PROPERTIESS ******
 races raceType = Standard;
-// Number of laps to win standard race type
+// variable to hold the 'race to' x lap total setting
 int raceLaps = DEFAULT_LAPS;
+// variable indicating final lap of race, most often will equal 'raceLaps' except for drag race.
+int endLap = DEFAULT_LAPS;
 // Race time for a Timed race type, most laps before time runs out wins.
 // Create a clock time array to hold converted values for easy display update.
 // raceSetTime[1] holds Min, raceSetTime[0] holds Sec, settable from menu.
@@ -283,7 +287,7 @@ int displayTick = DEFAULT_REFRESH_TICKS;
 // A millis() timestamp marking last tick completion.
 unsigned long lastTickMillis;
 // flag indicating if race state is in preStart countdown or active race
-bool preStart = false;
+volatile bool preStart = false;
 
 
 // ***** RACE DATA *********
@@ -327,6 +331,9 @@ volatile unsigned long currentTime[laneCount + 1] = {};
 // Flag to alert results menu whether race data has been collected.
 // If it tries to print empty tables it will print garbage to the screen.
 bool raceDataExists = false;
+
+// Variable to record state of lane seneor pins.
+volatile byte triggeredPins = 0;
 
 
 // ******* LANE/RACER VARIABLES ******************
@@ -382,11 +389,11 @@ enum Menus {
 };
 
 // Create variale to hold current game 'state' and menu page.
-states state;
+volatile states state;
 Menus currentMenu;
 // This flag is used to indicate first entry into a state or menu so
 // that one time only setup can be performed.
-bool entryFlag;
+volatile bool entryFlag;
 
 
 // enum to use names with context instead of raw numbers when coding audio state
@@ -756,7 +763,8 @@ void PrintSpanOfChars(displays disp, byte lineNumber = 0, int posStart = 0, int 
 
 // function to write pre-start final countdown digits to LEDs
 void ledWriteDigits(byte digit) {
-  for (int i = 1; i <= LED_BAR_COUNT; i++){
+  // Use laneCount instead of LED_BAR_COUNT because this is for racer LED only, not start light.
+  for (int i = 1; i <= laneCount; i++){
     if(laneEnableStatus[i] > 0) PrintSpanOfChars( displays(i), 0, 0, 7, char(digit) );
   }
 }
@@ -1176,6 +1184,13 @@ void pciSetup(byte pin) {
   // Serial.println(bit (digitalPinToPCMSKbit(pin)), BIN);
 }
 
+// dec 15 = binary 1111, default with 4 active lanes
+byte triggerClearMask = 15;
+
+void setTriggerMask () {
+  triggerClearMask = ipow(2, laneCount)-1;
+}
+
 // This function will disable the port register interrupt on a given pin.
 void clearPCI(byte pin) {
   // Clear any outstanding interrupt
@@ -1204,10 +1219,6 @@ void clearPCI(byte pin) {
 // Use vector 'PCINT2_vect' for ATmega2560 based Arduino
 // 'PCINT_VECT' is defined in '...Settings.h' files
 ISR (PCINT_VECT) {
-  // Note that millis() does not execute inside the ISR().
-  // It can be called, and used as the time of entry, but it does not continue to increment.
-  unsigned long logMillis = millis();
-
   // MICROTIMING code used for assessing the ISR execution time.
   // unsigned long logMicros = micros();
 
@@ -1225,19 +1236,50 @@ ISR (PCINT_VECT) {
   
   // For analysis, it will work better to have our triggered bits as 1s.
   // To convert the zero based triggers above into 1s, we can simply flip each bit.
-  // Since we only need to check the 1st 4 bits, we'll also turn the last 4 bits to 0.
-  // Flip every bit by using ('BitsToFlip' xor 0b11111111)
-  // Then trim off the 4 highest bits with ('ByteToTrim' & 0b00001111)
-  // Use pin port C, 'PINC' for ATmega328 based Arduinos (ie Nano)
-  // Use pin port K, 'PINK' for ATmega2560 based Arduinos
-  // 'INTERRUPT_PORT' is defined in the '...Settings.h' files.
-  byte triggeredPins = ((INTERRUPT_PORT xor 0b11111111) & 0b00001111);
+  // Since we only need to check bits for wired lanes, we'll also turn everything elsse to 0.
+  // Flip every bit by using (PinPortRegsitryByte xor 0b11111111),
+  //     or using bitwise compliment operator (~PinPortRegsitryByte).
+  // Then trim off the 4 highest bits using bitwise operator '&',
+  // of result with, mask representing available lanes.
+  // If 'laneCount = 2', this would result in (~PinPortRegsitryByte & 0b00001111)
+  // If 'laneCount = 4', it would be (~PinPortRegsitryByte & 0b00000011)
+
+  // For PinPortRegsitryByte, use pin port C, 'PINC', for ATmega328 based Arduinos (ie Nano)
+  // For PinPortRegsitryByte, use pin port K, 'PINK', for ATmega2560 based Arduinos
+  // 'INTERRUPT_PORT' sets 'PINC' or 'PINK' per definition in the '...Settings.h' files.
+  // 'triggerClearMask' is set on bootup based on `LANE_COUNT` set in '...Settings.h' files.
+  // byte triggeredPins = ((INTERRUPT_PORT xor 0b11111111) & 0b00001111);
+  // byte triggeredPins = ((INTERRUPT_PORT xor 0b11111111) & triggerClearMask);
+  triggeredPins = (~INTERRUPT_PORT & triggerClearMask);
+  // If switch voltage drop, on close, is too slight to cause pin to enter LOW state,
+  // or controller operation too slow, the triggering switch may not still be in a LOW state.
+  // If this is the case then we just want to ignore the event as we won't know how to attribute it.
+  if (triggeredPins == 0) return;
+  
+  // Note that millis() does not execute inside the ISR().
+  // It can be called, and used as the time of entry, but it does not continue to increment.
+  unsigned long logMillis = millis();
 
   // While the triggeredPins byte is > 0, one of the digits is a 1.
   // If after a check, triggerPins = 0, then there is no need to keep checking.
   // Since we only have 4 bits that can be a 1, this loop will run a max of 4 times.
   // laneNum is index of lanes[] that defiens the pin and intterupt byte determined by hardware.
   byte laneNum = 1;
+
+  // if still in pre-start, declare a fault and return the faulting lane
+  if (preStart) {
+    // We need to debounce the fault trigger, like a regular trigger
+    // store fault trigger timestamp in the 1st element of the zero index of the lastXMillis[ ]
+    if( ( logMillis - lastXMillis [0] [0] ) > debounceTime ) {
+      state = Fault;
+      entryFlag = true;
+      // return the flipped, triggered pins byte to be processed in Fault state
+      // faultLanes = triggeredPins;
+      lastXMillis [0] [0] = logMillis;
+    }
+    return;
+  }
+
   while(triggeredPins > 0){
     // If bit i is a 1, then process it as a trigger on lane 'laneNum'
     if(triggeredPins & lanes[laneNum][1]){
@@ -1290,10 +1332,12 @@ ISR (PCINT_VECT) {
     } // END if triggeredPin & ...
 
     // Turn checked digit in triggeredPins to zero
-    triggeredPins = triggeredPins & (lanes[laneNum][1] xor 0b11111111);
+    // triggeredPins = triggeredPins & (lanes[laneNum][1] xor 0b11111111);
+    triggeredPins = triggeredPins & ~lanes[laneNum][1];
     laneNum++;
-    // Serial.print("LaneNum: ");
-    // Serial.println(laneNum);
+    // Serial.print("triggeredPins: ");
+    // Serial.println(triggeredPins);
+    // Serial.println(INTERRUPT_PORT);
 
   } // END of While Loop checking each digit
 
@@ -1847,8 +1891,8 @@ void setup(){
   'hang', this may be the culprit if there is a connection issue.
   */
   // Open port and wait for connection before proceeding.
-  // Serial.begin(9600);
-  // while(!Serial);
+  Serial.begin(9600);
+  while(!Serial);
 
   // --- SETUP LCD DIPSLAY -----------------------------
   // Initialize LCD with begin() which will return zero on success.
@@ -1880,6 +1924,7 @@ void setup(){
   }
 
   // --- SETUP LAP TRIGGERS AND BUTTONS ----------------
+  setTriggerMask();
   for (byte i = 1; i <= laneCount; i++){
     // Equivalent to digitalWrite(lane_Pin, HIGH)
     pinMode(lanes[i][0], INPUT_PULLUP);
@@ -2143,18 +2188,21 @@ void loop(){
             // Print set LAPS #
             PrintNumbers(raceLaps, 3, START_RACE_LAPS_ENDPOS_IDX, lcdDisp, true, 0);
             // Print set race time MINUTES
-            PrintNumbers(raceSetTime[1], 2, START_RACE_TIME_ENDPOS_IDX, lcdDisp, true, 1);
+            PrintNumbers(raceSetTime[1], 2, START_RACE_TIME_ENDPOS_IDX-3, lcdDisp, true, 1);
+            PrintText(":", lcdDisp, START_RACE_TIME_ENDPOS_IDX-2, 1, true, 1);
             // Print set race time SECONDS
-            PrintNumbers(raceSetTime[0], 2, START_RACE_TIME_ENDPOS_IDX+3, lcdDisp, true, 1);
+            PrintNumbers(raceSetTime[0], 2, START_RACE_TIME_ENDPOS_IDX, lcdDisp, true, 1);
             // Print sey preStartCountDown
             PrintNumbers(preStartCountDown, 2, START_RACE_CNTDWN_ENDPOS_IDX, lcdDisp, true, 3);
             entryFlag = false;
           }
           switch (key) {
-            case 'A': case 'B': {
+            case 'A': case 'B': case 'C': {
+              endLap = raceLaps;
               if (key == 'A') {raceType = Standard; countingDown = false;}
               else if (key == 'B') {raceType = Timed; countingDown = true;}
-              // else {raceType = Pole; countingDown = false;};
+              else if (key == 'C') {raceType = Drag; countingDown = false; endLap = 1;}
+              // else {raceType = Drag; countingDown = false;};
               state = Race;
               preStart = true;
               entryFlag = true;
@@ -2277,6 +2325,8 @@ void loop(){
         // set bargraph ON flag to true
         bargraphOn = true;
 //---------END ADDED BARGRAPH CODE -----
+        // Turn on interrupts for enabled lane pins
+        EnablePinInterrupts(true);
         entryFlag = false;
       }
       // First cycle initialization of RACE and signalling of START.
@@ -2309,9 +2359,9 @@ void loop(){
         }
         // Write static text to main LCD for live race screen
         PrintLeaderBoard(false);
-        // Turn on interrupts for enabled lane pins,
-        // this act enables the racers to trigger first lap.
-        EnablePinInterrupts(true);
+        // // Turn on interrupts for enabled lane pins,
+        // // this act enables the racers to trigger first lap.
+        // EnablePinInterrupts(true);
         // Reset display tick timestamp to current loop's timestamp.
         lastTickMillis = curMillis;
         entryFlag = false;
@@ -2439,18 +2489,18 @@ void loop(){
 
         // FINISHING CHECK - check for the race end condition.
         switch (raceType) {
-          case Standard: {
+          case Standard: case Drag:{
             // ****** STANDARD FINSIH *******************
             // Check if any Active lanes have since finished.
             for(byte i = 1; i <= laneCount; i++){
               if(laneEnableStatus[i] == Active){
-                // If a lanes's current lapCount is greater than the raceLaps that means
+                // If a lanes's current lapCount is greater than the 'endLap' that means
                 // they have finished the race. lapCount of an 'Active' lane, is +1 of finsished laps.
                 // Because the final lap count can be updated at any time via interrupts,
                 // we must also verify that the flash status is not still '1'.
                 // If flash status = 1 then lap data has not been processed yet
                 // so do not process racer as finished until that is done.
-                if( (lapCount[i] > raceLaps) && (flashStatus[i] != 1)){
+                if( (lapCount[i] > endLap) && (flashStatus[i] != 1)){
                   // Change racer's status to finished
                   laneEnableStatus[i] = Finished;
                   finishedLaneCount++;
@@ -2500,13 +2550,17 @@ void loop(){
             }
           } // END Timed race case
           break;
-          case Pole:{
-              // RACE type not implemented.
-              // Intended for some form of individual lap time challenges.
-            break;
-          }
+          // case Drag:{
+          //   for(byte i = 1; i <= laneCount; i++){
+          //     if(laneEnableStatus[i] == Active){
+          //       if( (lapCount[i] > 2) && (flashStatus[i] != 1)){
+          //       }
+          //     }
+          //   }
+          // }
+          // break;
           default:
-            break;
+          break;
         } // END RaceType Switch (Finishing Check)
 
         // Check analog pause button for press, debouncing is done in 'ToggleRacePause'
@@ -2550,6 +2604,55 @@ void loop(){
       } // END of if EntryFleg, else
     } // END of Paused state
     break;
+
+
+    case Fault: {
+
+      if (entryFlag){
+        
+        // Turn off interrupts for enabled lane pins
+        EnablePinInterrupts(false);
+        byte lnNum = 1;
+        lcd.clear();
+        lcd.print("Start Fault by:");
+        // Serial.print("flane: ");
+        // Serial.println(triggeredPins);
+
+        while( (triggeredPins > 0) && (lnNum <= laneCount) ){
+          // If bit i is a 1, then process it as a trigger on that lane number
+          if(triggeredPins & lanes[lnNum][1]){
+            // lcd.setCursor(0, 2);
+            PrintText(Racers[laneRacer[lnNum]], lcdDisp, 19, 20, false, lnNum);
+            // setLed(deviceID, digit index, segment, On?)
+            lc.setLed(laneCount, lnNum-1, 7, true);
+          }
+          // Move to next digit of faulting lanes
+          // triggeredPins = triggeredPins & (lanes[lnNum][1] xor 0b11111111);
+          triggeredPins = triggeredPins & ~lanes[lnNum][1];
+          lnNum++;
+          // lcd.setCursor(0, 3);
+          // PrintText(Racers[laneRacer[lnNum]], lcdDisp, 19, 20, false, 3);
+        }
+
+        // Serial.println(triggeredPins);
+        // PrintText(Racers[laneRacer[lnNum-1]], lcdDisp, 19, 20, false, 3);
+        // ensure triggeredPins is reset to 0, though it already should be.
+        triggeredPins = 0;
+        entryFlag = false;
+      } // END if(entryFlag)
+
+      if( buttonPressed(pauseStopPin) || buttonPressed(dragButtonPin) ) {
+        lcd.clear();
+        lc.clearDisplay(laneCount);
+        // reset the pre-start countdown
+        currentTime[0] = preStartCountDown * 1000;
+        state = Race;
+        entryFlag = true;
+      }
+    } // END of Fault state
+    break;
+
+
     default:{
       // if the state becomes unknown then default back to 'Menu'
       // Serial.println("Entered default state");

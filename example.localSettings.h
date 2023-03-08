@@ -87,6 +87,7 @@
 
 // // Pin used for the pause button
 // #define PAUSEPIN PIN_A6
+// #define DRAGPIN PIN_A7
 
 // // Pin used for the auido buzzer
 // #define BUZZPIN 13

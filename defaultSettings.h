@@ -36,13 +36,13 @@
 // if this gets too large the system will run out of memory and crash
 // recommended max is 20 if LANE_COUNT = 2, 15 if LANE_COUNT = 3, and 10 if LANE_COUNT = 4
 #if !defined ( DEFAULT_MAX_STORED_LAPS )
-  #define DEFAULT_MAX_STORED_LAPS 20
+  #define DEFAULT_MAX_STORED_LAPS 10
 #endif
 
 
 // set debounce time in ms
 #if !defined ( DEBOUNCE )
-  #define DEBOUNCE 1000
+  #define DEBOUNCE 500
 #endif
 
 // set the default number of laps used for a standard race
@@ -113,6 +113,10 @@
 // Pin used for the pause button
 #if !defined ( PAUSEPIN )
   #define PAUSEPIN PIN_A6
+#endif
+// Pin used for drag starts
+#if !defined ( DRAGPIN )
+  #define DRAGPIN PIN_A7
 #endif
 // Pin used for the auido buzzer
 #if !defined ( BUZZPIN )
@@ -209,31 +213,34 @@
 // Set the end position of where the lap number should be printed.
 // Should be chosen to align number with A_START_RACE_STANDARD text.
 #if !defined( START_RACE_LAPS_ENDPOS_IDX )
-  #define START_RACE_LAPS_ENDPOS_IDX 13
+  #define START_RACE_LAPS_ENDPOS_IDX 19
 #endif
 #if !defined( A_START_RACE_STANDARD)
-  #define A_START_RACE_STANDARD "A|First to     Laps"
+  // #define A_START_RACE_STANDARD "A|First to     Laps"
+  #define A_START_RACE_STANDARD "A|Laps Race to:"
 #endif
 // Set the end position of where the race time is printed to the screen
 // Should be chosen to align time with label text.
 #if !defined( START_RACE_TIME_ENDPOS_IDX )
-  #define START_RACE_TIME_ENDPOS_IDX 16
+  #define START_RACE_TIME_ENDPOS_IDX 19
 #endif
 // Remember to place a ':' at START_RACE_TIME_ENDPOS_IDX - 2
 #if !defined( B_START_RACE_IMED)
-  #define B_START_RACE_IMED "B|Most Laps in   :"
+  // #define B_START_RACE_IMED "B|Most Laps in   :"
+  #define B_START_RACE_IMED "B|Timed Race:"
 #endif
 
 #if !defined( START_RACE_3RD_ROW )
-  #define START_RACE_3RD_ROW ""
+  #define START_RACE_3RD_ROW "C|Drag Race"
 #endif
 // Set the end position of the countdown number
 // Should be chosen to align countdown value with D_START_RACE_COUNTDOWN text.
 #if !defined( START_RACE_CNTDWN_ENDPOS_IDX )
-  #define START_RACE_CNTDWN_ENDPOS_IDX 14
+  #define START_RACE_CNTDWN_ENDPOS_IDX 19
 #endif
 #if !defined( D_START_RACE_COUNTDOWN )
-  #define D_START_RACE_COUNTDOWN "D|Countdown:    Sec"
+  // #define D_START_RACE_COUNTDOWN "D|Countdown:    Sec"
+  #define D_START_RACE_COUNTDOWN "D|PreStart (Sec):"
 #endif
 
 
