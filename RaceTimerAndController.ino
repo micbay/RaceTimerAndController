@@ -2324,6 +2324,10 @@ void loop(){
         setBargraph(LED_RED);
         // set bargraph ON flag to true
         bargraphOn = true;
+
+        // MAX7219 startlight
+        lc.setLed(laneCount, 0, 1, true);
+        lc.setLed(laneCount, 1, 1, true);
 //---------END ADDED BARGRAPH CODE -----
         // Turn on interrupts for enabled lane pins
         EnablePinInterrupts(true);
@@ -2385,6 +2389,9 @@ void loop(){
 //----------- BARGRAPH CODE ------------
             // set next 3rd of LED bar yellow
             setBargraph(LED_YELLOW, ((ledCountdownTemp*8)-1), (ledCountdownTemp-1)*8);
+
+            lc.setLed(laneCount, 0, 6-ledCountdownTemp, true);
+            lc.setLed(laneCount, 1, 6-ledCountdownTemp, true);
 //---------END ADDED BARGRAPH CODE -----
             Beep();
           }
@@ -2399,6 +2406,10 @@ void loop(){
 //----------- BARGRAPH CODE ------------
           // At completion of pre-start, set full LED bargraph to green
           setBargraph(LED_GREEN);
+        
+          // Turn on MAX7219 start light tree - green LED
+          lc.setLed(laneCount, 0, 6, true);
+          lc.setLed(laneCount, 1, 6, true);
 //---------END ADDED BARGRAPH CODE -----
         }
       } else { 
@@ -2407,9 +2418,12 @@ void loop(){
 //----------- BARGRAPH CODE ------------
         // After 2sec (ie 2000ms), turn bargraph off
         if(bargraphOn){
-          if (currentTime[0] >= 2000) {
+          if ((curMillis - startMillis[0]) >= 2000) {
             setBargraph(LED_OFF);
             bargraphOn = false;
+
+            // clear MAX7219 start light tree
+            lc.clearDisplay(laneCount);
           }
         }
 //---------END ADDED BARGRAPH CODE -----
@@ -2676,6 +2690,15 @@ void Finish(){
   entryFlag = true;
   resultsMenuIdx = 0;
   resultsRowIdx = 0;
+// --------- BARGRAOH CODE ----------------
+  // Clear Adafruit Bargraph
+  setBargraph(LED_OFF);
+  bargraphOn = false;
+
+  // Clear MAX7219 start light tree
+  lc.clearDisplay(laneCount);
+// --------- END ADDED CODE ----------------
+
   // Reset lane states to StandBay
   for (byte i = 1; i <= laneCount; i++){
     if(laneEnableStatus[i] > 0) laneEnableStatus[i] = StandBy;
