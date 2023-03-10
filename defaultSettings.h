@@ -149,7 +149,7 @@
 // Audio Mode Default on bootup
 // use only 'AllOn', 'GameOnly', or 'Mute', case sensitive, no quotes
 #if !defined ( DEFAULT_AUDIO_MODE )
-  #define DEFAULT_AUDIO_MODE AllOn
+  #define DEFAULT_AUDIO_MODE Mute
 #endif
 
 
