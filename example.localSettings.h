@@ -31,6 +31,8 @@
 
 // // Number of physical lanes available for the system (max of 4 allowed)
 // // Fewer lanes will support a higher number of DEFAULT_MAX_STORED_LAPS
+// // Lane count also defines the number of LED racer displays wired
+// // If using a MAX7219 based LED startlight it will be assume to be device LANE_COUNT +1 (aka at index = LANE_COUNT)
 // #define LANE_COUNT 4
 
 // // set the maximum number of fastest laps stored during a race

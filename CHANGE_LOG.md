@@ -9,7 +9,18 @@ Ver. ##.##.## - Major.Minor.Patch
 - **Patch version #** - Increments when update is a bug fix, refactoring, or new data constant (like a song & custom ch arrays), as well as on updates to non functional aspects of the code repo, like documentation.
 
 
-
+## Ver 2.0.0 - Added Drag Racing and Fixed Major Pause Button bug
+> This update is a significant update to the code. Though technically, this code is backward compatible with the same hardware setup as version, 1.x, the code base infrastructure has significantly change in places, and internal variable sonsistency is broeken from earlier versions.
+> 
+> **Updates from Previous Commit**
+>
+> New Features/Enhancements
+> - Added 3rd RaceType 'Drag Racing'
+> - Moved LCD and LED pin-out and parameters to be `...Settings.h` macros
+>
+> Bug Fixes
+> - MAJOR BUG FIX - Pause button debouncing was not properly filtering the debounce time because the time was being tracked by an `int` variable instead of an `usinged long` which caused an error in the debounce calc, effectively nullifying it.
+> - In the LED Bargraph DEFAULT_LANES_ENABLED` setting is no lon
 ________________________
 
 ## Ver 1.1.0 - Implementation of Adjustable Lane Count

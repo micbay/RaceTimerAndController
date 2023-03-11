@@ -28,6 +28,8 @@
 
 // Number of physical lanes available for the system (max of 4 allowed)
 // Fewer lanes will support a higher number of DEFAULT_MAX_STORED_LAPS
+// Lane count also defines the number of LED racer displays wired
+// If using a MAX7219 based LED startlight it will be assume to be device LANE_COUNT +1 (aka at index = LANE_COUNT)
 #if !defined ( LANE_COUNT )
   #define LANE_COUNT 2
 #endif
@@ -36,7 +38,7 @@
 // if this gets too large the system will run out of memory and crash
 // recommended max is 20 if LANE_COUNT = 2, 15 if LANE_COUNT = 3, and 10 if LANE_COUNT = 4
 #if !defined ( DEFAULT_MAX_STORED_LAPS )
-  #define DEFAULT_MAX_STORED_LAPS 10
+  #define DEFAULT_MAX_STORED_LAPS 20
 #endif
 
 
@@ -152,7 +154,26 @@
   #define DEFAULT_AUDIO_MODE Mute
 #endif
 
+// Constants to set display size
+// const byte LCD_COLS = 20;
+// const byte LCD_ROWS = 4;
+// const byte RACE_CLK_POS = 8;
+// const byte PRESTART_CLK_POS = 11;
 
+// LCD Definition of size and pinout
+#if !defined( LCD_COLS)
+  #define LCD_COLS 20
+#endif
+#if !defined( LCD_ROWS)
+  #define LCD_ROWS 4
+#endif
+// Location, column index, that sets where to print race and prestart timer clock on the screen
+#if !defined( RACE_CLK_POS)
+  #define RACE_CLK_POS 8
+#endif
+#if !defined( PRESTART_CLK_POS)
+  #define PRESTART_CLK_POS 11
+#endif
 
 // Main Menu Screen options labels
 // max: 20ch
@@ -364,3 +385,21 @@
 #if !defined ( RACER_SONGS_LIST )
   #define RACER_SONGS_LIST {disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter}
 #endif
+
+// // ***** 7-Seg 8-digit LED Bars *****
+// const byte PIN_TO_LED_DIN = 2;
+// const byte PIN_TO_LED_CS = 3;
+// const byte PIN_TO_LED_CLK = 4;
+
+// 7-Segment LED bar pinout
+#if !defined ( PIN_TO_LED_DIN )
+  #define PIN_TO_LED_DIN 2
+#endif
+#if !defined ( PIN_TO_LED_CS )
+  #define PIN_TO_LED_CS 3
+#endif
+#if !defined ( PIN_TO_LED_CLK )
+  #define PIN_TO_LED_CLK 4
+#endif
+
+
