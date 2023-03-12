@@ -17,10 +17,16 @@ Ver. ##.##.## - Major.Minor.Patch
 > New Features/Enhancements
 > - Added 3rd RaceType 'Drag Racing'
 > - Moved LCD and LED pin-out and parameters to be `...Settings.h` macros
+> - Choosing a race type from the **Select Race** menu now moves the system into a `Staging` state instead of initiating the pre-start countdown. This was added primarily to accommodate rapid restarts of success drag racing heats, but is also useful for circuit racing allowing the system menu to be in a different area than a race start trigger/button.
+> - A new **Start** buttton has been added, setup as an analog read on `PIN_A7`. This is wired, and handled exactly the same way as the `PIN_A6`, **Pause** button.
+> - A new **Fault** state has been created to support drag racing mode, but is also now used in the circuit modes as well. Previously the lap trigger interrupts were not turned on before the initiation of a racers first lap, so a fault was impossible. Now, crossing the start before the end of the pre-start countdown will trigger a fault for all race modes. Pressing the **Pause** or **Start** button will clear the fault and return to the `Staging` state.
 >
 > Bug Fixes
 > - MAJOR BUG FIX - Pause button debouncing was not properly filtering the debounce time because the time was being tracked by an `int` variable instead of an `usinged long` which caused an error in the debounce calc, effectively nullifying it.
-> - In the LED Bargraph DEFAULT_LANES_ENABLED` setting is no lon
+>
+> Major Code Changes
+> - All enums have been moved to a seperate file and imported into the main .ino. This forces the compiler to look at those first, making them available to be used in function definitions without throwing a compiler error.
+> - New states have been created, `PreStart`, `Staging`, `Fault`, and `Finished`, to better manage system status flow.
 ________________________
 
 ## Ver 1.1.0 - Implementation of Adjustable Lane Count
