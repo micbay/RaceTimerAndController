@@ -1,4 +1,11 @@
 
+// Using a seperatre file for enums forces the compiler to recognize them first
+// If enums are in the same file as the main code and used in a global function
+// the compiler sometimes throws an error, even for valid code.
+
+// Using typedef to force the enums to be of byte data types (aka uint8_t) saves memory.
+
+
 // using an enum to define reference id for attached diplays.
 // Main LCD display should have index 0
 // Each LED display should have a value equal to its lane #.
@@ -19,7 +26,8 @@ typedef enum: uint8_t {
   Fault,
   PreStart,
   Staging,
-  Finish
+  Finish,
+  PreFault
 } states;
 
 

@@ -405,13 +405,13 @@ byte ledCountdownTemp = 0;
 
 // Create variables to hold current game state and menu state.
 volatile states state;
-states prevState;
+volatile states prevState;
 Menus currentMenu;
 // This flag is used to indicate first entry into a state or menu so
 // that one time only setup can be performed.
 volatile bool entryFlag;
 
-void ChangeStateTo(states newState){
+void ChangeStateTo(volatile states newState){
   prevState = state;
   state = newState;
   entryFlag = true;
@@ -1248,6 +1248,8 @@ void setTriggerMask () {
   }
 }
 
+// volatile bool test = false;
+volatile byte lastTriggeredPins = 0;
 
 // MICROTIMING code 
 // const byte timeTestSize = 20;
@@ -1296,7 +1298,7 @@ ISR (PCINT_VECT) {
   // byte triggeredPins = ((INTERRUPT_PORT xor 0b11111111) & triggerClearMask);
   triggeredPins = (~INTERRUPT_PORT & triggerClearMask);
   // If switch voltage drop, on close, is too slight to cause pin to enter LOW state,
-  // or controller operation too slow, the triggering switch may not still be in a LOW state.
+  // or controller operation is too slow, the triggering switch may not still be in a LOW state.
   // If this is the case then we just want to ignore the event as we won't know how to attribute it.
   if (triggeredPins == 0) return;
   
@@ -1304,32 +1306,32 @@ ISR (PCINT_VECT) {
   // It can be called, and used as the time of entry, but it does not continue to increment.
   unsigned long logMillis = millis();
 
-  // While the triggeredPins byte is > 0, one of the digits is a 1.
-  // If after a check, triggerPins = 0, then there is no need to keep checking.
-  // Since we only have 4 bits that can be a 1, this loop will run a max of 4 times.
-  // laneNum is index of lanes[] that defiens the pin and intterupt byte determined by hardware.
-  byte laneNum = 1;
-
-  // if still in pre-start, declare a fault and return the faulting lane
+  // if still in pre-start, declare a fault and return the faulting lane triggers.
   if (state == PreStart) {
-    // We need to debounce the fault trigger, like a regular trigger
-    // store fault trigger timestamp in the 1st element of the zero index of the lastXMillis[ ]
-    if( ( logMillis - lastXMillis [0] [0] ) > debounceTime ) {
-      // state = Fault;
-      ChangeStateTo(Fault);
-      // return the flipped, triggered pins byte to be processed in Fault state
-      // faultLanes = triggeredPins;
+    // We need to debounce the fault trigger, like a regular trigger.
+    // Store fault trigger timestamp in the 1st element, ie the zero index, of the lastXMillis[] array.
+    if( ( logMillis - lastXMillis [0][0] ) > debounceTime ) {
+      // prevState = state;
+      state = PreFault;
+      lastTriggeredPins = triggeredPins;
       lastXMillis [0][0] = logMillis;
     }
     return;
   }
 
+  // While the triggeredPins byte is > 0, one of the digits is a 1.
+  // If after a check, triggerPins = 0, then there is no need to keep checking.
+  // Since we only have 4 bits that can be a 1, this loop will run a max of 4 times.
+  // laneNum is index of lanes[] that defiens the pin and intterupt byte determined by hardware.
+  byte laneNum = 1;
   while(triggeredPins > 0){
     // If bit i is a 1, then process it as a trigger on lane 'laneNum'
+    // if(triggeredPins & lanes[laneNum][1] && (laneEnableStatus[ laneNum ] != Off)){
     if(triggeredPins & lanes[laneNum][1]){
       // Depending on the status of this lane we process the trigger differently.
         // Serial.print("lanes[laneNum][1]: ");
         // Serial.println(lanes[laneNum][1]);
+
       switch (laneEnableStatus[ laneNum ]) {
 
         case StandBy:{
@@ -1376,6 +1378,42 @@ ISR (PCINT_VECT) {
         }
         break;
       } // END of lane status switch
+
+
+
+// // Alternate approach not working yet
+// //*************************************
+      // // If lane is 'Active' then check that it has not been previously triggerd within debounce period.
+      // // if ((logMillis - ( lapCount[laneNum] == 0 ? 0 : lastXMillis [ laneNum ] [ (lapCount[ laneNum ]-1)%lapMillisQSize] )) > debounceTime ){
+      // if (lapCount[laneNum] == 0 || (( logMillis - lastXMillis [ laneNum ] [(lapCount[ laneNum ]-1)%lapMillisQSize] ) > debounceTime )) {
+
+      //   switch (laneEnableStatus[ laneNum ]) {
+      //     case StandBy:{
+      //       // Change lane status to 'Active', meaning current lap timing is live.
+      //       laneEnableStatus[ laneNum ] = Active;
+      //       Boop();
+      //     }
+      //     case Active: {
+      //       // Set lap display flash status to 1, indicating that racer's lane data needs to be processed.
+      //       flashStatus[ laneNum ] = 1;
+      //       Beep(); 
+      //     }
+      //     break;
+      //     default:
+      //     break;
+      //   }
+      //   // log current ms timestamp as start time for racer's current lap.
+      //   startMillis[ laneNum ] = logMillis;
+      //   // Log current ms timestamp to racer's looping, lap time, temporary que.
+      //   lastXMillis [ laneNum ][lapCount[ laneNum ] % lapMillisQSize] = logMillis;
+      //   // increase current lap by one (current lap = completed laps + 1)
+      //   lapCount[ laneNum ] += 1;
+      // }
+// *************************************
+
+
+
+
     } // END if triggeredPin & ...
 
     // Turn checked digit in triggeredPins to zero
@@ -2387,15 +2425,20 @@ void loop(){
     // to put cars in the race ready, stagged positions.
     case Staging: {
       if (entryFlag) {
-        // Serial.println("PreStg");
+        // Serial.println(F("PreStg"));
+        // Clear bargraph, and set LEDs for pre-stage pattern
+        setBargraph(LED_OFF);
+        // Clear MAX7219 start light
+        lc.clearDisplay(laneCount);
+        // Clear old screen text from LCD
         lcd.clear();
-        lcd.setCursor(0, 0);
+        lcd.setCursor(0, 1);
         lcd.print(F("---- Pre-Stage ----"));
         lcd.setCursor(7, 2);
         lcd.print(F("Get In"));
         lcd.setCursor(1, 3);
         lcd.print(F("Starting Positions"));
-        lcd.setCursor(1, 1);
+        lcd.setCursor(1, 0);
         lcd.print(F("*P|Exit    #S|Race"));
         entryFlag = false;
         switch (raceType) {
@@ -2408,8 +2451,6 @@ void loop(){
           default:
           break;
         }
-        // Clear bargraph, and set LEDs for pre-stage pattern
-        setBargraph(LED_OFF);
         setBargraph(LED_YELLOW, 12, 11);
         // Turn on MAX7219 pre-staging lights
         // 'laneCount' should be the device ID of the LED startlight, assume all lanes have a display.
@@ -2445,7 +2486,7 @@ void loop(){
     case PreStart: {
       curMillis = millis();
       if (entryFlag) {
-        // Serial.println("Pst");
+        // Serial.println(F("Pst"));
         // Set live race time to preStartCountDown wich is in seconds, so convert to millis.
         currentTime[0] = (raceType == Drag ? preStartTimerDrag : preStartCountDown) * 1000;
         // Record current loop's ms timestamp to track display update, tick time.
@@ -2520,7 +2561,7 @@ void loop(){
             // for the first cycle of the final countdown ticks, indicate final 3 ticks have begun
             if (ledCountdownTemp == 1){
               lcd.clear();
-              lcd.setCursor(8, 1);
+              lcd.setCursor(8, 2);
               lcd.print(F("Set!"));
               // clear the racer LED dipslays
               if(laneEnableStatus[1]) lc.clearDisplay(led1Disp-1);
@@ -2554,7 +2595,7 @@ void loop(){
         // The prestart phase has finished
         if (raceType == Drag) {
           // for drag race, update LCD
-          lcd.setCursor(0, 1);
+          lcd.setCursor(0, 2);
           lcd.print(F("Go! Go! Go! Go! Go! "));
         }
         // reset ledCountdownTemp to default for next race
@@ -2577,23 +2618,35 @@ void loop(){
       curMillis = millis();
       // First cycle initialization of RACE and signalling of START.
       if (entryFlag) {
+        // Serial.println(F("rce"));
         if(newRace){
           // make sure running race time is starting from 0
           currentTime[0] = 0;
           // record the ms clock time at race start
           startMillis[0] = curMillis;
-          if (raceType != Drag) lcd.clear();
+          if (raceType != Drag) {
+            lcd.clear();
+            // set lanes Active on race start and set current lap to 1
+            for(byte i = 1; i <= laneCount; i++){
+              if(laneEnableStatus[i] == StandBy){
+                laneEnableStatus[i] = Active;
+                lapCount[i] = 1;
+                flashStatus[i] = 1;
+                startMillis[i] = curMillis;
+              }
+            }
+          }
           newRace = false;
         }
         // Cycle through possible lanes and write start notification to racer displays.
         for(byte i = 1; i <= laneCount; i++){
           if(laneEnableStatus[i] == StandBy){
-            if (raceType == Drag) {
+            // if (raceType == Drag) {
 
-            } else {
+            // } else {
               // for circuit races print start alert to LEDs.
               PrintText(Start, displays(i), 7, 8, true, 0, true);
-            }
+            // }
           } else if(laneEnableStatus[i] == Off){
             PrintText(Racers[0], displays(i), 7, 8, true, 0, true);
           }
@@ -2603,9 +2656,9 @@ void loop(){
         }
         switch (raceType) {
           case Drag: {
-            lcd.setCursor(2, 0);
-            lcd.print(F("Lane 1    Lane 2"));
-            PrintSpanOfChars(lcdDisp, 1);
+            // lcd.setCursor(0, 1);
+            // lcd.print(F("--Lane 1----Lane 2--"));
+            // PrintSpanOfChars(lcdDisp, 1);
           }
           break;
           default: {
@@ -2698,6 +2751,11 @@ void loop(){
           } // END flashStatus switch
         } else {
         // else if NOT an 'Active' lane
+          // if (raceType == Drag){
+          //   // print the lap time of just completed lap to right side of racer's LED
+          //   PrintClock(curMillis - startMillis[0], 7, 4, 3, displays(i));
+          //   // PrintClock(curMillis - startMillis[0], 7, 4, 3, displays(2));
+          // }
           currentTime[i] = 0;
         } // END of if then else, lane enabled, ie 'Active'.
       } // END for each lane loop
@@ -2802,7 +2860,10 @@ void loop(){
         EnablePinInterrupts(false);
         // Put all 'Active' race lanes into 'StandBy'.
         for (byte i = 1; i <= laneCount; i++){
-          if(laneEnableStatus[i] == Active) laneEnableStatus[i] = StandBy;
+          if(laneEnableStatus[i] == Active) {
+            laneEnableStatus[i] = StandBy;
+            // lapCount[i] -= 1;
+          }
           PrintText(TEXT_PAUSE, displays(i), 7, 5, true, 0, false);
         }
         // Turn entry flag off for next loop
@@ -2836,43 +2897,43 @@ void loop(){
     } // END of Paused state
     break;
 
+    // Because a Fault is triggered by an interrupt, it can happen at any time.
+    // The PreFault state is used to ensure that faults are triggered from a clean loop.
+    case PreFault:{
+      ChangeStateTo(Fault);
+    }
+    break;
     // *******************************************
     // **********  FAULT State  *****************
     // This state is triggered if a racer crosses the start line while in the PreStart state.
     case Fault: {
-
+      // Serial.println("fltReg");
       if (entryFlag){
-        // Serial.println("Flt");
+        // Serial.println(F("Flt"));
         // Turn off interrupts for enabled lane pins
         EnablePinInterrupts(false);
         byte lnNum = 1;
         lcd.clear();
         lcd.print(F("Start Fault by:"));
-        // Serial.print("flane: ");
-        // Serial.println(triggeredPins);
+        // Serial.println(lastTriggeredPins);
 
-        while( (triggeredPins > 0) && (lnNum <= laneCount) ){
+        while( (lastTriggeredPins > 0) && (lnNum <= laneCount) ){
           // If bit i is a 1, then process it as a trigger on that lane number
-          if(triggeredPins & lanes[lnNum][1]){
-            // lcd.setCursor(0, 2);
+          if(lastTriggeredPins & lanes[lnNum][1]){
             PrintText(Racers[laneRacer[lnNum]], lcdDisp, 19, 20, false, lnNum);
             // setLed(deviceID, digit index, segment, On?)
             lc.setLed(laneCount, lnNum-1, 7, true);
             setBargraph(LED_OFF);
-            setBargraph(LED_RED, lnNum*12 - 1, (lnNum-1)*11);
+            setBargraph(LED_RED, lnNum*12 - 1, (lnNum-1)*12);
           }
           // Move to next digit of faulting lanes
-          // triggeredPins = triggeredPins & (lanes[lnNum][1] xor 0b11111111);
-          triggeredPins = triggeredPins & ~lanes[lnNum][1];
+          lastTriggeredPins = lastTriggeredPins & ~lanes[lnNum][1];
           lnNum++;
           // lcd.setCursor(0, 3);
           // PrintText(Racers[laneRacer[lnNum]], lcdDisp, 19, 20, false, 3);
         }
-
-        // Serial.println(triggeredPins);
-        // PrintText(Racers[laneRacer[lnNum-1]], lcdDisp, 19, 20, false, 3);
-        // ensure triggeredPins is reset to 0, though it already should be.
-        triggeredPins = 0;
+        // ensure lastTriggeredPins is reset to 0, though it already should be.
+        lastTriggeredPins = 0;
         entryFlag = false;
       } // END if(entryFlag)
 
@@ -2880,7 +2941,7 @@ void loop(){
         lcd.clear();
         // Clear bargraph and/or LED start tree
         lc.clearDisplay(laneCount);
-        bar.clear();
+        setBargraph(LED_OFF);
         ChangeStateTo(Staging);
       }
 
@@ -2894,19 +2955,31 @@ void loop(){
     // as well as a chance to receive user input.
     case Finish: {
       if (entryFlag) {
+        // Serial.println(F("fnsh"));
         switch (raceType) {
           case Drag: {
             // Print finish text to LCD
-            // lcd.clear();
-            // lcd.setCursor(3, 2);
-            PrintClock(fastestTimes[1][0], 7, 5, 3, displays(0), 1);
-            PrintClock(fastestTimes[2][0], 17, 5, 3, displays(0), 1);
+            // lcd.clear();            
+            lcd.setCursor(0, 1);
+            lcd.print(F("--Lane 1----Lane 2--"));
+            PrintSpanOfChars(lcdDisp, 2);
+            PrintClock(fastestTimes[1][0], 7, 5, 3, displays(0), 2);
+            PrintClock(fastestTimes[2][0], 17, 5, 3, displays(0), 2);
             if (fastestTimes[1][0] < fastestTimes[2][0]) {
-              PrintText("Winner", lcdDisp, 7, 6, false, 2);
+              PrintText("Winner", lcdDisp, 7, 6, false, 3);
+              // Set winner LED on startlights.
+              lc.setLed(laneCount, 0, 0, true);
+              setBargraph(LED_OFF);
+              // setBargraph(LED_RED, lnNum*12 - 1, (lnNum-1)*12);
+              setBargraph(LED_GREEN, 11, 0);
             } else if (fastestTimes[2][0] < fastestTimes[1][0]) {
-              PrintText("Winner", lcdDisp, 17, 6, false, 2);
+              PrintText("Winner", lcdDisp, 17, 6, false, 3);
+              // Set winner LED on startlights.
+              lc.setLed(laneCount, 1, 0, true);
+              setBargraph(LED_OFF);
+              setBargraph(LED_GREEN, 23, 12);
             }
-            lcd.setCursor(1, 3);
+            lcd.setCursor(1, 0);
             lcd.print(F("*P|Exit    #S|Race"));
             // PrintText("Press Pause to Exit", lcdDisp, 19, 20);
             // PrintText("Press Pause to Exit", lcdDisp, 19, 20);
@@ -2915,11 +2988,11 @@ void loop(){
           default:
           break;
         }
-        // Clear Adafruit Bargraph
-        setBargraph(LED_OFF);
-        clearStartLight = false;
-        // Clear MAX7219 start light tree
-        lc.clearDisplay(laneCount);
+        // // Clear Adafruit Bargraph
+        // setBargraph(LED_OFF);
+        // clearStartLight = false;
+        // // Clear MAX7219 start light tree
+        // lc.clearDisplay(laneCount);
         // Reset lane states to StandBay
         for (byte i = 1; i <= laneCount; i++){
           if(laneEnableStatus[i] > 0) laneEnableStatus[i] = StandBy;
