@@ -41,6 +41,13 @@
   #define DEFAULT_MAX_STORED_LAPS 20
 #endif
 
+// Drag Race lap triggers
+// If using only 1 set of finish line triggers for drag racing, set to 'true'
+// If using a start and finish line trigger setup for drag racing, set to 'false'
+#if !defined ( SINGLE_DRAG_TRIGGER )
+  #define SINGLE_DRAG_TRIGGER true
+#endif
+
 
 // NOT IN USE
 // // If true, this flag tells the controller to do a pre-start countdown when restarting from a pause.
@@ -165,11 +172,6 @@
   #define DEFAULT_AUDIO_MODE AllOn
 #endif
 
-// Constants to set display size
-// const byte LCD_COLS = 20;
-// const byte LCD_ROWS = 4;
-// const byte RACE_CLK_POS = 8;
-// const byte PRESTART_CLK_POS = 11;
 
 // LCD Definition of size and pinout
 #if !defined( LCD_COLS)
@@ -185,6 +187,20 @@
 #if !defined( PRESTART_CLK_POS)
   #define PRESTART_CLK_POS 11
 #endif
+
+
+// 7-Segment LED bar pinout
+#if !defined ( PIN_TO_LED_DIN )
+  #define PIN_TO_LED_DIN 2
+#endif
+#if !defined ( PIN_TO_LED_CS )
+  #define PIN_TO_LED_CS 3
+#endif
+#if !defined ( PIN_TO_LED_CLK )
+  #define PIN_TO_LED_CLK 4
+#endif
+
+
 
 // Main Menu Screen options labels
 // max: 20ch
@@ -377,40 +393,33 @@
   #define TEXT_OFF "-Off-"
 #endif
 
+// // RACER_SIZE_LIST is no longer used. Array size is determined automatically by the supplied array constants.
+// // !!! Make sure the number of terms in the racer name's & song's lists
+// // !!! matches the value of 'RACER_LIST_SIZE'
+// #if !defined ( RACER_LIST_SIZE )
+//   #define RACER_LIST_SIZE 10
+// #endif
 
-// !!! Make sure the number of terms in the racer name's & song's lists
-// !!! matches the value of 'RACER_LIST_SIZE'
-#if !defined ( RACER_LIST_SIZE )
-  #define RACER_LIST_SIZE 10
-#endif
-// list of racer names available to select from through UI
-// The number of terms should match the value of 'RACER_SIZE_LIST"
+// RACER_NAMES_LIST defins the list of names available to select from through UI.
+// If SONG_BY_PLACE is 'false', the number of terms should match the # of terms in 'RACER_SONGS_LIST"
 // !!!! The first term should always be 'TEXT_OFF', it is used to represent an inactive lane
 #if !defined ( RACER_NAMES_LIST )
   #define RACER_NAMES_LIST {TEXT_OFF, "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020_longer", "The OG", "5318008"}
 #endif
-// songs are associated with racer name of matching array index
+// If SONG_BY_PLACE is 'false', songs are associated with racer name of matching array index
 // songs to choose from are defined in the RTTL_songs.h file
-// The number of terms should match the value of 'RACER_SIZE_LIST"
+// If SONG_BY_PLACE is 'false', the number of terms should match the # of terms in 'RACER_NAMES_LIST"
 // !!!! The first term is for the 'off' condition and should reference 'disabledTone'.
 #if !defined ( RACER_SONGS_LIST )
   #define RACER_SONGS_LIST {disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter}
 #endif
-
-// // ***** 7-Seg 8-digit LED Bars *****
-// const byte PIN_TO_LED_DIN = 2;
-// const byte PIN_TO_LED_CS = 3;
-// const byte PIN_TO_LED_CLK = 4;
-
-// 7-Segment LED bar pinout
-#if !defined ( PIN_TO_LED_DIN )
-  #define PIN_TO_LED_DIN 2
-#endif
-#if !defined ( PIN_TO_LED_CS )
-  #define PIN_TO_LED_CS 3
-#endif
-#if !defined ( PIN_TO_LED_CLK )
-  #define PIN_TO_LED_CLK 4
+// Song Association
+// To associate a song with a racer name (the default behavior), set to 'false'.
+// Otherwise, to make songs played related to finishing place, set to 'true'.
+// If SONGS_BY_PLACE is 'true', 1st finisher will play RACERS_SONG_LIST[1], 2nd place finisher RACERS_SONG_LIST[2], etc.
+// RACER_NAMES_LIST & RACERS_SONG_LIST size do not need to match if SONGS_BY_PLACE is 'true'.
+#if !defined ( SONGS_BY_PLACE )
+  #define SONGS_BY_PLACE false
 #endif
 
 

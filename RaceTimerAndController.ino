@@ -181,17 +181,6 @@ unsigned long pauseDebounceMillis = 0;
 
 hd44780_I2Cexp lcd;
 
-// // Constants to set display size
-// const byte LCD_COLS = 20;
-// const byte LCD_ROWS = 4;
-// const byte RACE_CLK_POS = 8;
-// const byte PRESTART_CLK_POS = 11;
-
-
-// // ***** 7-Seg 8-digit LED Bars *****
-// const byte PIN_TO_LED_DIN = 2;
-// const byte PIN_TO_LED_CS = 3;
-// const byte PIN_TO_LED_CLK = 4;
 // When more than 2 MAX7219s are chained, additional LED bars
 // may need direct power supply to avoid intermittent error.
 // # of attached max7219 controlled LED bars
@@ -386,20 +375,15 @@ bool musicAudioOn = true;
 
 // Racer Names list.
 // Because this is an array of different length character arrays
-// there is not easy way to determine the number of racer names,
-// so we use a constant to set and read the length.
-// This must be maintained manually to match Racers[] actual content below
-byte const racerListSize = RACER_LIST_SIZE;
-// // 7-seg digits cannot display W's, M's, X's, K's, or V's
-// const char* Racers[racerListSize] = {
-//   "-Off-", "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020_longer", "The OG", "5318008"
-// };
-const char* Racers[racerListSize] = RACER_NAMES_LIST;
-// // Racer's victory song, matched by index of racer.
-// const char* victorySong[racerListSize] = {
-//   disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter
-// };
-const char* victorySong[racerListSize] = RACER_SONGS_LIST;
+// we use an array of pointers.
+// The size of 'Racers[]' and 'victorySongs[]' should match if SONGS_BY_PLACE is 'false'.
+// byte const racerListSize = RACER_LIST_SIZE;
+// Keep in mind that the 7-seg racer lap displays, cannot write W's, M's, X's, K's, or V's
+// const char* Racers[racerListSize] = RACER_NAMES_LIST;
+const char* Racers[] = RACER_NAMES_LIST;
+// Racer's victory song, matched by index of racer.
+// const char* victorySong[racerListSize] = RACER_SONGS_LIST;
+const char* victorySong[] = RACER_SONGS_LIST;
 
 // sets screen cursor position for the names on the racer select menu
 byte nameEndPos = 19;
@@ -658,6 +642,7 @@ byte IndexRacer(byte laneID) {
   bool notUnique = true;
   // The modulus (%) of a numerator smaller than its denominator is equal to itself,
   // while the modulus of an integer with itself is 0. Add 1 to restart at idx 1, not 0.
+  byte racerListSize = (sizeof(Racers)/sizeof(char*));
   while(notUnique){
     newRacerNameIndex = ((newRacerNameIndex + 1)%racerListSize == 0) ? 1 : (newRacerNameIndex + 1)%racerListSize;
     notUnique = false;
@@ -2153,7 +2138,7 @@ void loop(){
                 // Update Racer's LED
                 PrintText(Racers[ laneRacer[laneNumber] ], displays(laneNumber), 7, 8);
                 // Play racers victory song
-                if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[ laneRacer[laneNumber] ]);
+                if (musicAudioOn && !SONGS_BY_PLACE) startPlayRtttlPGM(buzzPin1, victorySong[ laneRacer[laneNumber] ]);
               }
             }
             break;
@@ -2509,7 +2494,9 @@ void loop(){
             for(byte i = 1; i <= laneCount; i++){
               if(laneEnableStatus[i] == StandBy){
                 laneEnableStatus[i] = Active;
-                lapCount[i] = 0;
+                // If using a start and finish line triggers, set lapCount to 0 (or 'false')
+                // If using a finish line only, set lapCount to 1 (or 'true')
+                lapCount[i] = SINGLE_DRAG_TRIGGER;
                 flashStatus[i] = 1;
                 startMillis[i] = curMillis;
               }
@@ -2659,6 +2646,9 @@ void loop(){
               if( (lapCount[i] > endLap) && (flashStatus[i] != 1)){
                 // Change racer's status to finished
                 laneEnableStatus[i] = Finished;
+                // Turn off lap trigger interrupt of finished lane.
+                clearPCI(lanes[i][0]);
+                finishedCount++;
                 // Update the racer's LED display with their finishing place.
                 if (raceType == Drag) {
                   PrintClock(startMillis[i]-startMillis[0], 7, 5, 3, displays(i), 0);
@@ -2673,20 +2663,21 @@ void loop(){
                     setBargraph(LED_GREEN, i*12 - 1, (i-1)*12);
                     winner = true;
                   }
-                } else {
+                } else { // if circuit race (ie Standard or Timed)
                   UpdateNameOnLED(i);
                   // Stop any currently playing song
                   stopPlayRtttl();
                   // Play finishing song of finishing racer
-                  if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[i]]);
+                  if (SONGS_BY_PLACE) {
+                    if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[finishedCount]);
+                  } else {
+                    if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[i]]);
+                  }
                 }
-                // Turn off lap trigger interrupt of finished lane.
-                clearPCI(lanes[i][0]);
                 // // Stop any currently playing song
                 // stopPlayRtttl();
                 // // Play finishing song of finishing racer
                 // if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[i]]);
-                finishedCount++;
                 // Serial.print("Finished count: ");
                 // Serial.println(finishedCount);
               } // END if Finish lapcount reached
@@ -2720,7 +2711,12 @@ void loop(){
             // Stop any currently playing song
             stopPlayRtttl();
             // Play finishing song of 1st place racer.
-            if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[leaderBoard[0][1]]]);
+            if (SONGS_BY_PLACE) {
+              if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[1]);
+            } else {
+              if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[leaderBoard[0][1]]]);
+            }
+            // if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[leaderBoard[0][1]]]);
             ChangeStateTo(Finish);
           }
         } // END Timed race case
