@@ -42,6 +42,12 @@
 #endif
 
 
+// NOT IN USE
+// // If true, this flag tells the controller to do a pre-start countdown when restarting from a pause.
+// #if !defined ( CTDWN_ON_RESTART )
+//   #define CTDWN_ON_RESTART false;
+// #endif
+
 // set debounce time in ms
 #if !defined ( DEBOUNCE )
   #define DEBOUNCE 500
@@ -70,6 +76,11 @@
 // Length of flash period in ms (time just completed lap is displayed to LED)
 #if !defined ( DEFAULT_FLASH_PERIOD_LENGTH )
   #define DEFAULT_FLASH_PERIOD_LENGTH 1500
+#endif
+
+// Length of time the start light stays lit after race start
+#if !defined ( START_LIGHT_OFF_DELAY )
+  #define START_LIGHT_OFF_DELAY 2000
 #endif
 
 
@@ -151,7 +162,7 @@
 // Audio Mode Default on bootup
 // use only 'AllOn', 'GameOnly', or 'Mute', case sensitive, no quotes
 #if !defined ( DEFAULT_AUDIO_MODE )
-  #define DEFAULT_AUDIO_MODE Mute
+  #define DEFAULT_AUDIO_MODE AllOn
 #endif
 
 // Constants to set display size
