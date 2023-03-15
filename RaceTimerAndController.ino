@@ -165,7 +165,7 @@ const byte lanes[5][2] = {
 // An external pullup resistor must be added to button wiring.
 // This input is expected to be HIGH and go LOW when pressed.
 const byte pauseStopPin = PAUSEPIN;
-const byte dragButtonPin = DRAGPIN;
+const byte startButtonPin = STARTPIN;
 // timestamp marking new press of pause button, used to set start of debounce period.
 unsigned long pauseDebounceMillis = 0;
 
@@ -1423,6 +1423,7 @@ void CompileTopFastest(){
 
 void PrintLeaderBoard(bool withLeaders = true){
   // Write static text to main LCD for live race screen
+  lcd.clear();
   lcd.setCursor(15, 0);
   lcd.print(RESULTS_TOP_TEXT_BEST);
   // Draw vertical bars seperating leader list from best lap.
@@ -1896,7 +1897,7 @@ void setup(){
     enabledLaneCount++;
   }
   pinMode(pauseStopPin, INPUT);
-  pinMode(dragButtonPin, INPUT);
+  pinMode(startButtonPin, INPUT);
 
   // Setup an indicator LED
   // pinMode(ledPIN, OUTPUT); 
@@ -2319,7 +2320,7 @@ void loop(){
       // After entry, monitor for user input to decide next state
       char key = keypad.getKey();
       // If Start button or '#' key is pressed, initiate a race, and switch to PreStart state.
-      if( buttonPressed(dragButtonPin) || key == '#' ) {
+      if( buttonPressed(startButtonPin) || key == '#' ) {
         ChangeStateTo(PreStart);
         preStartTimerDrag = curMillis%5 + 2;
         newRace = true;
@@ -2349,10 +2350,10 @@ void loop(){
         currentTime[0] = (raceType == Drag ? preStartTimerDrag : preStartCountDown) * 1000;
         // Record current loop's ms timestamp to track display update, tick time.
         lastTickMillis = curMillis;
-        // Reset any racer variables to initial values.
-        ResetRaceVars();
+        lcd.clear();
+        // If not restarting from a Pause, reset racer variables to initial values.
+        if (newRace) ResetRaceVars();
         if (raceType == Drag){
-          lcd.clear();
           // Update the LCD to indicate race is now 'staged', aka in active pre-start state.
           lcd.setCursor(2,0);
           lcd.print(F("Cars Are Staged"));
@@ -2441,9 +2442,7 @@ void loop(){
             lc.setLed(laneCount, 0, 2+ledCountdownTemp, true);
             lc.setLed(laneCount, 1, 2+ledCountdownTemp, true);
             ledCountdownTemp++;
-          } else {
-            // Add 1 because it should change on start of the digit not end
-            // ledCountdownTemp = currentTime[0]/1000 + 1;
+          } else { // if a circuit race (ie Standard or Timed)
             // Write current seconds digit to all active LEDs
             ledWriteDigits(ledCountdownTemp);
             // set next 3rd of LED bar yellow
@@ -2470,6 +2469,11 @@ void loop(){
         lc.clearDisplay(laneCount);
         lc.setLed(laneCount, 0, 6, true);
         lc.setLed(laneCount, 1, 6, true);
+        // Adjust race clock start time to ignore the paused period
+        // currentTime[0] is the elapsed race time in ms at time of pause.
+        
+        // currentTime[0] = (raceType == Drag ? preStartTimerDrag : preStartCountDown) * 1000;
+        startMillis[0] = startMillis[0] + (raceType == Drag ? preStartTimerDrag : preStartCountDown) * 1000;
         // Move on to live race, it's now legal for racers to cross start
         ChangeStateTo(Race);
       }
@@ -2502,7 +2506,7 @@ void loop(){
               }
             }
           } else {
-            lcd.clear();
+            // lcd.clear();
           }
           newRace = false;
         }
@@ -2752,8 +2756,9 @@ void loop(){
       } // END entryFlag
 
       // check if pause button or '*' key has been pressed
-      if (buttonPressed(pauseStopPin)) {
-        ChangeStateTo(Race);
+      if (buttonPressed(pauseStopPin) || buttonPressed(startButtonPin)) {
+        // ChangeStateTo(Race);
+        ChangeStateTo((CTDWN_ON_RESTART ? PreStart : Race));
         unsigned long logMillis = millis();
         // reset the lap start timestamp, and ms elapsed lap time, of current lap for each racer
         for(byte i = 1; i <= laneCount; i++){
@@ -2762,7 +2767,7 @@ void loop(){
         }
         // Adjust race clock start time to ignore the paused period
         // currentTime[0] is the elapsed race time in ms at time of pause.
-        startMillis[0] = startMillis[0] + (logMillis - startMillis[0] - currentTime[0] );
+        startMillis[0] = startMillis[0] + (logMillis - startMillis[0] - currentTime[0]);
         // Re-enable lap triggers on active lanes.
         EnablePinInterrupts(true);
       } else {
@@ -2827,7 +2832,7 @@ void loop(){
       } // END if(entryFlag)
 
       char key = keypad.getKey();
-      if( buttonPressed(pauseStopPin) || buttonPressed(dragButtonPin) || key == '*' || key == '#') {
+      if( buttonPressed(pauseStopPin) || buttonPressed(startButtonPin) || key == '*' || key == '#') {
         lcd.clear();
         // Clear bargraph and/or LED start tree
         lc.clearDisplay(laneCount);
@@ -2891,7 +2896,7 @@ void loop(){
         // If in drag race mode, then wait for user input to exit or return to staging.
         case Drag:{
           char key = keypad.getKey();
-          if (buttonPressed(dragButtonPin) || key == '#'){
+          if (buttonPressed(startButtonPin) || key == '#'){
             ChangeStateTo(Staging);
           } else if ( buttonPressed(pauseStopPin) || key == '*') {
             ChangeStateTo(Menu);

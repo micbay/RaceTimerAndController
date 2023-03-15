@@ -48,12 +48,11 @@
   #define SINGLE_DRAG_TRIGGER true
 #endif
 
-
 // NOT IN USE
-// // If true, this flag tells the controller to do a pre-start countdown when restarting from a pause.
-// #if !defined ( CTDWN_ON_RESTART )
-//   #define CTDWN_ON_RESTART false;
-// #endif
+// If true, this flag tells the controller to do a pre-start countdown when restarting from a pause.
+#if !defined ( CTDWN_ON_RESTART )
+  #define CTDWN_ON_RESTART false
+#endif
 
 // set debounce time in ms
 #if !defined ( DEBOUNCE )
@@ -135,8 +134,8 @@
   #define PAUSEPIN PIN_A6
 #endif
 // Pin used for drag starts
-#if !defined ( DRAGPIN )
-  #define DRAGPIN PIN_A7
+#if !defined ( STARTPIN )
+  #define STARTPIN PIN_A7
 #endif
 // Pin used for the auido buzzer
 #if !defined ( BUZZPIN )
