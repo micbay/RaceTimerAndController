@@ -167,7 +167,7 @@ const byte lanes[5][2] = {
 const byte pauseStopPin = PAUSEPIN;
 const byte startButtonPin = STARTPIN;
 // timestamp marking new press of pause button, used to set start of debounce period.
-unsigned long pauseDebounceMillis = 0;
+unsigned long buttonDebounceMillis = 0;
 
 //***** Variables for LCD 4x20 Display **********
 // This display communicates using I2C via the SCL and SDA pins,
@@ -1354,12 +1354,12 @@ bool buttonPressed(uint8_t analogPin) {
   // if below analog trigger threshold AND not within debounce time
   // if (analogRead(analogPin) < 100){
   unsigned long tempTime = millis();
-  if ((analogRead(analogPin) < 100) && ((tempTime - pauseDebounceMillis) > debounceTime)){
+  if ((analogRead(analogPin) < 100) && ((tempTime - buttonDebounceMillis) > debounceTime)){
     // Reset debounce timestatmp
     Beep();
     // Serial.println("pressed");
-    // Serial.println(tempTime - pauseDebounceMillis);
-    pauseDebounceMillis = tempTime;
+    // Serial.println(tempTime - buttonDebounceMillis);
+    buttonDebounceMillis = tempTime;
     return true;
   }
   // Serial.println("button pressed");
@@ -1455,13 +1455,7 @@ void PrintResultsList(unsigned long times[], unsigned int laps[], int listSize) 
       // then print RACER NAME
       // if idx = 0 then it's the top results and has racer names with the lap times.
       if(resultsMenuIdx == 0){
-        // if (raceType == Drag){
-        //   // for Drag Race, use Lane # instead of the racer names
-        //   PrintText("Lane ", lcdDisp, 19, 6, false, i + 1, false);
-        //   PrintNumbers(topFastestRacers[resultsRowIdx + i], 1, 19, lcdDisp, true, i + 1);
-        // } else {
-          PrintText(Racers[topFastestRacers[resultsRowIdx + i]], lcdDisp, 19, 6, true, i + 1, false);
-        // }
+        PrintText(Racers[topFastestRacers[resultsRowIdx + i]], lcdDisp, 19, 6, true, i + 1, false);
       }
     } else {
       // we want to set the index back one so it doesn't keep scrolling in empty space
@@ -1484,7 +1478,6 @@ void UpdateResultsMenu(bool full = true) {
       lcd.write('A');
       lcd.write(0);
       lcd.write('B');
-      // PrintResultsList(topFastestTimes, topFastestLaps, DEFAULT_MAX_STORED_LAPS);
       PrintResultsList(fastestTimes[0], fastestLaps[0], DEFAULT_MAX_STORED_LAPS);
     }
     break;
@@ -1883,6 +1876,9 @@ void setup(){
     // Blank the LED digits
     lc.clearDisplay(deviceID);
   }
+  // Initialize Adafruit Bargraph
+  // use actual address from documentation if not the same as '0x70'
+  bar.begin(0x70);
 
   // --- SETUP LAP TRIGGERS AND BUTTONS ----------------
   setTriggerMask();
@@ -1899,22 +1895,14 @@ void setup(){
   pinMode(pauseStopPin, INPUT);
   pinMode(startButtonPin, INPUT);
 
-  // Setup an indicator LED
-  // pinMode(ledPIN, OUTPUT); 
-  // digitalWrite(ledPIN, ledState);
-
   // Initialize racer data arrays.
   ResetRaceVars();
   // Initialize racetime millisecond to default raceSetTime.
   raceSetTimeMs = ClockToMillis(0, raceSetTime[1], raceSetTime[0]);
   // Set initial state to Menu and initial menu to MainMenu, turn initial entry flag on.
-  // state = Menu;
-  // entryFlag = true;
   ChangeStateTo(Menu);
   currentMenu = MainMenu;
 
-
-  
   // Startup test song when using melody arrays.
   // melodyPlaying = true;
   // playingNotes = takeOnMeNotes;
@@ -1924,18 +1912,10 @@ void setup(){
 
   // Startup song
   // startPlayRtttlPGM(buzzPin1, reveille);
-
-  // Serial.println("setup enabled laneCount: ");
-  // Serial.println(enabledLaneCount);
   
   // setup audio flags per default audio mode
   UpdateAudioBools();
   Beep();
-
-// -------- BARGRAPH CODE ---------------
-  // use actual address from documentation if not the same as '0x70'
-  bar.begin(0x70);
-// -------- END BARGRAPH CODE -----------
 
 }
 // ************* END SETUP *******************
@@ -1975,7 +1955,7 @@ void loop(){
         // but DON'T clear entry flag here, it is used at the menu level in the menu state.
         // This means these interrupts get disabled on every new menu, but keeps things simpler.
         EnablePinInterrupts(false);
-        // if the last race was a Drag race then set data flag to 'no data'
+        // If the last race was a Drag race then set data flag to 'no data'
         if (raceType == Drag) raceDataExists = false;
         // Turn on yellow startlights
         lc.clearDisplay(laneCount);
@@ -2353,49 +2333,53 @@ void loop(){
         lcd.clear();
         // If not restarting from a Pause, reset racer variables to initial values.
         if (newRace) ResetRaceVars();
-        if (raceType == Drag){
-          // Update the LCD to indicate race is now 'staged', aka in active pre-start state.
-          lcd.setCursor(2,0);
-          lcd.print(F("Cars Are Staged"));
-          lcd.setCursor(7, 2);
-          lcd.print(F("Ready!"));
-          if(laneEnableStatus[1]) PrintText("Ready", led1Disp, 7, 8);
-          if(laneEnableStatus[2]) PrintText("Ready", led2Disp, 7, 8);
-          // set the countdown timer threshold to start updating pre-start LEDs
-          nextStageCountdownTime = 1500;
-          // set interval in ms that pre-start LEDs should update after threshold.
-          preStartTick = 500;
-          ledCountdownTemp = 1;
-          // set initial staged phase pattern to LED bargraph
-          // setBargraph(LED_OFF);
-          setBargraph(LED_YELLOW, 14, 9);
-          // MAX7219 startlight
-          lc.setLed(laneCount, 0, 2, true);
-          lc.setLed(laneCount, 1, 2, true);
-          // set flag, triggering the race state to clear start lights after a delay.
-          // clearStartLight = true;
-          // enable triggers only on lanes 1 and 2
-          // EnablePinInterrupts(true);
-          if(laneEnableStatus[1]) pciSetup(lanes[1][0]);
-          if(laneEnableStatus[2]) pciSetup(lanes[2][0]);
-        } else {
-        // Else, if a circuit race (standard or timed) then,
-          // Draw pre-start circuit race text to LCD and LEDs
-          PreStartDisplaysUpdate();
-          // set the countdown timer threshold to start updating start light LEDs in final 3sec
-          nextStageCountdownTime = 3000;
-          // set interval in ms that pre-start LEDs should update after threshold.
-          preStartTick = 1000;
-          // set the start index for circuit races which will count index down by 1 for each interval
-          ledCountdownTemp = 3;
-          // set entire LED Bargraph to Red
-          setBargraph(LED_RED);
-          // MAX7219 startlight
-          lc.setLed(laneCount, 0, 1, true);
-          lc.setLed(laneCount, 1, 1, true);
-          // Turn on interrupts for enabled lane pins
-          EnablePinInterrupts(true);
-        }
+
+        switch (raceType) {
+          case Drag: {
+            // Update the LCD to indicate race is now 'staged', aka in active pre-start state.
+            lcd.setCursor(2,0);
+            lcd.print(F("Cars Are Staged"));
+            lcd.setCursor(7, 2);
+            lcd.print(F("Ready!"));
+            if(laneEnableStatus[1]) PrintText("Ready", led1Disp, 7, 8);
+            if(laneEnableStatus[2]) PrintText("Ready", led2Disp, 7, 8);
+            // set the countdown timer threshold to start updating pre-start LEDs
+            nextStageCountdownTime = 1500;
+            // set interval in ms that pre-start LEDs should update after threshold.
+            preStartTick = 500;
+            ledCountdownTemp = 1;
+            // set initial staged phase pattern to LED bargraph
+            // setBargraph(LED_OFF);
+            setBargraph(LED_YELLOW, 14, 9);
+            // MAX7219 startlight
+            lc.setLed(laneCount, 0, 2, true);
+            lc.setLed(laneCount, 1, 2, true);
+            // enable triggers only on lanes 1 and 2
+            // EnablePinInterrupts(true);
+            if(laneEnableStatus[1]) pciSetup(lanes[1][0]);
+            if(laneEnableStatus[2]) pciSetup(lanes[2][0]);
+          }
+          break;
+          default: {
+            // Else, if a circuit race (standard or timed) then,
+            // Draw pre-start circuit race text to LCD and LEDs
+            PreStartDisplaysUpdate();
+            // set the countdown timer threshold to start updating start light LEDs in final 3sec
+            nextStageCountdownTime = 3000;
+            // set interval in ms that pre-start LEDs should update after threshold.
+            preStartTick = 1000;
+            // set the start index for circuit races which will count index down by 1 for each interval
+            ledCountdownTemp = 3;
+            // set entire LED Bargraph to Red
+            setBargraph(LED_RED);
+            // MAX7219 startlight
+            lc.setLed(laneCount, 0, 1, true);
+            lc.setLed(laneCount, 1, 1, true);
+            // Turn on interrupts for enabled lane pins
+            EnablePinInterrupts(true);
+          }
+          break;
+        } // END raceType switch
         // set flag to trigger turning off startlights after a delay.
         clearStartLight = true;
         entryFlag = false;
@@ -2411,51 +2395,56 @@ void loop(){
         lastTickMillis = curMillis;
       }
 
-      // If pre-start countdown timer greater than 0, execute updates
+      // If pre-start countdown is greater than 0, execute display and start light updates
       if (currentTime[0] > 0){
         // If remaining pre-start countdown drops below next update period, process new period
         if (currentTime[0] < nextStageCountdownTime) {
           nextStageCountdownTime -= preStartTick;
-          if (raceType == Drag){
-            // for the first cycle of the final countdown ticks, indicate final 3 ticks have begun
-            if (ledCountdownTemp == 1){
-              lcd.clear();
-              lcd.setCursor(8, 2);
-              lcd.print(F("Set!"));
-              // clear the racer LED dipslays
-              if(laneEnableStatus[1]) lc.clearDisplay(led1Disp-1);
-              if(laneEnableStatus[2]) lc.clearDisplay(led2Disp-1);
-              // clear, ready & set lights on MAX7219 start light tree.
+
+          switch (raceType){
+            case Drag: {
+              // for the first cycle of the final countdown ticks, indicate final 3 ticks have begun
+              if (ledCountdownTemp == 1){
+                lcd.clear();
+                lcd.setCursor(8, 2);
+                lcd.print(F("Set!"));
+                // clear the racer LED dipslays
+                if(laneEnableStatus[1]) lc.clearDisplay(led1Disp-1);
+                if(laneEnableStatus[2]) lc.clearDisplay(led2Disp-1);
+                // clear, ready & set lights on MAX7219 start light tree.
+                lc.clearDisplay(laneCount);
+                // lc.setLed(laneCount, 1, 2+ledCountdownTemp, false);
+              }
+              // write start light final ticks to Racer LEDs
+              if(laneEnableStatus[1]) PrintText("--", led1Disp, 1+3*(ledCountdownTemp-1), 2);
+              if(laneEnableStatus[2]) PrintText("--", led2Disp, 1+3*(ledCountdownTemp-1), 2);
+              // Add next start tick to Adafruit bar
+              setBargraph(LED_YELLOW, (10 - ledCountdownTemp*3), (9 - ledCountdownTemp*3));
+              setBargraph(LED_YELLOW, (14 + ledCountdownTemp*3), (13 + ledCountdownTemp*3));
+              // update MAX7219 start light; light the next yellow LED
               lc.clearDisplay(laneCount);
-              // lc.setLed(laneCount, 1, 2+ledCountdownTemp, false);
+              lc.setLed(laneCount, 0, 2+ledCountdownTemp, true);
+              lc.setLed(laneCount, 1, 2+ledCountdownTemp, true);
+              ledCountdownTemp++;
             }
-            // write start light final ticks to Racer LEDs
-            if(laneEnableStatus[1]) PrintText("--", led1Disp, 1+3*(ledCountdownTemp-1), 2);
-            if(laneEnableStatus[2]) PrintText("--", led2Disp, 1+3*(ledCountdownTemp-1), 2);
-            // Add next start tick to Adafruit bar
-            setBargraph(LED_YELLOW, (10 - ledCountdownTemp*3), (9 - ledCountdownTemp*3));
-            setBargraph(LED_YELLOW, (14 + ledCountdownTemp*3), (13 + ledCountdownTemp*3));
-            // update MAX7219 start light; light the next yellow LED
-            // lc.setLed(laneCount, 0, 1+ledCountdownTemp, false);
-            // lc.setLed(laneCount, 1, 1+ledCountdownTemp, false);
-            lc.clearDisplay(laneCount);
-            lc.setLed(laneCount, 0, 2+ledCountdownTemp, true);
-            lc.setLed(laneCount, 1, 2+ledCountdownTemp, true);
-            ledCountdownTemp++;
-          } else { // if a circuit race (ie Standard or Timed)
-            // Write current seconds digit to all active LEDs
-            ledWriteDigits(ledCountdownTemp);
-            // set next 3rd of LED bar yellow
-            setBargraph(LED_YELLOW, ((ledCountdownTemp*8)-1), (ledCountdownTemp-1)*8);
-            // update MAX7219 start light; light the next yellow LED
-            lc.setLed(laneCount, 0, 3+(3-ledCountdownTemp), true);
-            lc.setLed(laneCount, 1, 3+(3-ledCountdownTemp), true);
-            ledCountdownTemp--;
-          }
+            break;
+              // if a circuit race (ie Standard or Timed)
+            default: {
+              // Write current seconds digit to all active LEDs
+              ledWriteDigits(ledCountdownTemp);
+              // set next 3rd of LED bar yellow
+              setBargraph(LED_YELLOW, ((ledCountdownTemp*8)-1), (ledCountdownTemp-1)*8);
+              // update MAX7219 start light; light the next yellow LED
+              lc.setLed(laneCount, 0, 3+(3-ledCountdownTemp), true);
+              lc.setLed(laneCount, 1, 3+(3-ledCountdownTemp), true);
+              ledCountdownTemp--;
+            }
+            break;
+          } // END of raceType switch
           Beep();
         }
       } else { // countdown is 0
-        // The prestart state has finished
+        // The prestart state has finished and the race should start.
         if (raceType == Drag) {
           // for drag race, update LCD
           lcd.setCursor(0, 2);
@@ -2469,11 +2458,6 @@ void loop(){
         lc.clearDisplay(laneCount);
         lc.setLed(laneCount, 0, 6, true);
         lc.setLed(laneCount, 1, 6, true);
-        // Adjust race clock start time to ignore the paused period
-        // currentTime[0] is the elapsed race time in ms at time of pause.
-        
-        // currentTime[0] = (raceType == Drag ? preStartTimerDrag : preStartCountDown) * 1000;
-        startMillis[0] = startMillis[0] + (raceType == Drag ? preStartTimerDrag : preStartCountDown) * 1000;
         // Move on to live race, it's now legal for racers to cross start
         ChangeStateTo(Race);
       }
@@ -2488,6 +2472,7 @@ void loop(){
       // First cycle initialization of RACE and signalling of START.
       if (entryFlag) {
         // Serial.println(F("rce"));
+        if (raceType != Drag) PrintLeaderBoard(!newRace);
         if(newRace){
           // make sure running race time is starting from 0
           currentTime[0] = 0;
@@ -2505,10 +2490,10 @@ void loop(){
                 startMillis[i] = curMillis;
               }
             }
-          } else {
-            // lcd.clear();
           }
           newRace = false;
+        } else { // if newRace = false, returning from a restart.
+          startMillis[0] = curMillis - lastXMillis[0][2];
         }
         // Cycle through possible lanes and write start notification to racer displays.
         for(byte i = 1; i <= laneCount; i++){
@@ -2520,19 +2505,6 @@ void loop(){
           // Set flash status to default, idle state.
           flashStatus[i] = 0;
           Bleep();
-        }
-        switch (raceType) {
-          case Drag: {
-            // lcd.setCursor(0, 1);
-            // lcd.print(F("--Lane 1----Lane 2--"));
-            // PrintSpanOfChars(lcdDisp, 1);
-          }
-          break;
-          default: {
-            // Write static text to main LCD for live race screen
-            PrintLeaderBoard(false);
-          }
-          break;
         }
         // Reset display tick timestamp to current loop's timestamp.
         lastTickMillis = curMillis;
@@ -2550,6 +2522,7 @@ void loop(){
           lc.clearDisplay(laneCount);
         }
       }
+
       // Update current racetime.
       if (countingDown) {
         // When counting down we need to gaurd against negatives.
@@ -2559,15 +2532,15 @@ void loop(){
         currentTime[0] = curMillis - startMillis[0];
       }
 
-      // For each possible lane check its status and process the data and displays accordingly.
+      // For each possible lane check its flash status and process the data and displays accordingly.
       for(byte i = 1; i <= laneCount; i++){
         // Only bother to process lanes with 'Active' status.
         if(laneEnableStatus[i] == Active) {
           // Update elapsed, ms time for lane.
           // If it's a drag race, use the race time, timestamp, not the racer's lap start timestamp.
           currentTime[i] = curMillis - (raceType == Drag ? startMillis[0] : startMillis[i]);
-          // Check the lane's flash status.
-          switch(flashStatus[i]){
+
+          switch (flashStatus[i]) {
             // If Flash OFF - update running laptime to LED displays
             case 0:{
               if (curMillis - lastTickMillis >  displayTick){
@@ -2622,7 +2595,7 @@ void loop(){
             break;
           } // END flashStatus switch
         } else {
-        // else if NOT an 'Active' lane
+          // else if NOT an 'Active' lane
           currentTime[i] = 0;
         } // END of if then else, lane enabled, ie 'Active'.
       } // END for each lane loop
@@ -2653,40 +2626,41 @@ void loop(){
                 // Turn off lap trigger interrupt of finished lane.
                 clearPCI(lanes[i][0]);
                 finishedCount++;
+
                 // Update the racer's LED display with their finishing place.
-                if (raceType == Drag) {
-                  PrintClock(startMillis[i]-startMillis[0], 7, 5, 3, displays(i), 0);
-                  // For a Drag Race, light up LED of 1st lane to finish
-                  // if (finishedCount == 0) {
-                  if (!winner) {
-                    lc.clearDisplay(laneCount);
-                    lc.setLed(laneCount, i-1, 0, true);
-                    setBargraph(LED_OFF);
-                    // index (i), will be 1 or 2, but the MAX7219 index is zero based.
-                    // lane 1 should light LEDs 0-11; lane 2 should light LEDs 12-23.
-                    setBargraph(LED_GREEN, i*12 - 1, (i-1)*12);
-                    winner = true;
+                switch (raceType) {
+                  case Drag: {
+                    PrintClock(startMillis[i]-startMillis[0], 7, 5, 3, displays(i), 0);
+                    // For a Drag Race, light up LED of 1st lane to finish
+                    // if (finishedCount == 0) {
+                    if (!winner) {
+                      lc.clearDisplay(laneCount);
+                      lc.setLed(laneCount, i-1, 0, true);
+                      setBargraph(LED_OFF);
+                      // index (i), will be 1 or 2, but the MAX7219 index is zero based.
+                      // lane 1 should light LEDs 0-11; lane 2 should light LEDs 12-23.
+                      setBargraph(LED_GREEN, i*12 - 1, (i-1)*12);
+                      winner = true;
+                    }
                   }
-                } else { // if circuit race (ie Standard or Timed)
-                  UpdateNameOnLED(i);
-                  // Stop any currently playing song
-                  stopPlayRtttl();
-                  // Play finishing song of finishing racer
-                  if (SONGS_BY_PLACE) {
-                    if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[finishedCount]);
-                  } else {
-                    if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[i]]);
+                  break;
+                  default: {
+                     UpdateNameOnLED(i);
+                    // Stop any currently playing song
+                    stopPlayRtttl();
+                    // Play finishing song of finishing racer
+                    if (SONGS_BY_PLACE) {
+                      if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[finishedCount]);
+                    } else {
+                      if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[i]]);
+                    }
                   }
-                }
-                // // Stop any currently playing song
-                // stopPlayRtttl();
-                // // Play finishing song of finishing racer
-                // if (musicAudioOn) startPlayRtttlPGM(buzzPin1, victorySong[laneRacer[i]]);
-                // Serial.print("Finished count: ");
-                // Serial.println(finishedCount);
+                  break;
+                } // END raceType switch
               } // END if Finish lapcount reached
             } // END if lane is active
           } // END for each lane
+
           // The race continues until all racers have finsihed.
           // If drag racing then only 2 racers should be used regardless of enabled laneCount
           if (finishedCount == (raceType == Drag ? 2 : enabledLaneCount)) {
@@ -2735,19 +2709,22 @@ void loop(){
     } // END of Race state case
     break;
 
-    // *****************************************
+    // *******************************************
     // **********  PAUSED state  *****************
     // The Paused state handles interaction to quite or restart race
     case Paused:{
       // Serial.println("Entered Paused state"); 
       if(entryFlag){
+        // Log ms timestamp & current elapsed race time, upon iniation of Pause.
+        // This will be used to update race time on restart froma pause.
+        lastXMillis[0][1] = millis();
+        lastXMillis[0][2] = currentTime[0];
         // immediately turn off the interrupts on the lap sensing pins
         EnablePinInterrupts(false);
         // Put all 'Active' race lanes into 'StandBy'.
         for (byte i = 1; i <= laneCount; i++){
           if(laneEnableStatus[i] == Active) {
             laneEnableStatus[i] = StandBy;
-            // lapCount[i] -= 1;
           }
           PrintText(TEXT_PAUSE, displays(i), 7, 5, true, 0, false);
         }
@@ -2837,7 +2814,9 @@ void loop(){
         // Clear bargraph and/or LED start tree
         lc.clearDisplay(laneCount);
         setBargraph(LED_OFF);
-        ChangeStateTo(Staging);
+        // A fault before a new race start should return to staging phase.
+        // A fault clear from a pause restart, should restart in the PreStart or Race state.
+        ChangeStateTo(newRace ? Staging : (CTDWN_ON_RESTART ? PreStart : Race) );
       }
 
     } // END of Fault state
@@ -2913,7 +2892,7 @@ void loop(){
           resultsRowIdx = 0;
         }
         break;
-      }
+      } // END raceType switch
     } // END of Finish State
     break;
 
@@ -2928,7 +2907,6 @@ void loop(){
 } // END of MAIN LOOP
 // ********************************************************
 // ********************************************************
-
 
 
 

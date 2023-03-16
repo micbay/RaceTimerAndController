@@ -40,12 +40,20 @@
 // recommended max is 20 if LANE_COUNT = 2, 15 if LANE_COUNT = 3, and 10 if LANE_COUNT = 4
 // #define DEFAULT_MAX_STORED_LAPS 10
 
+// // Drag Race lap triggers
+// // If using only 1 set of finish line triggers for drag racing, set to 'true'
+// // If using a start and finish line trigger setup for drag racing, set to 'false'
+// #define SINGLE_DRAG_TRIGGER true
+
+// // If true, this flag tells the controller to do a pre-start countdown when restarting from a pause.
+// #define CTDWN_ON_RESTART true
+
 
 // // set debounce time in ms
 // #define DEBOUNCE 1000
 
 // // set the default number of laps used for a standard race
-// #define DEFAULT_LAPS 10
+// #define DEFAULT_LAPS 25
 
 // // set the default min and sec used for a timed race on bootup
 // #define DEFAULT_SET_MIN 0
@@ -60,6 +68,9 @@
 // Length of flash period in ms (time just completed lap is displayed to LED)
 // #define DEFAULT_FLASH_PERIOD_LENGTH 1500
 
+// // Length of time the start light stays lit after race start for circuit races.
+// #define START_LIGHT_OFF_DELAY 2000
+
 
 // // Lane/Racer's associated with which pin and interrupt byte mask pairs
 // #define LANE1 {PIN_A0, 0b00000001}
@@ -71,19 +82,11 @@
 // // INTERRUPT HARDWARE (ONLY CHANGE if using a non-Nano based Arduino)
 // // For ATmega328 based Arduino use 'PCINT1_vect', case sensitive, no quotes
 // // For ATmega2560 based Arduino use 'PCINT2_vect', case sensitive, no quotes
-// #define PCINT_VECT PCINT1_vect
+// #define PCINT_VECT PCINT2_vect
 
 // // For ATmega328 based Arduino use 'PINC', case sensitive, no quotes
 // // For ATmega2560 based Arduino use 'PINK', case sensitive, no quotes
-// #define INTERRUPT_PORT PINC
-
-
-
-// // Default enabled status of lanes on bootup
-// // To disabled laneX, enter 'Off' (case sensitive, no quotes) in matching index=X
-// // To enable laneX, enter 'StandBy' (case sensitive, no quotes) in matching index=X
-// // 1st term is index=0, array should always have 5 terms (laneCount + 1)
-// #define DEFAULT_LANES_ENABLED { Off, StandBy, StandBy, Off, Off }
+// #define INTERRUPT_PORT PINK
 
 
 
@@ -110,6 +113,23 @@
 // // Audio Mode Default on bootup
 // // use only 'AllOn', 'GameOnly', or 'Mute', case sensitive, no quotes
 // #define DEFAULT_AUDIO_MODE AllOn
+
+
+
+// // LCD Definition of size.
+// #define LCD_COLS 20
+// #define LCD_ROWS 4
+
+// // Location, column index, that sets where to print race and prestart timer clock on the screen
+// #define RACE_CLK_POS 8
+// #define PRESTART_CLK_POS 11
+
+
+// // 7-Segment LED bar pinout
+// #define PIN_TO_LED_DIN 2
+// #define PIN_TO_LED_CS 3
+// #define PIN_TO_LED_CLK 4
+
 
 
 
@@ -235,17 +255,23 @@
 
 
 
-// // !!! Make sure the number of terms in the racer name's & song's lists
-// // !!! matches the value of 'RACER_LIST_SIZE'
-// #define RACER_LIST_SIZE 10
 
-// // list of racer names available to select from through UI
-// // The number of terms should match the value of 'RACER_SIZE_LIST"
+// // RACER_NAMES_LIST defins the list of names available to select from through UI.
+// // If SONG_BY_PLACE is 'false', the number of terms should match the # of terms in 'RACER_SONGS_LIST"
 // // !!!! The first term should always be 'TEXT_OFF', it is used to represent an inactive lane
 // #define RACER_NAMES_LIST {TEXT_OFF, "Lucien", "Zoe", "Elise", "John", "Angie", "Uncle 1", "Rat2020_longer", "The OG", "5318008"}
 
-// // songs are associated with racer name of matching array index
+// // If SONG_BY_PLACE is 'false', songs are associated with racer name of matching array index
 // // songs to choose from are defined in the RTTL_songs.h file
-// // The number of terms should match the value of 'RACER_SIZE_LIST"
+// // If SONG_BY_PLACE is 'false', the number of terms should match the # of terms in 'RACER_NAMES_LIST"
 // // !!!! The first term is for the 'off' condition and should reference 'disabledTone'.
 // #define RACER_SONGS_LIST {disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter}
+
+// // Song Association
+// // To associate a song with a racer name, set SONGS_BY_PLACE to 'false'.
+// // Otherwise, to make songs played related to finishing place, set to 'true'.
+// // If SONGS_BY_PLACE is 'true', 1st finisher will play RACERS_SONG_LIST[1], 2nd place finisher RACERS_SONG_LIST[2], etc.
+// // RACER_NAMES_LIST & RACERS_SONG_LIST size do not need to match if SONGS_BY_PLACE is 'true'.
+// #define SONGS_BY_PLACE false
+
+

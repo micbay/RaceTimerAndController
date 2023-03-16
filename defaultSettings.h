@@ -45,10 +45,9 @@
 // If using only 1 set of finish line triggers for drag racing, set to 'true'
 // If using a start and finish line trigger setup for drag racing, set to 'false'
 #if !defined ( SINGLE_DRAG_TRIGGER )
-  #define SINGLE_DRAG_TRIGGER true
+  #define SINGLE_DRAG_TRIGGER false
 #endif
 
-// NOT IN USE
 // If true, this flag tells the controller to do a pre-start countdown when restarting from a pause.
 #if !defined ( CTDWN_ON_RESTART )
   #define CTDWN_ON_RESTART false
@@ -84,7 +83,7 @@
   #define DEFAULT_FLASH_PERIOD_LENGTH 1500
 #endif
 
-// Length of time the start light stays lit after race start
+// Length of time the start light stays lit after race start for circuit races.
 #if !defined ( START_LIGHT_OFF_DELAY )
   #define START_LIGHT_OFF_DELAY 2000
 #endif
@@ -172,7 +171,7 @@
 #endif
 
 
-// LCD Definition of size and pinout
+// LCD Definition of size.
 #if !defined( LCD_COLS)
   #define LCD_COLS 20
 #endif
@@ -392,12 +391,6 @@
   #define TEXT_OFF "-Off-"
 #endif
 
-// // RACER_SIZE_LIST is no longer used. Array size is determined automatically by the supplied array constants.
-// // !!! Make sure the number of terms in the racer name's & song's lists
-// // !!! matches the value of 'RACER_LIST_SIZE'
-// #if !defined ( RACER_LIST_SIZE )
-//   #define RACER_LIST_SIZE 10
-// #endif
 
 // RACER_NAMES_LIST defins the list of names available to select from through UI.
 // If SONG_BY_PLACE is 'false', the number of terms should match the # of terms in 'RACER_SONGS_LIST"
@@ -413,7 +406,7 @@
   #define RACER_SONGS_LIST {disabledTone, starWarsImperialMarch, takeOnMeMB, airWolfTheme, tmnt1, gameOfThrones, galaga, outrun, starWarsEnd, spyHunter}
 #endif
 // Song Association
-// To associate a song with a racer name (the default behavior), set to 'false'.
+// To associate a song with a racer name, set SONGS_BY_PLACE to 'false'.
 // Otherwise, to make songs played related to finishing place, set to 'true'.
 // If SONGS_BY_PLACE is 'true', 1st finisher will play RACERS_SONG_LIST[1], 2nd place finisher RACERS_SONG_LIST[2], etc.
 // RACER_NAMES_LIST & RACERS_SONG_LIST size do not need to match if SONGS_BY_PLACE is 'true'.
