@@ -520,7 +520,7 @@ The project [Wiring Diagram](#wiring-diagram) illustrates the Bargraph integrati
   
  - This is an I2C compatible, fully assembled LED light bar with 24 segments. Each segment has a Green, and a Red, LED, which can be lit to create red, yellow, or green.
 
-![Bootup Idle Bargraph-24](Images/Adafruit_Bargraph_FullAssy_800x100.png)
+![Bootup Idle Bargraph-24](Images/Adafruit_Bargraph_FullAssy2_800x100.png)
 
 ***Assembly Note:** Being diodes, the assembly orientaiton of the LEDs is important. The Adafruit Bargraph typically comes dissassembled, and requires soldering. Be sure to follow the orientation indicated by the text on the PCB and LED bars.*
 
@@ -1227,6 +1227,7 @@ To illustrate the process, we will transcribe the intro to Take On Me by Aha! He
 ![Take On Me Sheet](Images/TakeOnMeIntro_SheetMusic.png)
 
 Looking at the first measure we see that the key signature is for the key of A Major. This means that all F5, C5, and G5 notes are sharp, as is indicated by the key signature sharp symbols on those lines.
+
 ![Take On Me Key Sig](Images/TOnMe_KeySignature.png)
 
 In addition to our notes and note lengths, we also see the tempo is 'Fast', which on our chart is around 120-168 bpm. Listening to the song, it sounds on the fast end of that scale, so something around 160 bpm, is probably good.
@@ -1408,7 +1409,7 @@ When the controller boots up it will display the **Main Menu** screen. Use the k
 
 In the **Menu State**, the lane's lap time displays, will indicate the assigned racer name, and any attached start lights will illuminate amber lights.
 
-![Idle Racer displays](Images/RacerLED-Idle_800x100.png)
+![Idle Racer displays](Images/RacerLED-Idle2_800x100.png)
 
 <table>
   <tr>
@@ -1476,7 +1477,6 @@ Pressing `C` from the Main Menu will bring up the **Race Start Menu**. From this
 
 <img src="Images/ScreenShots/NoResults_Menu.png"  alt="1" width="300px">
 <br>
-<br>
 
 After a race has finished (or paused and stopped), and lap data for racers exists, entering the Results Menu will give access to the lap time data recorded from the last race.
 
@@ -1506,7 +1506,6 @@ Pressing `C` will cycle through the available results sub-menus. There is a resu
     <td><img src="Images/ScreenShots/TopResults_ScrolledDown_Menu.png"  alt="1"></td>
   </tr>
 </table>
-
 
 
 **Racer Result Pages** - Cycling from the **Top Results** will index through the individual, top fastest results, for each racer. On individual racer result pages, the completed lap total, and total time it took the racer to finish them, is displayed at the lower right of the screen. This results page blinks between an A-text and B-text phase. During the A-text phase, the title will show the Racer# ID, and the total finish time. During the B-text phase, the title will show the racer's name, and the completed lap total.
@@ -1558,11 +1557,11 @@ After choosing a race from the [Start a Race](#main-menu---c-start-a-race) scree
 
 - ***Circuit Race Pre-Stage:*** For Lap or Timed races, the racer displays will continue to display the assigned racer names.
 
-    <img src="Images/RacerLED-Idle_800x100.png" alt="2" width="500px">
+    <img src="Images/RacerLED-Idle2_800x100.png" alt="2" width="500px">
 
-- ***Drag Race Pre-Stage:***  For drag racing, the racer displays will switch to using labels **Lanee 1** & **Lane 2**.
+- ***Drag Race Pre-Stage:***  For drag racing, the racer displays will switch to using labels **Lane 1** & **Lane 2**.
 
-    <img src="Images/RacerLED-DragPreStage_800x100.png" alt="2" width="500px">
+    <img src="Images/RacerLED-DragPreStage2_800x100.png" alt="2" width="500px">
 
 <br>
 
@@ -1752,6 +1751,7 @@ During a race, the controller will monitor lap triggers and update the race stat
 
 ### **Circuit Race Live Race Leader Board**
 During a standard **Lap** or **Timed** race, the main LCD will display the elapsed race time, the current 1st-3rd place lap count and racer names, and the current overall fastest lap time and racer who achieved it.
+
 <img src="Images/ScreenShots/LiveLeaderBoard.png"  alt="1" Width="500px">
 
 ### **Live Race Racer Displays**

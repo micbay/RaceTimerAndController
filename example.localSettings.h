@@ -52,6 +52,11 @@
 // // set debounce time in ms
 // #define DEBOUNCE 1000
 
+// // Drag race timeout in seconds, max 255
+// #define DRAG_HEAT_TIMEOUT 10
+
+
+
 // // set the default number of laps used for a standard race
 // #define DEFAULT_LAPS 25
 
@@ -289,6 +294,6 @@
 // // Otherwise, to make songs played related to finishing place, set to 'true'.
 // // If SONGS_BY_PLACE is 'true', 1st finisher will play RACERS_SONG_LIST[1], 2nd place finisher RACERS_SONG_LIST[2], etc.
 // // RACER_NAMES_LIST & RACERS_SONG_LIST size do not need to match if SONGS_BY_PLACE is 'true'.
-// #define SONGS_BY_PLACE false
+// #define SONGS_BY_PLACE true
 
 

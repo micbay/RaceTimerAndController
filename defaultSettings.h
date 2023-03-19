@@ -53,6 +53,7 @@
   #define CTDWN_ON_RESTART false
 #endif
 
+
 // set debounce time in ms
 #if !defined ( DEBOUNCE )
   #define DEBOUNCE 500
@@ -62,6 +63,7 @@
 #if !defined ( DRAG_HEAT_TIMEOUT )
   #define DRAG_HEAT_TIMEOUT 10
 #endif
+
 
 // set the default number of laps used for a standard race
 #if !defined ( DEFAULT_LAPS )
