@@ -1,13 +1,45 @@
+# **Arduino Race Timer and Lap Gate Controller**
 Download this repository into a local folder with the same name as the contained `.ino` to use as an Arduino sketch.
 
-### [This video](https://youtu.be/n0GLdoQ6pg4) provides a live use demonstration of the example implementation described below.
+### [This video](https://youtu.be/n0GLdoQ6pg4) provides a live use demonstration of the example implementation hardware.
+NOTE: the video demo is of an earlier version of the system. With the release of V2.X, many new features have been added that are not demonstrated in the video, including start lights, drag racing mode, a race pre-stage step, and other user customizations of race parameters.
+
 
 ---
+## Table of Contents
+1. [Introduction](#introduction)
+    - [Prerequisites](#prerequisites) 
+2. [Hardware Configuration](#hardware-configuration)
+    - [Wiring Diagram](#wiring-diagram)
+    - [Pin Out for Arduino Nano](#pinout-for-wiring-arduino-nano)
+    - [Adjustments for Using ATMega2560 Based Arduino Instead](#changes-if-using-atmega2560-microcontroller-based-module)
+3. [Software Configuration](#software-configuration)
+4. [The Main Display (LCD2004 + I2C Backpack)](#main-display)
+    - [Creating Custom Characters](#custom-characters)
+5. [Racer Lap Timers (8-digit, 7-seg LED Bar)](#lap-timers)
+6. [DIY MAX7219 Based Start Light Tree](#diy-max7219-based-start-light-tree)
+7. [Adafruit Bi-Color Bargraph-24 as a Start Light](#adafruit-bi-color-bargraph-24-as-a-start-light)
+8. [The Keypad](#the-keypad)
+9. [Lap/Gate Sensing](#gate-sensing)
+10. [Sensor Options](#sensor-options)
+11. [Analog Pause and Start Buttons](#analog-pause--start-buttons)
+12. [Playing Audio](#playing-audio)
+     - [Songs & Melodies](#songs--melodies)
+     - [Method 1](#method-1-notes--lengths-arrays--pitchesh) - Using `Notes[]` and `Lengths[]` arrays
+     - [Method 2](#method-2-ringtone-rtttl-format) - Using RTTTL Ringtones
+13. [Audio Modes](#audio-modes)
+14. [Race Controller Operation](#race-controller-operation)
+    - [Main Menu Navigation](#main-menu-navigation)
+    - [Racing](#racing)
+15. [Drag Race Start Light Indicators](#drag-race-start-light-indicators)
+16. [Customizing UI Text and General Controller Settings](#customizing-ui-text-and-general-controller-settings)
 
 <br>
 
-# **Arduino Race Timer and Lap Gate Controller**
+# **Introduction**
 This is an Arduino based project that implements an inexpensive, reliable, race game controller that can be used for timed racing games of 1-4 racers. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap count & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
+
+Optionally, V2.0 and higher supports using an Adafruit 24 Bi-Color LED bargraph or MAX7219 based, custom LED tree, as starting lights and race status indicators.
 
 In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate. The working demo of this project uses two paper clips integrated into a mechanical lap counter to create a simple, yet effective lap sensor.
 
@@ -21,7 +53,7 @@ The original application for this controller was slot car racing, as such, the c
 > ***Code Snippets in Readme** - the code snippets shown in this readme file are not meant to be cut and paste working examples. They are used only to illustrate the syntax for general setup and usage. For working code, reference the releated sections of the actual project code in `RaceTimerAndController.ino`*  
 > ***Note on Reference Sources** - All links are for reference only and are not to be taken as an endorsement of any particular component supplier. I attempt to reference official Arduino resources whenever possible, but this is also not an endorsement for or against using the Arduino store.*
 
-### **Prerequisites**  
+### **Prerequisites**  <a id="prerequisites"></a>
 This project involves a lot of different hardware and software concepts, and implements some more intermediate to advanced code for Arduino.
 
 However, I have endeavored to explain in enough detail that someone with almost no experience can still follow along, and successfully build a working controller. It will even be possible to customize menu text and default game settings, without having to write new code.
@@ -34,7 +66,8 @@ It is expected the reader understands how to use the Arduino IDE, connect wires,
 All of the components are readily available and can be connected with basic jumper leads or simple conductors (wires). Some components might require header pin soldering if they do not come pre-assembled.
 > ***Note on Housing and Mechanical Interface** - This project only documents the functional electrical and software configuration. It can be wired, and used as illustrated for demonstration, however, for repeated, practical usage, the construction of a permanent housing, and mechanical trigger interface, is left up to the implementer to develop per their unique setup.*  
 
-## **Parts for Race Controller**
+## **Parts for Core Race Controller**
+The parts required for the base system are listed below. These will support all race modes. For drag racing, the 7-sement, racer lap timer displays, for lanes 1 & 2, will update for each pre-start interval that is typically found on a start light tree.
 - [Arduino Nano](https://docs.arduino.cc/hardware/nano) (or equivalent ATMega328 based microcontroller module) ([amazon search](https://www.amazon.com/arduino-nano/s?k=arduino+nano))
   - if using Mega2560 adjust code and wiring per annotations)
 - [4 x 4 membrane keypad](https://duckduckgo.com/?q=4+x+4+membrane+keypad)
@@ -42,10 +75,29 @@ All of the components are readily available and can be connected with basic jump
 - 2-4 Chainable, [8-digit, 7-segment LED bar with integrated MAX7219](https://duckduckgo.com/?q=8-digit%2C+7-segment+LED+display)
 - Passive Buzzer or speaker
   - The 7-seg LEDs induced a hum on my buzzer, I used a diode on one lead to eliminate it.
-- 2-4 Analog or digital lap sensors/switches/buttons
-- 1 momentary button for in game pause and restart
+- 2-4 Analog or digital lap sensors/switches/buttons, 1 for each lane.
+    - (optional) +2 drag race finish sensors - Drag racing can be setup to use just a finish sensor, however, to support the default start & finish drag sensing, add 2 more sensors that will share the same pins as the start sensors for lanes 1 & 2.
+- 2 momentary switches for a 'Pause' and optional 'Start' button.
   - 10k Ohm Pull-Up resistor to adapt button for analog input on A6
 - Jumper leads to wire connections between peripherals & Arduino
+
+### **Supported Start Light Configurations**
+Starting with Ver2.0, this controller will support using an Adafruit Bi-color Bargraph-24, and/or, a custom built LED light tree that can be assembled using standard LED components and a MAX7219 serial dirver.
+
+### Custom Start Light Tree Parts
+These are all the parts required to build a custom start light tree. For further details, see section: [DIY MAX7219 Based Start Light Tree](#diy-max7219-based-start-light-tree).
+- [MAX7219 Serial LED driver chip](https://www.amazon.com/Bridgold-MAX7219CNG-MAX7219-Serially-Interfaced/dp/B0BK6XC4P8/ref=sr_1_3?keywords=max7219&sr=8-3) - ([datasheet](https://www.analog.com/media/en/technical-documentation/data-sheets/MAX7219-MAX7221.pdf)) same chip used by the pre-packaged LED bars.
+- 4 White LEDs
+- 6 Yellow LEDs
+- 2 Green LEDs
+- 2 Red LEDs
+- 2 Blue LEDs
+- 100nF (i.e. 0.1μF, #104) capacitor
+- 10k Ohm Resistor
+
+### Adafruit Start Light Parts
+- [Adafruit Bi-Color Bargraph-24, With I2C backpack kit](https://www.adafruit.com/product/1721) - This is an I2C compatible, full assembly of an LED light bar with 24 segments. Each segment has a Green, and a Red, LED, which can be lit to create red, yellow, or green.
+
 
 ## **PinOut for Wiring Arduino Nano**
 (these are the pins used by this code, but can be re-arranged, if desired)  
@@ -60,17 +112,18 @@ All of the components are readily available and can be connected with basic jump
 |Lane2 lap sensor|A1   |\-- |D8   |Keypad 4 (R4)   |
 |Lane3 lap sensor|A2   |\-- |D7   |Keypad 3 (R3)   |
 |Lane4 lap sensor|A3   |\-- |D6   |Keypad 2 (R2)   |
-|LCD SDA         |A4   |\-- |D5   |Keypad 1 (R1)   |
-|LCD SCL         |A5   |\-- |D4   |LED CLK         |
+|LCD/Bargraph SDA|A4   |\-- |D5   |Keypad 1 (R1)   |
+|LCD/Bargraph SCL|A5   |\-- |D4   |LED CLK         |
 |Pause Button    |A6   |\-- |D3   |LED CS          |
-|                |A7   |\-- |D2   |LED DIN         |
-|                |5V   |\-- |GND  |                |
+|Start Button    |A7   |\-- |D2   |LED DIN         |
+|                |5V   |\-- |GND  |common GND      |
 |                |Reset|\-- |Reset|                |
-|                |GND  |\-- |Rx0  |                |
+|common GND      |GND  |\-- |Rx0  |                |
 |+5V Supply      |Vin  |\-- |Tx1  |                |
 </div>  
 
-![Wiring Diagram](Images/WiringDiagram1600x800.png)
+## **Wiring Diagram**
+![Wiring Diagram](Images/V2X_Wiring_Diagram1600x1600.png)
 
 ## **Changes if Using ATMega2560 Microcontroller Based Module**
 By default the code is setup for an Arduino Nano, ATMega328 based pin out. However, with minor adjustments, this project can also work with modules, like the Arduino Mega2560, that use an ATmega2560 processor. To switch between using a ATMega328 and ATMega2560, one can edit the hardware variables referenced in the `localSettings.h` file.
@@ -101,14 +154,19 @@ All devices in this build are powered from a +5V source. The displays should dra
 # **Software Configuration**  
 In order to interact with our different peripherals, this project uses several existing [Arduino libraries](https://www.arduino.cc/reference/en/libraries/). Unless otherwise specified, these libraries can be downloaded the usual manner using the [Arduino Library Manager](https://docs.arduino.cc/software/ide-v1/tutorials/installing-libraries). Each library will be introduced with the hardware it's related to.
 
-Reference for add-on libraries used in this project:
-- [hd44780](https://www.arduino.cc/reference/en/libraries/hd44780/)
-- [LedControl](https://www.arduino.cc/reference/en/libraries/ledcontrol/)
-- [Keypad](https://www.arduino.cc/reference/en/libraries/keypad/)
-- [PlayRtttl](https://github.com/ArminJo/PlayRtttl)
+Reference for add-on libraries used in the core project. The versions listed are the latest, verified compatible versions. If newer versions are causing a compiling issue, try the version listed below:
+- [hd44780](https://www.arduino.cc/reference/en/libraries/hd44780/) v1.3.2
+- [LedControl](https://www.arduino.cc/reference/en/libraries/ledcontrol/) v1.0.6
+- [Keypad](https://www.arduino.cc/reference/en/libraries/keypad/) v3.1.1
+- [PlayRtttl](https://github.com/ArminJo/PlayRtttl) v1.4.2 (at the time of this edit, it is known version 2.x+ of this library are currently NOT compatible with this project, please make sure to install V1.4.2)
+- ^ [Adafruit GFX](https://www.arduino.cc/reference/en/libraries/adafruit-gfx-library/) 1.11.5
+- ^ [Adafruit LED Backpack](https://www.arduino.cc/reference/en/libraries/adafruit-led-backpack-library/) 1.3.2
+
+^ These libraries are only necessary to support the Adafruit Bargraph. However they must still be installed, even if not using them, to avoid any compiling errors.
 
 All custom project logic is in the main Arduino `.ino` sketch file. The additional supporting `.h` files are used to store different data constants defining custom characters, songs, and default system settings.
 - `RaceTimerAndController.ino` - main sketch file containing all custom logic
+- `enum_list.h` - all defined enums are put in a seperate file to force the compiler to handle them before they are used as a global function parameter. Not doing so can cause a compiler error, even though the code is ok.
 - `RTTL_songs.h` - file to hold RTTL song string constants
 - `melodies_prog.h` - file to hold Notes[] Lengths[] array based song data
 - `pitches.h` - file holding `#define` macros setting the frequency values used for Notes array based songs.
@@ -122,7 +180,8 @@ The game controller code uses non-blocking techniques with port register interru
 
 <br>
 
-# **The Main Display (LCD2004 + I2C Backpack)**  
+# **The Main Display (LCD2004 + I2C Backpack)** <a id="main-display"></a>
+
 For the main display that provides the user interface, the project uses a 4 row x 20 character LCD. LCD character displays are readily available in 2 or 4 rows, of 16 or 20 characters, fairly inexpensive, and simple to use. A 4 row x 20 character LCD display is the biggest commonly available, and is big enough to fit understandable menus and output for this application.  
 In addition to providing the setup interface, the main display will also display a live leaderboard during a race. However, it's much too small to be used as a spectator display from a distance.
 
@@ -252,7 +311,8 @@ void loop(){
 
 <br>
 
-# **Racer Lap Timers (8-digit, 7-seg LED Bar)**
+# **Racer Lap Timers (8-digit, 7-seg LED Bar)** <a id="lap-timers"></a>
+
 This race controller is intended to support up to 4 racers. For each racer we have a dedicated lap sensor for tracking laps. Associated with that lap sensor is a dedicated display showing the racer's active lap number and running lap time.
 
 The display must be able to fit a 3 digit lap count and a lap time with up to 4 significant digits. With this lap time digit width, we can support a display precision of at least 1 sec up to a 1 hour lap time, and as small as 1ms for lap times under 10 seconds.
@@ -287,7 +347,9 @@ Another feature of the MAX7219, that makes these LED bars a good choice for this
 ![MAX7219 LED Cascade](Images/LED_MAX7219_Cascade.png)
 
 ### **Noise Sensitivity**  
-The MAX7219 can be particularly sensitive to noise on its power input. If the power lines are clean, and direct, there may not be an issue, however, the MAXIM documentation on using the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), strongly recommends using a bypass filter, consisting of a 10&mu;F (polarized, electrolytic) and 100nF (i.e. 0.1&mu;F, #104) capacitors across the input voltage into the MAX7219 and ground. I can concur from experience that there will be random, intermittent issues, if the signal, and power supply to these displays is not managed properly.
+The MAX7219 can be particularly sensitive to noise on its power input. If the power lines are clean, and direct, there may not be an issue, however, the MAXIM documentation on using the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), strongly recommends using a bypass filter, consisting of a 10&mu;F (polarized, electrolytic) and 100nF (i.e. 0.1&mu;F, #104) capacitors across the input voltage into the MAX7219 and ground.
+
+The 8-digit, 7-segment display bars I've seen usually come with the 0.1&mu;F cap already installed. Some MAX7219 application notes only use this single bypass cap. If you are experiencing odd behavior you can try adding the 10&mu;F capacitor as shown below.
 
 For more information on why and how bypass filters work see (ref [article](https://www.electronicdesign.com/power-management/power-supply/article/21808839/3-ways-to-reduce-powersupply-noise) or [video](https://www.youtube.com/watch?v=KKjHZpNMeik)).
  
@@ -295,7 +357,7 @@ For more information on why and how bypass filters work see (ref [article](https
 |:---:|:---:|
 |![Bypass Caps](Images/BypassCaps.png) | [<img src=Images/CapacitorSymbols.png />](https://www.ifixit.com/Wiki/Troubleshhoting_logic_board_components) 
 
-> *Note that some of the pre-assembled MAX LED packages may come with one or both of these bypass caps in place. My LEDs, like the ones picture above, came with the 100nF capacitor, and I added a 10uF cap, in parallel, at the same solder points. If you do this, make sure to probe which end of C1 is connected to ground to get the polarity right.*   
+> *My LED bars, like the ones picture above, came with the 100nF capacitor. If necessary, one can add a 10uF cap, in parallel, at the same solder points. If you do this, make sure to probe which end of C1 is connected to ground to get the polarity right.*   
 > | 100nF Cap| Added 10uF|
 > |---       |-----------|
 > |![Cap in Place](Images/C1.png) | ![10uF Cap](Images/10uF_CapSoldered2_300px.png)
@@ -436,6 +498,36 @@ const static byte charTable [] PROGMEM  = {
 
 <br>
 
+# **DIY MAX7219 Based Start Light Tree**
+This project supports using a custom MAX7219 based, LED tree as a start light for circuit style, and drag style racing. By using a MAX7219 we keep this tree compatible with the SPI bus used by the 7-segment display chain, and thus will require no extra pins to integrate into the system.
+
+The [Wiring Diagram](#wiring-diagram) for this project illustrates the wiring of this start tree for a 2 racers/lane track. If setting up a system with a different number of lanes, make sure the MAX start tree is the last device in the Racer timer LED display chain. The controller will assume that there is a timer display for each racer defined by the `LANE_COUNT` setting. If the system lane count is 3 or 4, but there are only 2 timer displays, and then the start tree, the start tree will light according to an expected 3rd racer timer display, instead of the intended pre-start countdown light.
+
+The start tree consists of 8 LEDs for each lane. From top to bottom should be wired 7 pairs, starting with 2 white LEDs to indicate Pre-Stage, and Staged phases of a race, then 3 amber LEDs that light up for the final 3 intervals before the race start, followed by a single green LED that lights upon start. Finally a red LED pair ends the column that alerts which lane triggered a fault. 2 additional blue LEDs can be wired that indicate which lane is the winner in a drag race. By default the timing of the interval for a **circuit race** pre-start, is **1.0 sec**, and for a **drag race**, the pre-start intervals change every **0.5 sec**.
+
+See the [Drag Racing Start Light Indicator](#drag-race-start-light-indicators) section for illustrations of the described setup.
+
+On bootup, and while in the `Menu` state, the 3 yellow pre-start, interval lights will be lit, indicating an idle system.
+
+![MAX Start Light](Images/MAX_LED_Start_Tree-full-w600px.png))
+
+<br>
+
+# **Adafruit Bi-Color Bargraph-24 as a Start Light**
+In place of, or addition to, a MAX7219 tree, this project also supports the use of an [Adafruit Bi-Color Bargraph-24, With I2C backpack kit](https://www.adafruit.com/product/1721) as a startlight. This start light is I2C compatible, and as such, can share the same pins as the main LCD display.
+
+The project [Wiring Diagram](#wiring-diagram) illustrates the Bargraph integration.
+  
+ - This is an I2C compatible, fully assembled LED light bar with 24 segments. Each segment has a Green, and a Red, LED, which can be lit to create red, yellow, or green.
+
+![Bootup Idle Bargraph-24](Images/Adafruit_Bargraph_FullAssy_800x100.png)
+
+***Assembly Note:** Being diodes, the assembly orientaiton of the LEDs is important. The Adafruit Bargraph typically comes dissassembled, and requires soldering. Be sure to follow the orientation indicated by the text on the PCB and LED bars.*
+
+![Bargraph Assy](Images/Adafruit_Bargraph-24_AssyGuide.png)
+
+<br>
+
 # **The Keypad**
 Using a full 4x4 membrane keypad is probably not needed for this project since the interface needs aren't too great, but these are readily available for only a couple dollars and facilitate an easy to use, and program, UI.
 They do, however, require 8 pins, but because of our pin savings on the displays we have enough available.
@@ -499,7 +591,8 @@ void loop(){
 
 <br>
 
-# **Lap/Gate Sensing**
+# **Lap/Gate Sensing** <a id="gate-sensing"></a>
+
 This project was originally designed for slot car racing, and as such, is a lane based controller. To detect a lap it makes use of a hardware feature of the microprocessor, called a ***Pin Change Interrupt***. When a signal pin's Change Interrupt is active, any signal change detected, within the processor's resolution, of any magnitude, will be considered a trigger.
 
 When a trigger occurs on a signal pin, a special immediately executing interrupt function, the `ISR()` will run. Within this function, the game controller will read, from the hardware registry, a single byte that represents the trigger state of every pin among an associated block of pins.
@@ -617,19 +710,17 @@ This is the ISR() for this project. It may seem a bit busy and long, but the act
 #### The implementation of the ISR() in this `RaceTimerAndController.ino`
 
 ```cpp
+volatile byte lastTriggeredPins = 0;
+
 // ISR is a special Arduino Macro or routine that handles interrupts ISR(vector, attributes)
 // PCINT1_vect handles pin change interrupt for the pin block A0-A5, represented in bit0-bit5
 // The execution time of this function should be as fast as possible as
 // interrupts are disabled while inside it.
 // This function takes approximately 0.004 - 0.180ms
+// Use vector 'PCINT1_vect' for ATmega328 based Arduino (ie Nano)
+// Use vector 'PCINT2_vect' for ATmega2560 based Arduino
+// 'PCINT_VECT' is defined in '...Settings.h' files
 ISR (PCINT1_vect) {   // for Nano
-// ISR (PCINT2_vect) {   // for Mega2560
-  // Note that millis() does not execute inside the ISR().
-  // It can be called, and used as the time of entry, but it does not continue to increment.
-  unsigned long logMillis = millis();
-
-  // MICROTIMING code used for assessing the ISR execution time.
-  // unsigned long logMicros = micros();
 
   // This code expects the lap sensors are setup as inputs.
   // This means the pins have been set to HIGH, indicated by a 1 on its register bit.
@@ -642,14 +733,39 @@ ISR (PCINT1_vect) {   // for Nano
   // pin A1 positive trigger indicated by zero on byte digit 2, PINC = 0xXXXXXX0X
   // pin A2 positive trigger indicated by zero on byte digit 3, PINC = 0xXXXXX0XX
   // pin A3 positive trigger indicated by zero on byte digit 4, PINC = 0xXXXX0XXX
-  
+ 
   // For analysis, it will work better to have our triggered bits as 1s.
   // To convert the zero based triggers above into 1s, we can simply flip each bit.
-  // Since we only need to check the 1st 4 bits, we'll also turn the last 4 bits to 0.
-  // Flip every bit by using ('BitsToFlip' xor 0b11111111)
-  // Then trim off the 4 highest bits with ('ByteToTrim' & 0b00001111)
-  byte triggeredPins = ((PINC xor 0b11111111) & 0b00001111);  // for Nano
-  // byte triggeredPins = ((PINK xor 0b11111111) & 0b00001111);  // for Mega2560
+  // Since we only need to check bits for wired lanes, we'll also turn everything elsse to 0.
+  // Flip every bit by using (PinPortRegsitryByte xor 0b11111111),
+  //     or using bitwise compliment operator (~PinPortRegsitryByte).
+  // Then trim off the unused 'high' bits, using the bitwise operator '&',
+  // of the result against the bit mask representing available lanes.
+  // If 'laneCount = 2', this would result in (~PinPortRegsitryByte & 0b00000011)
+  // If 'laneCount = 4', it would be (~PinPortRegsitryByte & 0b00001111)
+  triggeredPins = (~PINC & triggerClearMask);
+  // If the voltage drop, on close of a lap trigger switch, is too slight to cause pin to enter LOW state,
+  // or controller operation is too slow, the triggering switch may not still be in a LOW state.
+  // If this is the case then we just want to ignore the event as we won't know how to attribute it.
+  if (triggeredPins == 0) return;
+  
+  // Note that millis() does not execute inside the ISR().
+  // It can be called, and used as the time of entry, but it does not continue to increment.
+  unsigned long logMillis = millis();
+
+  // if still in pre-start, declare a fault and return the faulting lane triggers.
+  if (state == PreStart) {
+    // We need to debounce the fault trigger, like a regular trigger.
+    // Store fault trigger timestamp in the 1st element, ie the zero index, of the lastXMillis[] array.
+    if( ( logMillis - lastXMillis [0][0] ) > debounceTime ) {
+      // prevState = state;
+      state = PreFault;
+      // state = Fault;
+      lastTriggeredPins = triggeredPins;
+      lastXMillis [0][0] = logMillis;
+    }
+    return;
+  }
 
   // While the triggeredPins byte is > 0, one of the digits is a 1.
   // If after a check, triggerPins = 0, then there is no need to keep checking.
@@ -668,15 +784,16 @@ ISR (PCINT1_vect) {   // for Nano
           // If in StandBy, no need for debounce
           // Change lane status from 'StandBy' to 'Active'
           laneEnableStatus[ laneNum] = Active;
-          // log start time or restart time of lap
+          // log current ms timestamp as start time for racer's current lap.
           startMillis[ laneNum ] = logMillis;
           // If the first lap of race
           if(lapCount[ laneNum ] == 0) {
-            // Log timestamp into start log and lap timestamp tracking array (lastXMillis)
+            // Log current ms timestamp to racer's looping, temporary lap time que.
             lastXMillis[ laneNum ][0] = logMillis;
+            // Set current lap for triggering racer, to 1.
             lapCount[ laneNum ] = 1;
           } else {
-          // Else, if returning from Pause, we need to feed the new start time,
+            // Else, if returning from Pause, we need to feed the new start time,
             // into the previous lap index spot, and not index the current lapcount.
             lastXMillis [ laneNum ][(lapCount[ laneNum ] - 1) % lapMillisQSize] = logMillis;
             // DON'T index lapcount, we're restarting the current lap
@@ -688,10 +805,13 @@ ISR (PCINT1_vect) {   // for Nano
         case Active:{
           // If lane is 'Active' then check that it has not been previously triggerd within debounce period.
           if( ( logMillis - lastXMillis [ laneNum ] [(lapCount[ laneNum ]-1)%lapMillisQSize] ) > debounceTime ){
-            // Set lap display flash status to 1, indicating entry into the flash state for the lane.
+            // Set lap display flash status to 1, indicating that racer's lane data needs to be processed.
             flashStatus[ laneNum ] = 1;
+            // Log current ms timestamp to racer's looping, lap time, temporary que.
             lastXMillis [ laneNum ][lapCount[ laneNum ] % lapMillisQSize] = logMillis;
+            // log current ms timestamp as start time for racer's new lap.
             startMillis[ laneNum ] = logMillis;
+            // increase current lap by one (current lap = completed laps + 1)
             lapCount[ laneNum ] = lapCount[ laneNum ] + 1;
             Beep();
           }
@@ -722,18 +842,44 @@ ISR (PCINT1_vect) {   // for Nano
 
 ```
 
-# Sensor Options
+# **Sensor Options**
 In the breadboard layout and wiring diagram push buttons are used to simulate lap triggers. In practice, since essentially, any signal change, on the pin will be considered a gate trigger, a countless number of analog or digital triggering methods can be used. Anything from a homemade circuit completion trigger switch, to a motion detection IC, can be adapted for use with this project.
 
-It's not possible to review them all here. However, to provide some starting points, below is a brief list of potential switch options to consider or adapt.
+> ## **Drag Racing Sensor Setup**
+> By default the controller is configured to expect both a start and finish sensor for each drag race lane. The start sensor is used to detect false starts, and the finish sensor used to detect the winner. The start and finish sensors for a given lane should share the same input pin to the same Arduino.
+
+> For users who only have 1 set of sensors, the system can be configured to support drag racing with finish line sensors only. If set for finish sensors only, false starts will not be detectable.
+> - Set `SINGLE_DRAG_TRIGGER` to be `true` in `localSettings.h` to configure the controller for finish sensor only, drag racing.
+
+It's not possible to review possible sensor options. However, to provide some starting points, below is a brief list of potential switch options to consider or adapt.
+
+The [Drag-It-Anywhere track sensor page](https://dragitanywhere.com/track-sensors/) is also a good place to start.
 
 ## Mechanical Switches
 > **Custom Switch** - Any mechanical mechanism that closes a circuit can be used. The paper-clip switch from this project is a homemade example of this type of implementation.
 
 > **Sub-miniature Switch** - There are also various super small, pre-built, mechancial switch packages available. Often used as limiting switches in moving mechanical systems. Some are even small enough to potentially be integrated directly into a slot track groove.
 - Series MS Switches ([e-switch datasheet](https://sten-eswitch-13110800-production.s3.amazonaws.com/system/asset/product_line/data_sheet/124/MS.pdf)) ([digikey e-switch MS0850502F020S1A](https://www.digikey.com/en/products/detail/e-switch/MS0850502F020S1A/1628279))
-![Rigged Lap Counter](Images/submini_body.png)
-![Rigged Lap Counter](Images/submini_schematic.png)
+<br>
+
+<table>
+  <tr>
+    <th style="width:35%"></th>
+  </tr>
+  <tr>
+    <td>
+      Adafruit Bargraph fault on lane 2
+      <img src="Images/submini_body.png"  alt="1" Width="500px">
+    </td>
+    <td>
+      MAX-LED Tree fault on lane 2, just after 3rd amber interval
+      <img src="Images/submini_schematic.png"  alt="1">
+    </td>
+  </tr>
+</table>
+
+<!-- ![Rigged Lap Counter](Images/submini_body.png)
+![Rigged Lap Counter](Images/submini_schematic.png) -->
 ![Rigged Lap Counter](Images/submini_specs.png)
 
 
@@ -756,27 +902,33 @@ In the image below, two base paper clips, are wired with black leads to ground. 
 
 [Paperclip Sensor In Action](https://youtu.be/n0GLdoQ6pg4?t=135)
 
-![Rigged Lap Counter](Images/RiggedMechancialLapCounter.png)
-![Rigged Lap Counter](Images/pcswitch_withcar1.png)
-![Rigged Lap Counter](Images/pcswitch_withcar2.png)
-![Rigged Lap Counter](Images/pcswitch_withcar3.png)
+<img src="Images/RiggedMechancialLapCounter.png"  alt="Rigged Lap Counter1">
+<img src="Images/pcswitch_withcar1.png"  alt="Rigged Lap Counter2">
+<img src="Images/pcswitch_withcar2.png"  alt="Rigged Lap Counter3">
+<img src="Images/pcswitch_withcar3.png"  alt="Rigged Lap Counter4">
 
 <br>
 
-# **The Pause Button**  
-A pause button is included in this project to provide a means to temporarily suspend a race in progress and either quit, or restart when racers are ready to proceed.  
-- Pressing the pause button the first time will put the race into the `Paused` state.
-- Pressing the pause button a second time will return the race from the `Paused` state to the `Race` state.
-- Pressing the aterisk `*` key while in the `Paused` state will end the race and return the program to the `Menu` state.
+# **Analog Pause & Start Buttons**  
+This project includes two analog buttons that can be used to manage an active race. One button is designated as a `Pause` button, and the other as a `Start` button. These simple switches provide a seperation of race control from the main keypad, facilitating a more flexible system setup.
+### **The Pause Button**
+The `Pause` button is used to pause and restart an active race, and as an exit button, alternative to the `*` key, from the `PreStage` or `Finished` states, or to clear a `Fault`. 
+- During a live race, pressing the `Pause` button will put the race into the `Paused` state, suspending race activity.
+- While in a `Paused` state, pressing the `Pause` button will return to the active `Race` state, or `PreStart` countdown depending on the system configuration.
+- Pressing `Pause` while in the `Staging` state (ie Pre-Stage race phase), will exit the race and return the system to the `Menu` state.
+- Pressing `Pause` while in a `Fault` state will clear the fault and return the system to the `Staged` state.
+- After a drag race heat is finished, pressing `Pause` from the drag heat result screen, will exit the race and return the system to the `Menu` state.
 
-A restart is the same as an initial race start except that each racer will be on the lap count they left off with. Each racer must cross the start line to re-initiate the timing of the incomplete lap they were last on.
+### **The Start Button**
+The `Start` button's primary function is to provide a means to initiate a race start from a location remote from the keypad. This is most useful for a drag race setup where start timing is a critical aspect of the race.
+- Pressing `Start` from the race Pre-Stage screen (ie in the `Staging` state) will initiate a race with the appropriate pre-start countdown.
+- Pressing `Start` while in a `Fault` state will clear the fault and return the system to the `Staged` state.
+- After a drag race heat is finished, pressing `Start` from the drag heat result screen, will return the system to the `Staged` state ready for the next heat.
 
-![LED Pause Displays](Images/LED_PauseScreens.png)
+## **Using Pins A6 & A7 as Buttons**
+For wiring a `Pause` and `Start` button, the pins we have available are, A6 and A7. Unlink the othe pins we have been using, these pins don't have an internal pull-up resistor built into the Arduino. Also, these pins can only be used as analog inputs.
 
-## **Using A6 as a Button**
-The only pins left available for the Pause button are A6 or A7. These pins are different than all the others, they do not have internal pull-up resistors and can only be used as an analog input.
-
-In order to use `A6` as a button trigger we must add our own external Pull-Up resistor, as illustrated in the project wiring diagram, and explained in [this article](https://roboticsbackend.com/arduino-input_pullup-pinmode/). Like the keypad, to detect a press we must then pole the button. In this case, since it's not digital, we must asses the analog input value. If the value is lower than a set threshold then we consider it pressed.
+In order to use them as button triggers we must add our own external Pull-Up resistors, as illustrated in the project wiring diagram, and explained in [this article](https://roboticsbackend.com/arduino-input_pullup-pinmode/). Like the keypad, to detect a press we must then pole the buttons to know if they've been pressed. In this case, since we are using analog, our input will not be just HIGH or LOW, but some value between the maximum switch voltage and zero. If the value is lower than a set threshold then we consider it pressed.
 
 ```cpp
 const byte pauseStopPin = PIN_A6;
@@ -1247,32 +1399,53 @@ At this time, this will not stop a victory song playing, while the system is in 
 
 ---
 # **Race Controller Operation**
-## Main Menu
-When the controller boots up it will display the main menu screen. This is a simple system, so the menu layer is only one layer deep from here. Pressing the corresponding keys on the attached keypad will navigate the menu structure and allow input for changing settings.
-![main menu](Images/ScreenShots/Main_Menu.png)
+## **Main Menu Navigation**
+When the controller boots up it will display the **Main Menu** screen. Use the keypad to enter selections and navigate the menus.
 
+### **Idle - Main Menu**
 ---
+<img src="Images/ScreenShots/Main_Menu.png"  alt="1" width="600px">
+
+In the **Menu State**, the lane's lap time displays, will indicate the assigned racer name, and any attached start lights will illuminate amber lights.
+
+![Idle Racer displays](Images/RacerLED-Idle_800x100.png)
+
+<table>
+  <tr>
+    <td> Bargraph in Idle Menu State</td>
+    <td> MAX-LED Tree in Idle Menu State</td>
+  </tr>
+  <tr>
+    <td> <img src="Images/Adafruit_Bargraph-24_Yellow_600x125.png"  alt="1"></td>
+    <td><img src="Images/MAX_Idle_600x150.png"  alt="1"></td>
+  </tr>
+</table>
+
 > **Asterisk Key\***
 >   - In all sub-menus, the `*` key will exit back to the main menu.
 >   - During a live race, if the race is in the 'Paused' state, pressing `*` will end the race and open the **Top Results Menu**.
----
+<br>
 
-## Main Menu -> A| Select Racers
+<br>
+
+### **Main Menu -> A| Select Racers**
+---
 Pressing the `A` key, from the main menu will go to the **Select Racers Menu**. On this menu, selecting the key corresponding to the racer will cycle through the available names and play a sample of the victory song associated to the selected name.
   - Racer names and victory songs are a defined in `defaultSettings.h`.
   > To the change list of names & songs used, uncomment, and edit the `RACER_NAMES_LIST` and `RACER_SONGS_LIST` setting in your `localSettings.h` file.
 
-  > Make sure that the number of names & songs in the new lists equal the set `RACER_LIST_SIZE`.
-
-  > Remember that the timer LED bars will not display certain characters, when choosing racer names.
+  > Remember that the 7-segnent, timer LED bars will not display certain characters, when choosing racer names.
   - Two racers cannot have the same name.
   - **Disabled Lanes** - If a lane sensor is disabled then it will show up as `-Off-` in the Select Racers menu. To select a name for a disabled racer, go to the **Settings Menu**, and enable the desired lanes, then return to this menu.
   - Press `#` any time to stop victory song sample playing.
   - Press `*` to return to the **Main Menu**.
 
-![Racers menu](Images/ScreenShots/SelectRacers_Menu.png)
+<img src="Images/ScreenShots/SelectRacers_Menu.png"  alt="1" width="600px">
+<br>
+<br>
 
-## Main Menu -> B| Change Settings
+### **Main Menu -> B| Change Settings**
+---
 Pressing the `B` key, from the main menu will bring up the **Settings Menu**. On this menu the general race settings can be adjusted.
 - **Change Audio Mode** - Press `A`, to toggle through the available audio modes. The default mode is 'AllOn' with game and music audio both active. The 2nd toggled mode is 'GameOnly' where only UI feedback and lap trigger beeps and boops are active, but the music audio is turned off. The final audio mode is 'Mute' where all audio is turned '-OFF-'.
 - **Change Race Time** - Press `B`, to activate edit mode, then use keypad numbers to enter mm:ss. Race time is only used in a 'Timed' race type, where the winner is the one who finishes the most laps in the set amount of time.
@@ -1280,58 +1453,365 @@ Pressing the `B` key, from the main menu will bring up the **Settings Menu**. On
 - **Enable/Disable Lanes** - Pressing `1-4` will toggle the enabled status of the selected lane/racer number. Pressing `0` will disable all of the lanes/racers.
 - Press `*` to return to the **Main Menu**.
 
-![Settings Menu](Images/ScreenShots/Settings_Menu.png)
+<img src="Images/ScreenShots/Settings_Menu.png"  alt="1" width="600px">
+<br>
+<br>
 
-## Main Menu -> C| Start a Race
-Pressing `C` from the Main Menu will bring up the **Race Start Menu**. From this menu we can start one of the two types of races.
-  - Pressing `A` will begin a 'Standard', first to finish X laps, race.
-  - Pressing `B` will begin a 'Timed', most laps before time runs out, race.
+### **Main Menu -> C| Start a Race**
+---
+Pressing `C` from the Main Menu will bring up the **Race Start Menu**. From this menu we can start a new race, and/or edit the pre-start countdown time for a **Lap** or **Timed** race.
+  - Pressing `A` will begin a **Standard**, first to finish X laps, race.
+  - Pressing `B` will begin a **Timed**, most laps before time runs out, race.
+  - Pressing `C` will begin a **Drag** race.
   - Pressing `D` to activate edit, then use number pad to change the number of seconds the pre-start countdown lasts (0-30).
   - Press `*` to return to the **Main Menu**.
 
-![Start Race Menu](Images/ScreenShots/StartRace_Menu.png)
+<img src="Images/ScreenShots/V2_Start_A_Race_1150x400.png"  alt="1" width="600px">
+<br>
+<br>
 
-## Pre-Start Countdown
-When a race is started it begins with a pre-start countdown. This countdown gives racers time to get to positions before the race begins.
-![Prestart Menu](Images/ScreenShots/PrestartCountdown.png)
-During the final 3 seconds of the countdown the remaining seconds will be displayed on the individual racer's LED bars. Once the pre-start countdown expires, the racer's timers will display `Start`. Though the overall race time begins immediately, timing of each racer's first lap won't begin until they cross the start line for the first time.
+### **Main Menu -> D| See Results**
+---
+**No Data** - Pressing `D` from the Main Menu will bring up the **Results Menu**. Initially, on bootup, before a race is run there are no results to display.
 
-![Prestart LEDs](Images/PreStart_Countdown.png)
-
-## Live Race Leader Board
-During the race the main display will show the live Leader board on which is the running race time, the current 1st-3rd place lap count and racer names, and the current overall fastest lap time and racer who achieved it.
-![Leader Board Menu](Images/ScreenShots/LiveLeaderBoard.png)
-
-
-## Main Menu -> D| See Results  
-Pressing `D` from the Main Menu will bring up the **Results Menu**. Initially, on bootup, before a race is run there are no results to display.
-
-![No Results Menu](Images/ScreenShots/NoResults_Menu.png)
+<img src="Images/ScreenShots/NoResults_Menu.png"  alt="1" width="300px">
+<br>
+<br>
 
 After a race has finished (or paused and stopped), and lap data for racers exists, entering the Results Menu will give access to the lap time data recorded from the last race.
 
-![Top Results Menu](Images/ScreenShots/TopResults_Menu.png)
-
-Due to memory limits, depending how long a race is, we cannot store data for every lap, of every racer. Instead we keep a running record of just the top X fastest laps for each racer. This is set to 10 by default.
-
-Implementers can adjust the number of stored laps by editing the `DEFAULT_MAX_STORED_LAPS` setting in `localSettings.h`. Setting this number too high can lead to instability and controller failure, due to memory overruns.
-
-Pressing `A` or `B` on any of the fastest lap lists will scroll up or down the list respectively.
-
-![Top Results Scrolled](Images/ScreenShots/TopResults_ScrolledDown_Menu.png)
-
 Pressing `C` will cycle through the available results sub-menus. There is a results list page for the top overall laps, a page for each, individual, racer's top laps, and a page that displays the final leader board.
 
-On the individual racer pages, the completed lap total, and total time it took the racer to finish them, is displayed at the lower right of the screen. This results page blinks between an A-text and B-text phase. During the A-text phase, the title will show the Racer# ID, and the total finish time. During the B-text phase, the title will show the racer's name, and the completed lap total.
-The rate the individual results pages blink between A and B phase text can be set by editing the `RESULTS_RACER_BLINK` setting in the localSettings.h file.
+<!-- <img src="Images/ScreenShots/TopResults_Menu.png"  alt="1" width="600px">
+<br>
+<br> -->
 
-Pressing `*` will return to the **Main Menu** for next race.
-![Racer1 Results Menu](Images/ScreenShots/Racer1Results_Menu.png)
-![Racer1 Results ScrollDown](Images/ScreenShots/Racer1Results_ScrollDown.png)
-![Finish Results Menu](Images/ScreenShots/FinishResults_Menu.png)
+**Top Results** - Due to memory limits, depending how long a race is, we cannot store data for every lap, of every racer. Instead we keep a running record of just the top X fastest laps for each racer.
+
+- Implementers can adjust the number of stored laps by editing the `DEFAULT_MAX_STORED_LAPS` setting in `localSettings.h`. Setting this number too high can lead to instability and controller failure, due to memory overruns.
+
+- Pressing `A` or `B` on any of the fastest lap lists will scroll up or down the list respectively.
+
+<!-- <img src="Images/ScreenShots/TopResults_ScrolledDown_Menu.png"  alt="1" width="600px">
+<br>
+<br> -->
+
+<table>
+  <tr>
+    <td> </td>
+    <td> </td>
+  </tr>
+  <tr>
+    <td> <img src="Images/ScreenShots/TopResults_Menu.png"  alt="1"></td>
+    <td><img src="Images/ScreenShots/TopResults_ScrolledDown_Menu.png"  alt="1"></td>
+  </tr>
+</table>
 
 
-# Customizing UI Text and General Controller Settings
+
+**Racer Result Pages** - Cycling from the **Top Results** will index through the individual, top fastest results, for each racer. On individual racer result pages, the completed lap total, and total time it took the racer to finish them, is displayed at the lower right of the screen. This results page blinks between an A-text and B-text phase. During the A-text phase, the title will show the Racer# ID, and the total finish time. During the B-text phase, the title will show the racer's name, and the completed lap total.
+
+- The rate the individual results pages blink between A and B phase text can be set by editing the `RESULTS_RACER_BLINK` setting in the localSettings.h file.
+
+- Pressing `*` will return to the **Main Menu** for next race.
+<table>
+  <tr>
+    <td> A-text</td>
+    <td> B-text</td>
+  </tr>
+  <tr>
+    <td> <img src="Images/ScreenShots/Racer1Results_Menu.png"  alt="1"></td>
+    <td><img src="Images/ScreenShots/Racer1Results_ScrollDown.png"  alt="1"></td>
+  </tr>
+</table>
+
+**Final Leaderboard** - The last results page displays the final finishing leaderboard and the fastest overall lap.
+
+<img src="Images/ScreenShots/FinishResults_Menu.png"  alt="1" width="600px">
+<br>
+<br>
+
+# **Racing**
+As of Ver2.0+, this controller supports two types of racing formats, circuit racing (repeating laps), and drag racing (two point sprint). In most ways, the general operation is the same, however, there are some minor differences in the starting pattern and indicator timing, as well as a special finish screen for drag racing.
+
+## **Pre-Stage**
+After choosing a race from the [Start a Race](#main-menu---c-start-a-race) screen, the system will enter the Pre-Stage phase, instructing racers to get into starting positions. Once racers are ready, declare cars **Staged** by triggering a race start, which will initiate the pre-start countdown. 
+
+- Pressing the `#` key, or the optional, analog `Start` button, will initiate the race pre-start countdown.
+- Pressing the `*` key, or the anaog `Pause` button, will exit back to the main menu.
+
+<img src="Images/ScreenShots/V2_Pre-Stage_1150x400.png" alt="2" width="600px">
+
+**Pre-Stage Indicators:** Upon entering the **Pre-Stage**, the Pre-Stage indicator LEDs will illuminate.
+   
+
+<table>
+  <tr>
+    <td>Bargraph all races types</td>
+    <td>MAX-LED Tree all races types</td>
+  </tr>
+  <tr>
+    <td> <img src="Images/Adafruit_Bargraph-24_pre-stage_600x125.png"  alt="1"></td>
+    <td><img src="Images/MAX_Pre-Stage_600x150.png"  alt="1"></td>
+  </tr>
+</table>
+
+- ***Circuit Race Pre-Stage:*** For Lap or Timed races, the racer displays will continue to display the assigned racer names.
+
+    <img src="Images/RacerLED-Idle_800x100.png" alt="2" width="500px">
+
+- ***Drag Race Pre-Stage:***  For drag racing, the racer displays will switch to using labels **Lanee 1** & **Lane 2**.
+
+    <img src="Images/RacerLED-DragPreStage_800x100.png" alt="2" width="500px">
+
+<br>
+
+## **Staged/Pre-Start Countdown**
+When a race start has been triggered, the pre-start countdown begins. Lap sensors are now active and crossing start before the pre-start countdown is complete, will trigger a fault.
+
+**Staged Indicators:** The illumination of the **'Staged'** indicators signifies the beginning of the Pre-Start countdown.
+
+
+<table>
+  <tr>
+    <td>Racer Display Drag Race</td>
+    <td>Bargraph Lap or Timed</td>
+    <td>Bargraph Drag Race</td>
+    <td>MAX-LED Tree, all races</td>
+  </tr>
+  <tr>
+    <td>
+      <img src="Images/RacerLED-Drag_Ready_Prestart_600x150.png">
+    </td>
+    <td>
+      <img src="Images/Adafruit_Bargraph-24_Red_600x125.png">
+    </td>
+    <td>
+      <img src="Images/Adafruit_Bargraph-24_drag_staged_600x125.png">
+    </td>
+    <td>
+      <img src="Images/MAX_Staged_600x150.png">
+    </td>
+  </tr>
+</table>
+
+
+**Circuit Race Pre-Start Countdown:** For a **Lap** or **Timed** race, the  pre-start countdown duration will equal the countdown time set in the 'Start a Race' menu. Throughout the countdown, the remaining time is updated live to the Main LCD.
+
+<table>
+  <tr>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>
+      <img src="Images/ScreenShots/V2_Start_A_Race_1150x400.png">
+    </td>
+    <td>
+      <img src="Images/ScreenShots/PrestartCountdown.png">
+    </td>
+  </tr>
+</table>
+<!-- <img src="Images/ScreenShots/V2_Start_A_Race_1150x400.png"  alt="1" width="600px">
+<img src="Images/ScreenShots/PrestartCountdown.png" alt="2" width="300px"> -->
+
+**Drag Race Pre-Start Countdown:**  For a **Drag** race the pre-start time is randomized to be between 4 and 7 sec. and the remaining time is unknown until the final interval indicators begin to illuminate. However, alerts of 'Ready', 'Set', 'Go!', will be printed to the main LCD in conjunction with the inition of the pre-start countdown, the 1st amber interval, and race start, respectively.
+
+
+<table>
+  <tr>
+    <td>On initiation of Drag race pre-start </td>
+    <td>On 1st amber interval </td>
+    <td>On drag race start </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="Images/ScreenShots/V2_DragRace_Staged_1150x400.png">
+    </td>
+    <td>
+      <img src="Images/ScreenShots/V2_DragRace_Set_1150x400.png">
+    </td>
+    <td>
+      <img src="Images/ScreenShots/V2_DragRace_Go_1150x400.png">
+    </td>
+  </tr>
+</table>
+
+
+### **Pre-Start Countdown Final Intervals**
+In the final seconds of the pre-start countdown, 3 amber indicators will light up in succession.
+-  ***Circuit Race Final Intervals:*** For a **Lap** or **Timed** race, the first amber light will illuminate with **3 sec** remaining in the pre-start countdown, changing on a **1.0 sec** intervals.
+<table>
+  <tr>
+    <td>
+      <img src="Images/Racer_Display_333_600x150.png">
+    </td>
+    <td>
+      <img src="Images/Racer_Display_222_600x150.png">
+    </td>
+    <td>
+      <img src="Images/Racer_Display_111_600x150.png">
+    </td>
+    <td>
+      <img src="Images/Racer_Display_Start_600x150.png">
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="Images/MAX_1st_Interval_600x150.png">
+    </td>
+    <td>
+      <img src="Images/MAX_2nd_Interval_600x150.png">
+    </td>
+    <td>
+      <img src="Images/MAX_3rd_Interval_600x150.png">
+    </td>
+    <td>
+      <img src="Images/MAX_Start_600x150.png">
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="Images/Adafruit_Bargraph-24_circuit_1st_interval_600x125.png">
+    </td>
+    <td>
+      <img src="Images/Adafruit_Bargraph-24_circuit_2nd_interval_600x125.png">
+    </td>
+    <td>
+      <img src="Images/Adafruit_Bargraph-24_Yellow_600x125.png">
+    </td>
+    <td>
+      <img src="Images/Adafruit_Bargraph-24_Green_600x125.png">
+    </td>
+  </tr>
+</table>
+
+
+- ***Drag Race Final Intervals:*** For a **Drag** race, the first amber light will illuminate with **1.5 sec** remaining in the pre-start countdown, changing on a **0.5 sec** intervals.
+
+<table>
+  <tr>
+    <td>
+      <img src="Images/RacerLED-Drag_Interval1_Prestart_600x150.png">
+    </td>
+    <td>
+      <img src="Images/RacerLED-Drag_Interval2_Prestart_600x150.png">
+    </td>
+    <td>
+      <img src="Images/RacerLED-Drag_Interval3_Prestart_600x150.png">
+    </td>
+    <td>
+      <img src="Images/RacerLED-Drag_Immediate_Timer_Start_600x150.png">
+    </td>
+  </tr>
+    <td>
+      <img src="Images/MAX_1st_Interval_600x150.png">
+    </td>
+    <td>
+      <img src="Images/MAX_2nd_Interval_600x150.png">
+    </td>
+    <td>
+      <img src="Images/MAX_3rd_Interval_600x150.png">
+    </td>
+    <td>
+      <img src="Images/MAX_Start_600x150.png">
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="Images/Adafruit_Bargraph-24_drag_1st_interval_600x125.png">
+    </td>
+    <td>
+      <img src="Images/Adafruit_Bargraph-24_drag_2nd_interval_600x125.png">
+    </td>
+    <td>
+      <img src="Images/Adafruit_Bargraph-24_drag_3rd_interval_600x125.png">
+    </td>
+    <td>
+      <img src="Images/Adafruit_Bargraph-24_Green_600x125.png">
+    </td>
+  </tr>
+  <tr>
+</table>
+
+## **Start Faults**
+If a racer crosses the start line before the Pre-Start countdown has finished, a fault will be thrown. The first offending racer will identified on the main LCD, as well as by the red fault indicator LED, associated with that lane.
+- Pressing the `*` or `#` key, or pressing either the analog `Pause` or `Start` button will clear the fault, and return the system to the `Pre-Stage` of the race.
+
+
+<table>
+  <tr>
+    <td>Adafruit Bargraph fault on lane 2<img src="Images/Adafruit_Bargraph-24_Fault_Lane2_600x125.png"  alt="1" Width="500px"></td>
+    <td>MAX-LED Tree fault on lane 2, just after 3rd amber interval<img src="Images/MAX_Fault_during_3rd_Interval_600x150.png"  alt="1"></td>
+  </tr>
+</table>
+
+---
+## **During a Race**
+During a race, the controller will monitor lap triggers and update the race state accordigly. The race will continue until a finishing condition is detected or the race is Paused. From the Paused state, a race can either be restarted, or quit, exiting back to the Main Menu.
+
+### **Circuit Race Live Race Leader Board**
+During a standard **Lap** or **Timed** race, the main LCD will display the elapsed race time, the current 1st-3rd place lap count and racer names, and the current overall fastest lap time and racer who achieved it.
+<img src="Images/ScreenShots/LiveLeaderBoard.png"  alt="1" Width="500px">
+
+### **Live Race Racer Displays**
+During a live race, the 7-segment, racer displays will show the current lap, and lap time for each active racer/lane. If it is a **Lap** or **Timed** race, whenever a racer completes a lap, the just finished lap number & lap time are briefly, "flashed" to the racer display for a couple seconds, before the returning to the running live lap time updates. In a drag race, there is no flash period, and the racer displays will always show the live running/completed heat time for each lane.
+
+<table>
+  <tr>
+    <td>Racer is on lap 4, with a lap time of 2.9sec and running.</td>
+    <td>Lap 2 was just completed in 4.436 sec.</td>
+  <tr>
+    <td><img src="Images/Racer_Display_running_LapTime_600x150.png"  alt="1"></td>
+    <td><img src="Images/Racer_Display_flash_LapTime_600x150.png"  alt="1"></td>
+  </tr>
+</table>
+
+### **Pausing a Race**
+A race can be paused by pressing the [analog `Pause` button](#the-pause-button). Pressing `Pause` button again, while in the **Paused** state, will restart the race. A restart is the same as an initial race start except that each racer will be on the lap count they left off with. Each racer must cross the start line to re-initiate the timing of the incomplete lap they were on, at the time of the initial pause.
+
+<table>
+  <tr>
+    <td>At 3.7 secs into lap 4, then lap is paused</td>
+    <td>On restart, lap 4 must be re-triggered, and re-timed</td>
+  </tr>
+  <tr>
+    <td><img src="Images/LED_Pause_800x325.png"  alt="1"></td>
+    <td><img src="Images/LED_Pause_Restart_800x325.png"  alt="1"></td>
+  </tr>
+</table>
+
+**Restart Countdown** - For a pause restart, the controller can be configured to restart the race immediately, or to restart with a pre-start countdown, identical to the initial race pre-start countdown. By default, the system is configured to restart immediately.
+- Modify the `CTDWN_ON_RESTART` setting in `localSettings.h` to be `true` to configure the system to use a countdown on restart.
+
+<br>
+
+## **Finishing/Winning a Race**
+When the controller detects a finishing condition it will process the finishing racer's place and the overall state of the race. For a **Lap** or **Timed** race, the racer's place will be logged up to their racer display. For a **Drag** race, the winning lane is labeled on the main LCD, and the associated winner LED is lit, if a start light is connected.
+- **Circuit Race (Total Laps)** - Race ends when all racers have completed the set number of laps. Finishing place of each racer is logged to the final leaderboard and designated 7-segment racer display.
+
+    <img src="Images/Racer_Display_1stLucien_600x150.png"  alt="1" Width="300px">
+
+- **Circuit Race (Timed)** - Race ends when the race time reaches zero. Racer places are determined by who finished the most laps the quickest, and results are posted to the racer LEDs, and final leaderboard.
+- **Drag Race** - A drag heat ends when both racers have finished the heat, or the `DRAG_HEAT_TIMEOUT` has been exceeded. The 1st racer to cross the finish line is declared the winner.
+
+**Drag Race Finishing Indicators and Results Screen**
+<table>
+  <tr>
+    <td>Adafruit Bargraph Indication of Winner on lane 2<img src="Images/Adafruit_Bargraph-24_Winner_Lane2_600x125.png"  alt="1" Width="500px"></td>
+    <td>MAX-LED Tree Indication of Winner on lane 2<img src="Images/MAX_DragWin_Lane2_600x150.png"  alt="1"></td>
+  </tr>
+</table>
+
+**Drag Race Heats:** - When a drag race is over, the times for each lane are displayed on the main LCD, with an indication of the winner. To facilitate a quick cycling of heats, users can navigate directly to the pre-stage or the next heat, or exit to the **Main Menu**.
+
+- Pressing the `#` key, or the optional, analog `Start` button, will navigate the system directly to the **Pre-Stage** for the next heat.
+- Pressing the `*` key, or the analog `Pause` button, will exit back to the **Main Menu**.
+<img src="Images/V2_DragRace_Winner_Lane2_1150x400.png"  alt="1" Width="500px">
+
+<br>
+
+# **Customizing UI Text and General Controller Settings**
 To accommodate user customization of menus and preferred games settings, this project can make use of a `localSettings.h` file, in which users can make, and store customizations, without editing the main code base. By default, the controller will use settings established in the `defaultSettings.h` file, but if the same setting is loaded from the `localSettings.h` file, the `localSettings.h` setting will be used instead.
 
 To make use of a `localSettings.h` file:

@@ -58,6 +58,11 @@
   #define DEBOUNCE 500
 #endif
 
+// Drag race timeout in seconds, max 255
+#if !defined ( DRAG_HEAT_TIMEOUT )
+  #define DRAG_HEAT_TIMEOUT 10
+#endif
+
 // set the default number of laps used for a standard race
 #if !defined ( DEFAULT_LAPS )
   #define DEFAULT_LAPS 10
@@ -88,6 +93,18 @@
   #define START_LIGHT_OFF_DELAY 2000
 #endif
 
+// Setting Drag Race pre-start countdown range
+// Minimum time (seconds) for Drag Pre-Start countdown (Do not set below 2sec)
+#if !defined ( DRAG_PRESTART_CNTDWN_BASE )
+  #define DRAG_PRESTART_CNTDWN_BASE 4
+#endif
+// Range of random time added to drag race pre-start countdown.
+// Calculated by taking a modulo of the current ms clock time:
+// millis() % DRAG_PRESTART_RNDM
+// The result will be a whole number between 0 and DRAG_PRESTART_RNDM
+#if !defined ( DRAG_PRESTART_RNDM )
+  #define DRAG_PRESTART_RNDM 3
+#endif
 
 // Lane/Racer's associated with which pin and interrupt byte mask pairs
 // !!!! ALWAYS define 4 lanes, regardless of 'LANE_COUNT'.
@@ -117,15 +134,10 @@
 #endif
 
 
-// --------- NO LONGER USED ---------
-// Default enabled status of lanes on bootup
-// To disabled laneX, enter 'Off' (case sensitive, no quotes) in matching index=X
-// To enable laneX, enter 'StandBy' (case sensitive, no quotes) in matching index=X
-// 1st term is index=0, array should always have 5 terms (laneCount + 1)
-// #if !defined ( DEFAULT_LANES_ENABLED )
-//   #define DEFAULT_LANES_ENABLED { Off, StandBy, StandBy, Off, Off }
-// #endif
-
+// I2C Address for Adafruit LED Bargraph
+#if !defined ( BARGRAPH_I2C_ADDRESS )
+  #define BARGRAPH_I2C_ADDRESS 0x70
+#endif
 
 
 // Pin used for the pause button

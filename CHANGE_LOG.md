@@ -9,24 +9,32 @@ Ver. ##.##.## - Major.Minor.Patch
 - **Patch version #** - Increments when update is a bug fix, refactoring, or new data constant (like a song & custom ch arrays), as well as on updates to non functional aspects of the code repo, like documentation.
 
 
-## Ver 2.0.0 - Added Drag Racing and Fixed Major Pause Button bug
-> This update is a significant update to the code. Though technically, this code is backward compatible with the same hardware setup as version, 1.x, the code base infrastructure has significantly change in places, and internal variable sonsistency is broeken from earlier versions.
+## Ver 2.0.0 - Added Drag Racing & Start Button, Pause Button Debounce Bug Fix
+> This update is a significant update to the code. Though technically, this code is backward compatible with the same hardware setup as version, 1.x, the code base infrastructure has significant changes, and internal variable consistency is broken from earlier versions.
 > 
 > **Updates from Previous Commit**
 >
 > New Features/Enhancements
-> - Added 3rd RaceType 'Drag Racing'
-> - Moved LCD and LED pin-out and parameters to be `...Settings.h` macros
-> - Choosing a race type from the **Select Race** menu now moves the system into a `Staging` state instead of initiating the pre-start countdown. This was added primarily to accommodate rapid restarts of success drag racing heats, but is also useful for circuit racing allowing the system menu to be in a different area than a race start trigger/button.
-> - A new **Start** buttton has been added, setup as an analog read on `PIN_A7`. This is wired, and handled exactly the same way as the `PIN_A6`, **Pause** button.
-> - A new **Fault** state has been created to support drag racing mode, but is also now used in the circuit modes as well. Previously the lap trigger interrupts were not turned on before the initiation of a racers first lap, so a fault was impossible. Now, crossing the start before the end of the pre-start countdown will trigger a fault for all race modes. Pressing the **Pause** or **Start** button will clear the fault and return to the `Staging` state.
+> - **Drag Racing Support** - This Race Controller now supports Drag Racing on lanes 1 & 2, with a new 'Drag Race' option, selectable from the 'Start a Race' menu. Drag racing can be setup with a single set of finish sensors, or with 2 sets of sensors, 1 at start, and 1 at finish. With only finish sensors, racers must make there own call on false starts. By default, the controller will expect a start and a finish sensor in each lane. Sensor configuration can be changed by editing the `SINGLE_DRAG_TRIGGER`flag in `localSettings.h`.
+> NOTE: The number of sensors does not change the pin assignments. Both the start and finish sensors for a given lane should be wired as open switches on the same pin.
+> - **Race Pre-Stage** - Previously, the race pre-start countdown started immediately after selecting a race type from the **Start a Race Menu**. Now, a 'Pre-Stage' has been added alerting racers to get to starting positions. When all racers are ready, the race can then be started by pressing the '#' key or the new **Start Button**.
+>     - This extra phase facilitates rapid restarts of heats in drag racing.
+>     - Also, coupled with adding a **Start Button**, the Pre-Stage allows for a more flexible system setup. Being able to start the race from a button allows the starter and controller's main keypad to be in different locations.
+> - **Adafruit Bargraph** - The system now supports using an [Adafruit 24 Bi-Color LED Bargraph](https://www.adafruit.com/product/1721) as a start light tree and general race state indicator. The bargraph uses I2C and should be wired, sharing the same pins as the main LCD display.
+> - **MAX7219 LED Start Light Tree** - The system now supports using a DIY, MAX7219 based, custom LED start light. The start light should be wired as the last device in the racer LED bar chain. The system will assume that the number of 7-seg race timers will equal the number of racers defiend by `LANE_COUNT`. As such it will assume the start light will be at device index `LANE_COUNT`, since device indexing starts with 0. See the project documentation for how to build the start light.
+> - **Start Button** - Support for a 2nd analog buttton has been added. This button can used to trigger a race start, or restart, as well as clear start faults. The hardware wiring, and setup, mirrors the analog **Pause Button**. By default, the **Start Button** uses `PIN_A7`, but that can be changed using the `localSettings.h` file.
+> - **Start Fault** - Previously with only circuit racing modes, the lap sensing pins were disabled until the race started. Now, lap triggers are enabled at the initiaton of the **Pre-Start** stage and crossing the start before the end of the  **Pre-Start** countdown will trigger a fault in all race modes. The offending racer/lane will be displayed on the main LCD and the associated lane's fault indicator LED, on start light tree, will light. Pressing the **Pause** or **Start** button, or the `#` or `*` key, will clear the fault and return to the `Staging` state.
+> - **Song Association** - Users can now use the `SONGS_BY_PLACE` flag in `localSettings.h` to specify if the `RACERS_SONGS_LIST` should be associated with a place finish or with a particular racer. By default, songs are associated with racers, however, by setting `SONGS_BY_PLACE` to `true`, the song at index 1 will play when the 1st place finishes, the song at index 2 will play when the 2nd racer finishes, and so on.
+> - **Restart Countdown** - Users can now use the `CTDWN_ON_RESTART` flag in `localSettings.h` to specify whether restarts after a pause, should start right away or if it should restart with a pre-start countdown.
 >
 > Bug Fixes
-> - MAJOR BUG FIX - Pause button debouncing was not properly filtering the debounce time because the time was being tracked by an `int` variable instead of an `usinged long` which caused an error in the debounce calc, effectively nullifying it.
+> - MAJOR BUG FIX - Pause button debouncing was not properly filtering the debounce time because the time was being tracked by an `int` variable instead of an `usinged long` which caused an error in the debounce calculation, effectively nullifying it.
 >
-> Major Code Changes
+> Notable Code Changes
 > - All enums have been moved to a seperate file and imported into the main .ino. This forces the compiler to look at those first, making them available to be used in function definitions without throwing a compiler error.
-> - New states have been created, `PreStart`, `Staging`, `Fault`, and `Finished`, to better manage system status flow.
+> - New states have been created, `PreStart`, `Staging`, `Fault`, `PreFault`, and `Finished`, to better manage system status flow.
+> - The need for `topFastestLaps[]` and `topFastestTimes[]` has been eliminated and their function rolled into the, previously unused, zero index of the main `fastestLaps[0][0]` and `fastestTimes[0][0]` arrays used by the racers.
+> - Moved LCD and LED pin-outs and parameters to be `...Settings.h` macros
 ________________________
 
 ## Ver 1.1.0 - Implementation of Adjustable Lane Count

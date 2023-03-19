@@ -72,6 +72,19 @@
 // #define START_LIGHT_OFF_DELAY 2000
 
 
+
+// // Setting Drag Race pre-start countdown range
+// // Minimum time (seconds) for Drag Pre-Start countdown (Do not set below 2sec)
+// #define DRAG_PRESTART_CNTDWN_BASE 2
+// // Range of random time added to drag race pre-start countdown.
+// // Calculated by taking a modulo of the current ms clock time:
+// // millis() % DRAG_PRESTART_RNDM
+// // The result will be a whole number between 0 and DRAG_PRESTART_RNDM
+// #define DRAG_PRESTART_RNDM 5
+
+
+
+
 // // Lane/Racer's associated with which pin and interrupt byte mask pairs
 // #define LANE1 {PIN_A0, 0b00000001}
 // #define LANE2 {PIN_A1, 0b00000010}
@@ -88,6 +101,10 @@
 // // For ATmega2560 based Arduino use 'PINK', case sensitive, no quotes
 // #define INTERRUPT_PORT PINK
 
+
+
+// // I2C Address for Adafruit LED Bargraph
+// #define BARGRAPH_I2C_ADDRESS 0x74
 
 
 // // Pin used for the pause button

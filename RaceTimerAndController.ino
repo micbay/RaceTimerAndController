@@ -1,5 +1,5 @@
 // Race Timer and Controller
-// Version 1.1.0
+// Version 2.x
 
 // include enums from list file
 // enums are kept in a seperate file to force them to compile early so they can be used in functions
@@ -579,7 +579,6 @@ void Boop() {
 void Bleep() {
   if (gameAudioOn) tone(buzzPin1, BLEEP_FREQ, BLEEP_DUR);
 }
-
 
 
 // Used to set fastest lap array to high numbers that will be replaced on comparison.
@@ -1223,10 +1222,10 @@ ISR (PCINT_VECT) {
   // Since we only need to check bits for wired lanes, we'll also turn everything elsse to 0.
   // Flip every bit by using (PinPortRegsitryByte xor 0b11111111),
   //     or using bitwise compliment operator (~PinPortRegsitryByte).
-  // Then trim off the 4 highest bits using bitwise operator '&',
-  // of result with, mask representing available lanes.
-  // If 'laneCount = 2', this would result in (~PinPortRegsitryByte & 0b00001111)
-  // If 'laneCount = 4', it would be (~PinPortRegsitryByte & 0b00000011)
+  // Then trim off the unused 'high' bits, using the bitwise operator '&',
+  // of the result against the bit mask representing available lanes.
+  // If 'laneCount = 2', this would result in (~PinPortRegsitryByte & 0b00000011)
+  // If 'laneCount = 4', it would be (~PinPortRegsitryByte & 0b00001111)
 
   // For PinPortRegsitryByte, use pin port C, 'PINC', for ATmega328 based Arduinos (ie Nano)
   // For PinPortRegsitryByte, use pin port K, 'PINK', for ATmega2560 based Arduinos
@@ -1235,7 +1234,7 @@ ISR (PCINT_VECT) {
   // byte triggeredPins = ((INTERRUPT_PORT xor 0b11111111) & 0b00001111);
   // byte triggeredPins = ((INTERRUPT_PORT xor 0b11111111) & triggerClearMask);
   triggeredPins = (~INTERRUPT_PORT & triggerClearMask);
-  // If switch voltage drop, on close, is too slight to cause pin to enter LOW state,
+  // If the voltage drop, on close of a lap trigger switch, is too slight to cause pin to enter LOW state,
   // or controller operation is too slow, the triggering switch may not still be in a LOW state.
   // If this is the case then we just want to ignore the event as we won't know how to attribute it.
   if (triggeredPins == 0) return;
@@ -1423,7 +1422,7 @@ void CompileTopFastest(){
 
 void PrintLeaderBoard(bool withLeaders = true){
   // Write static text to main LCD for live race screen
-  lcd.clear();
+  // lcd.clear();
   lcd.setCursor(15, 0);
   lcd.print(RESULTS_TOP_TEXT_BEST);
   // Draw vertical bars seperating leader list from best lap.
@@ -1644,9 +1643,12 @@ void UpdateLiveRaceLCD(){
         //   Serial.println(Racers[leaderBoard[k][1]]);
         // }
 
+  // Print the leaderboard array to the LCD
   // Even though the places list is as long as there are lanes,
   // we only have 3 lines on the screen, so limit this loop to 3.
   for(byte k = 1; k <= (enabledLaneCount<3?enabledLaneCount:3); k++){
+    // clear line
+    // PrintSpanOfChars(lcdDisp, k);
     // Print place #
     lcd.setCursor(0,k);
     lcd.print(k);
@@ -1878,7 +1880,7 @@ void setup(){
   }
   // Initialize Adafruit Bargraph
   // use actual address from documentation if not the same as '0x70'
-  bar.begin(0x70);
+  bar.begin(BARGRAPH_I2C_ADDRESS);
 
   // --- SETUP LAP TRIGGERS AND BUTTONS ----------------
   setTriggerMask();
@@ -2302,7 +2304,7 @@ void loop(){
       // If Start button or '#' key is pressed, initiate a race, and switch to PreStart state.
       if( buttonPressed(startButtonPin) || key == '#' ) {
         ChangeStateTo(PreStart);
-        preStartTimerDrag = curMillis%5 + 2;
+        preStartTimerDrag = (curMillis % DRAG_PRESTART_RNDM) + DRAG_PRESTART_CNTDWN_BASE;
         newRace = true;
         // Serial.println("dgbt");
       } else
@@ -2351,9 +2353,6 @@ void loop(){
             // set initial staged phase pattern to LED bargraph
             // setBargraph(LED_OFF);
             setBargraph(LED_YELLOW, 14, 9);
-            // MAX7219 startlight
-            lc.setLed(laneCount, 0, 2, true);
-            lc.setLed(laneCount, 1, 2, true);
             // enable triggers only on lanes 1 and 2
             // EnablePinInterrupts(true);
             if(laneEnableStatus[1]) pciSetup(lanes[1][0]);
@@ -2372,14 +2371,15 @@ void loop(){
             ledCountdownTemp = 3;
             // set entire LED Bargraph to Red
             setBargraph(LED_RED);
-            // MAX7219 startlight
-            lc.setLed(laneCount, 0, 1, true);
-            lc.setLed(laneCount, 1, 1, true);
             // Turn on interrupts for enabled lane pins
             EnablePinInterrupts(true);
           }
           break;
         } // END raceType switch
+        // Turn on MAX7219 pre-staging lights
+        // 'laneCount' should be the device ID of the LED startlight, assume all lanes have a display.
+        lc.setLed(laneCount, 0, 2, true);
+        lc.setLed(laneCount, 1, 2, true);
         // set flag to trigger turning off startlights after a delay.
         clearStartLight = true;
         entryFlag = false;
@@ -2472,7 +2472,10 @@ void loop(){
       // First cycle initialization of RACE and signalling of START.
       if (entryFlag) {
         // Serial.println(F("rce"));
-        if (raceType != Drag) PrintLeaderBoard(!newRace);
+        if (raceType != Drag) {
+          lcd.clear();
+          PrintLeaderBoard(!newRace);
+        }
         if(newRace){
           // make sure running race time is starting from 0
           currentTime[0] = 0;
@@ -2559,7 +2562,6 @@ void loop(){
 
               switch (raceType) {
                 case Drag: {
-                  // lapTimeToLog = lastXMillis [i] [lapCount[i]-1] - startMillis[0];
                   lapTimeToLog = curMillis - startMillis[0];
                   flashStatus[i] = 0;
                 }
@@ -2610,6 +2612,15 @@ void loop(){
       // FINISHING CHECK - check for the race end conditions.
       switch (raceType) {
         case Standard: case Drag:{
+          // If it's a drag race check the heat timeout has not passed
+          if (raceType == Drag) {
+            if (curMillis - startMillis[0] > DRAG_HEAT_TIMEOUT * 1000) {
+              finishedCount = 2;
+              // set lanes that did not finish to high lap time
+              if (lapCount[1]<2) startMillis[1] = 999999;
+              if (lapCount[2]<2) startMillis[2] = 999999;
+            }
+          }
           // ****** STANDARD FINSIH *******************
           // Check if any Active lanes have since finished.
           for(byte i = 1; i <= laneCount; i++){
@@ -2837,7 +2848,7 @@ void loop(){
             lcd.setCursor(0, 1);
             lcd.print(F("--Lane 1----Lane 2--"));
             PrintSpanOfChars(lcdDisp, 2);
-            // Set the fastest laps idx 0, to be lap #1
+            // Set the fastest LAPS idx 0, to be lap #1
             fastestLaps[1][0] = 1;
             fastestLaps[2][0] = 1;
             // log drag finish time (lap 2 start - race start), as the top fastest lap for racer
