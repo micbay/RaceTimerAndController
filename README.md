@@ -520,7 +520,7 @@ The project [Wiring Diagram](#wiring-diagram) illustrates the Bargraph integrati
   
  - This is an I2C compatible, fully assembled LED light bar with 24 segments. Each segment has a Green, and a Red, LED, which can be lit to create red, yellow, or green.
 
-![Bootup Idle Bargraph-24](Images/Adafruit_Bargraph_FullAssy2_800x100.png)
+![Bootup Idle Bargraph-24](Images/Adafruit_Bargraph_FullAssy_800x100.png)
 
 ***Assembly Note:** Being diodes, the assembly orientaiton of the LEDs is important. The Adafruit Bargraph typically comes dissassembled, and requires soldering. Be sure to follow the orientation indicated by the text on the PCB and LED bars.*
 
@@ -1409,7 +1409,7 @@ When the controller boots up it will display the **Main Menu** screen. Use the k
 
 In the **Menu State**, the lane's lap time displays, will indicate the assigned racer name, and any attached start lights will illuminate amber lights.
 
-![Idle Racer displays](Images/RacerLED-Idle2_800x100.png)
+![Idle Racer displays](Images/RacerLED-Idle_800x100.png)
 
 <table>
   <tr>
@@ -1557,11 +1557,11 @@ After choosing a race from the [Start a Race](#main-menu---c-start-a-race) scree
 
 - ***Circuit Race Pre-Stage:*** For Lap or Timed races, the racer displays will continue to display the assigned racer names.
 
-    <img src="Images/RacerLED-Idle2_800x100.png" alt="2" width="500px">
+    <img src="Images/RacerLED-Idle_800x100.png" alt="2" width="500px">
 
 - ***Drag Race Pre-Stage:***  For drag racing, the racer displays will switch to using labels **Lane 1** & **Lane 2**.
 
-    <img src="Images/RacerLED-DragPreStage2_800x100.png" alt="2" width="500px">
+    <img src="Images/RacerLED-DragPreStage_800x100.png" alt="2" width="500px">
 
 <br>
 
