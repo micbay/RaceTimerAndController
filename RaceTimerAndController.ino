@@ -1351,7 +1351,6 @@ ISR (PCINT_VECT) {
 // Generic function to check if an analog button is pressed
 bool buttonPressed(uint8_t analogPin) {
   // if below analog trigger threshold AND not within debounce time
-  // if (analogRead(analogPin) < 100){
   unsigned long tempTime = millis();
   if ((analogRead(analogPin) < 100) && ((tempTime - buttonDebounceMillis) > debounceTime)){
     // Reset debounce timestatmp
