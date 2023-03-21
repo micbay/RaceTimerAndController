@@ -80,7 +80,7 @@ All of the components are readily available and can be connected with basic jump
 > ***Note on Housing and Mechanical Interface** - This project only documents the functional electrical and software configuration. It can be wired, and used as illustrated for demonstration, however, for repeated, practical usage, the construction of a permanent housing, and mechanical trigger interface, is left up to the implementer to develop per their unique setup.*  
 
 ## **Parts for Core Race Controller**
-The parts required for the base system are listed below. The 7-sement, racer lap timer displays, will update with the same indications as a start light tree, so all race modes can be run without a start light, however, optionally, two types of start lights are also supported.
+The parts required for the base system are listed below. The 7-segment, racer lap timer displays, will update with the same indications as a start light tree, so all race modes can be run without a start light, however, optionally, two types of start lights are also supported.
 - [Arduino Nano](https://docs.arduino.cc/hardware/nano) (or equivalent ATMega328 based microcontroller module) ([amazon search](https://www.amazon.com/arduino-nano/s?k=arduino+nano))
   - if using Mega2560 adjust code and wiring per annotations)
 - [4 x 4 membrane keypad](https://duckduckgo.com/?q=4+x+4+membrane+keypad)
@@ -549,9 +549,25 @@ The project [Wiring Diagram](#wiring-diagram) illustrates the Bargraph integrati
 
 ![Bootup Idle Bargraph-24](Images/Adafruit_Bargraph_FullAssy_800x100.png)
 
-***Assembly Note:** Being diodes, the assembly orientaiton of the LEDs is important. The Adafruit Bargraph typically comes dissassembled, and requires soldering. Be sure to follow the orientation indicated by the text on the PCB and LED bars.*
+> ***Assembly Note:** Being diodes, the assembly orientaiton of the LEDs is important. The Adafruit Bargraph typically comes dissassembled, and requires soldering. Be sure to follow the orientation indicated by the text on the PCB and LED bars.*
+> 
+> ![Bargraph Assy](Images/Adafruit_Bargraph-24_AssyGuide.png)
 
-![Bargraph Assy](Images/Adafruit_Bargraph-24_AssyGuide.png)
+**I2C Addressing** - By default, the Adafruit Bargraph-24 has an I2C address of `0x70`. If that address creates a conflict with another device on the I2C bus, the address of the bargraph can be changed by shorting the address jumper pins in various combinations, as explained in the [Adafruit I2C addressing guidance](https://learn.adafruit.com/adafruit-led-backpack/changing-i2c-address), and below.
+
+If changing the bargraph I2C address, be sure to update the `BARGRAPH_I2C_ADDRESS` in your `localSettings.h` file with the new value.
+
+Possible I2C addresses for Bi-color 24-bargraph: `0x70`, `0x71`, `0x72`, `0x73`, `0x74`, `0x75`, `0x76`, `0x77`
+
+<img src="Images/Adafruit_Bargraph-24_I2C_Jumpers.png" alt="Bargraph I2C Jumpers" width="300px">
+
+Set the address by shorting the jumper pads, shown above.
+- `A0` sets the lowest bit with a value of 1,
+- `A1` sets the middle bit with a value of 2.
+- `A2` sets the high bit with a value of 4.
+- The final address is `0x70` + `A2` + `A1` + `A0`.
+- Example 1: if `A2` is shorted and `A0` is shorted, the address is `0x70` + 4 + 1 = `0x75`.
+- Example 2: If only `A1` is shorted, the address is `0x70` + 2 = `0x72`
 
 <br>
 
@@ -642,7 +658,7 @@ The default drag racing configuration adds a 2nd lap sensor to each drag lane. O
 
 By default, the controller is configured to expect two triggers from each lane, to count a completed drag run. On a given lane, the first trigger it sees, it will assume came from the start sensor. The 2nd trigger it sees, it will assume is from the finish sensor. The controller does not know the placement of the sensors and will always assume the 1st trigger is a start and the 2nd is a finish.
 
-**Drag Race Timing** - Unlike a circuit race, drag race timing begins immediately on race start, even if the start sensor is not triggered. A drag race heat is considered completed when both racers have triggered a start and finish sensor or, the `HEAT_TIMEOUT` exceeded.
+**Drag Race Timing** - Unlike a circuit race, drag race timing begins immediately on race start, even if the start sensor is not triggered. A drag race heat is considered completed when both racers have triggered a start and finish sensor or, the `HEAT_TIMEOUT` is exceeded.
 
 For the default, 2 trigger, configuration, the finish sensors should be wired to share the same Arduino lane input as the associated start sensor.
 
