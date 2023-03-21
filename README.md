@@ -22,29 +22,38 @@ NOTE: the video demo is of an earlier version of the system. With the release of
 7. [Adafruit Bi-Color Bargraph-24 as a Start Light](#adafruit-bi-color-bargraph-24-as-a-start-light)
 8. [The Keypad](#the-keypad)
 9.  [Lap/Gate Sensing](#gate-sensing)
+    - [Drag Racing Sensor Setup](#drag-racing-sensor-setup)
 10. [Sensor Options](#sensor-options)
 11. [Analog Pause and Start Buttons](#analog-pause--start-buttons)
 12. [Playing Audio](#playing-audio)
      - [Songs & Melodies](#songs--melodies)
-     - [Method 1](#method-1-notes--lengths-arrays--pitchesh) - Using `Notes[]` and `Lengths[]` arrays
-     - [Method 2](#method-2-ringtone-rtttl-format) - Using RTTTL Ringtones
+     - [Method 1](#songs-method-one) - Using `Notes[]` and `Lengths[]` arrays
+     - [Method 2](#songs-method-two) - Using RTTTL Ringtones
 13. [Audio Modes](#audio-modes)
 14. [Race Controller Operation](#race-controller-operation)
     - [Main Menu Navigation](#main-menu-navigation)
     - [Racing](#racing)
-15. [Drag Race Start Light Indicators](#drag-race-start-light-indicators)
-16. [Customizing UI Text and General Controller Settings](#customizing-ui-text-and-general-controller-settings)
+15. [Customizing UI Text and General Controller Settings](#customizing-ui-text-and-general-controller-settings)
 
 <br>
 
 # **Introduction**
-This is an Arduino based project that implements an inexpensive, reliable, race game controller that can be used for timed racing games of 1-4 racers. The system consists of a main LCD display, a keypad for user input and menu selection, an 8 digit LED lap count & timer display for each racer, and non-blocking audio for UI feedback and playing a unique victory song for each racer.
+This is an Arduino based project that implements an inexpensive, full featured, race game controller that can be used for timed racing games of 1-4 racers. Though the primary application is for slot car racing, the implementation is generally suited for any lane/gate based application. A [local configuration file](#config-file) can be maintained, to customize menus, sounds, default setup, and many other system parameteres.
 
-Optionally, V2.0 and higher supports using an Adafruit 24 Bi-Color LED bargraph or MAX7219 based, custom LED tree, as starting lights and race status indicators.
+**Key Features** - The primary features of the system include:
+- 1-4 racer lanes/gates
+- 3 racing modes (Total Laps & Timed Circuit Racing + Drag Racing)
+- 0.000 ms timing precision
+- A 4x20Ch LCD Primary Display
+- 16 key, keypad interface
+- Support for an 8 digit LED lap timer display for each lane/racer
+- 3 audio modes (All, GameOnly, Mute)
+- Easy system customization and localization via local config file
+- Start light tree support (DIY MAX7219 Tree and/or Adafruit Bargraph-24)
 
 In the presented configuration, the lap sensing input is simulated using buttons, but can be adapted to be used with a myriad of simple, circuit completion, or other type sensing methods that can be implemented in the physical lap gate. The working demo of this project uses two paper clips integrated into a mechanical lap counter to create a simple, yet effective lap sensor.
 
-See [Race Controller Operation](#Race-Controller-Operation) at the end of this document for menu navigation and general use.
+See [Race Controller Operation](#race-controller-operation) at the end of this document for menu navigation and general use.
 
 ![MainMenu](Images/ScreenShots/Main_Menu.png)  
 ![Wiring Diagram](Images/FullSystem.png)  
@@ -626,11 +635,13 @@ In the case of the Arduino Nano, we are using a physical block of pins called `P
 >- Make sure everything is well grounded, and isolated from, radiated and conducted noise, but [avoid ground loops](https://en.wikipedia.org/wiki/Ground_loop_(electricity)).
 
 ## **Drag Racing Sensor Setup**
-By default the controller is configured to expect both a start and finish sensor for each drag race lane. The start sensor is used to detect false starts, and the finish sensor used to detect the winner. The start and finish sensors for a given lane should share the same input pin on the Arduino.
+By default the controller is configured to look for a start trigger followed by a 2nd, finish trigger, on the same input pin, to count a completed drag run. The race timing begins immediately, even if the start sensor is not triggered, however, the controller will not recognize a finish without first getting a start trigger.
+
+Finish sensors should be wired to share the same Arduino lane input as the associated start sensor. The start sensor is used to detect false starts, and the finish sensor used to detect the winner.
 
 <img src="Images/Drag_Trigger_Diagram_Isolated.png" alt="Drag Trigger Diagram" width="600px">
 
-For users who only have 1 set of sensors, the system can be configured to support drag racing with finish line sensors only. If set for finish sensors only, false starts will not be detectable.
+**Single Sensor Drag Setup** - For users who only have 1 set of sensors, the system can be configured to support drag racing with finish line sensors only. If set for finish sensors only, false starts will not be detectable.
 - Set `SINGLE_DRAG_TRIGGER` to be `true` in `localSettings.h` to configure the controller for finish sensor only, drag racing.
 
 ## **Relationship Between Racers/Lanes and Interrupt Hardware**
@@ -886,7 +897,7 @@ The [Drag-It-Anywhere track sensor page](https://dragitanywhere.com/track-sensor
   </tr>
   <tr>
     <td>
-      <img src="Images/submini_body.png"  alt="1" Width="500px">
+      <img src="Images/submini_body.png"  alt="1">
     </td>
     <td>
       <img src="Images/submini_schematic.png"  alt="1">
@@ -1038,7 +1049,9 @@ To play a melody, we need to play a series of tones corresponding to the appropr
 
 *NOTE: Even if not intending to use Method 1, understanding the approach in adapting music to code, and the underlying music theory, discussed in the section about Method 1 will also apply to using Method 2.*
 
-## **Method 1: `Notes[]` & `Lengths[]` Arrays ( `pitches.h` )**  
+<a id="songs-method-one"></a>
+
+## **Method 1: `Notes[]` & `Lengths[]` Arrays ( `pitches.h` )**
 In this approach we will represent the musical notes that make up a melody, using two arrays, one array to hold the note frequencies, `Notes[]`, and one to hold the note lengths, `Lengths[]`, which will be used to determine each note's tone duration.
 
 > ***Music Theory***  
@@ -1330,7 +1343,7 @@ const int takeOnMeSize = sizeof(takeOnMeNotes)/sizeof(int);
 Otherwise, most available melodies in this format are one-off, single song projects, and must be searched for individually.
 
 <br>
-
+<a id="songs-method-two"></a>
 ---  
 
 ## **Method 2: Ringtone RTTTL Format**  
@@ -1797,7 +1810,7 @@ During a standard **Lap** or **Timed** race, the main LCD will display the elaps
 <img src="Images/ScreenShots/LiveLeaderBoard.png"  alt="1" Width="500px">
 
 ### **Live Race Racer Displays**
-During a live race, the 7-segment, racer displays will show the current lap, and lap time for each active racer/lane. If it is a **Lap** or **Timed** race, whenever a racer completes a lap, the just finished lap number & lap time are briefly, "flashed" to the racer display for a couple seconds, before returning to the running live lap time updates. In a drag race, there is no flash period, and the racer displays will always show the live running/completed heat time for each lane.
+During a live race, the 7-segment, racer displays will show the current lap, and lap time for each active racer/lane. If it is a **Lap** or **Timed** race, whenever a racer completes a lap, the just finished lap number & lap time are briefly, "flashed" to the racer display, for a couple seconds, before returning to displaying live lap time updates. In a drag race, there is no flash period, and the racer displays will always show the live running/completed heat time for each lane.
 
 <table>
   <tr>
@@ -1852,6 +1865,7 @@ When the controller detects a finishing condition it will process the finishing 
 <img src="Images/V2_DragRace_Winner_Lane2_1150x400.png"  alt="1" Width="500px">
 
 <br>
+<a id="config-file"></a>
 
 # **Customizing UI Text and General Controller Settings**
 To accommodate user customization of menus and preferred games settings, this project can make use of a `localSettings.h` file, in which users can make, and store customizations, without editing the main code base. By default, the controller will use settings established in the `defaultSettings.h` file, but if the same setting is loaded from the `localSettings.h` file, the `localSettings.h` setting will be used instead.
