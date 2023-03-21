@@ -80,7 +80,7 @@ All of the components are readily available and can be connected with basic jump
 > ***Note on Housing and Mechanical Interface** - This project only documents the functional electrical and software configuration. It can be wired, and used as illustrated for demonstration, however, for repeated, practical usage, the construction of a permanent housing, and mechanical trigger interface, is left up to the implementer to develop per their unique setup.*  
 
 ## **Parts for Core Race Controller**
-The parts required for the base system are listed below. These will support all race modes. For drag racing, the 7-sement, racer lap timer displays, for lanes 1 & 2, will update for each pre-start interval that is typically found on a start light tree.
+The parts required for the base system are listed below. The 7-sement, racer lap timer displays, will update with the same indications as a start light tree, so all race modes can be run without a start light, however, optionally, two types of start lights are also supported.
 - [Arduino Nano](https://docs.arduino.cc/hardware/nano) (or equivalent ATMega328 based microcontroller module) ([amazon search](https://www.amazon.com/arduino-nano/s?k=arduino+nano))
   - if using Mega2560 adjust code and wiring per annotations)
 - [4 x 4 membrane keypad](https://duckduckgo.com/?q=4+x+4+membrane+keypad)
@@ -149,13 +149,13 @@ The summary of the changes to be made to use a Mega2560 board are:
   - and accordingly, edit setting `INTERRUPT_PORT` in the `localSettings.h` file, to read from the port K byte, `PINK`, instead of port C byte, `PINC`, to check triggered lanes.
 
 ## **Power Supply (+5V)**  
-All devices in this build are powered from a +5V source. The displays should draw power from the source supply and not through the Arduino which cannot support enough current to run everything without flickering.
+All devices in this build are powered from a +5V source. The displays should draw power from the source supply and not through the Arduino which cannot support enough current to run everything properly.
 
 > ***Powering MAX7219 LED Bars** - Power for these can be daisy chained for the first 2 bars, but cascading 3 or more may require running the power directly to each subsequent display bar, but always keep all the signal lines daisy chained.*
 
-> ***<span style="color:yellow"> Connect Arduino GND to external ground reference </span>** - Like many projects with higher power demands, this one uses an external power supply to get enough current for operation; during development and programming, we will often have the computer USB plugged in as well, which also serves as a power supply. Sometimes the computer might be using battery and sometimes it may be using wall power, this can change the ground reference of the USB with respect to the other power sources. If one is not careful, one may create a ground reference mismatch. To avoid this we should jumper all common input supply grounds into the Arduino. Ground reference mismatch can cause intermittent errors, or the device to not work at all.  
+> ***<span style="color:yellow"> Connect Arduino GND to external ground reference </span>** - Like many projects with higher power demands, this one uses an external power supply to get enough current for operation; during development and programming, we will often have the computer USB plugged in as well, which also serves as a power supply. Sometimes the computer might be using battery and sometimes it may be using wall power, this can change the ground reference of the USB with respect to the other power sources. If one is not careful, one may create a ground reference mismatch. To avoid this we should jumper all common input supply grounds into the Arduino. Ground reference mismatch can cause intermittent errors, or the device to not work at all.*  
 > 
-> If we were to inadvertently find ourselves with the configuration shown here. It may appear to be ok on first look, but with the multi-meter we can see that there is a 1.9V differential between the two ground references when it should be reading close to 0.*
+> *If we were to inadvertently find ourselves with the configuration shown here. It may appear to be ok on first look, but with the multi-meter we can see that there is a 1.9V differential between the two ground references when it should be reading close to 0.*
 > 
 > ![GroundLoop HIGH](Images/MismatchedGroundRef_HIGH.png)
 > Connecting our grounds to bring them to the same potential, as below, will eliminate the problem above.  
@@ -635,17 +635,21 @@ In the case of the Arduino Nano, we are using a physical block of pins called `P
 >- Form long active and return leads into [twisted pairs](https://audiouniversityonline.com/twisted-pairs/).
 >- [Using ferrites](https://article.murata.com/en-us/article/basics-of-noise-countermeasures-lesson-8)
 >- Use [shielded leads](https://www.azosensors.com/article.aspx?ArticleID=724) (ideally shielding is grounded)
->- Make sure everything is well grounded, and isolated from, radiated and conducted noise, but [avoid ground loops](https://en.wikipedia.org/wiki/Ground_loop_(electricity)).
+>- Make sure everything is well grounded, and isolated from radiated and conducted noise, but [avoid ground loops](https://en.wikipedia.org/wiki/Ground_loop_(electricity)).
 
 ## **Drag Racing Sensor Setup**
-By default the controller is configured to look for a start trigger followed by a 2nd, finish trigger, on the same input pin, to count a completed drag run. The race timing begins immediately, even if the start sensor is not triggered, however, the controller will not recognize a finish without first getting a start trigger.
+The default drag racing configuration adds a 2nd lap sensor to each drag lane. One sensor should be placed at the start line, which will be used to detect false starts, while a 2nd sensor should be place at the finish line, and is used to detect the end of the run.
 
-Finish sensors should be wired to share the same Arduino lane input as the associated start sensor. The start sensor is used to detect false starts, and the finish sensor used to detect the winner.
+By default, the controller is configured to expect two triggers from each lane, to count a completed drag run. On a given lane, the first trigger it sees, it will assume came from the start sensor. The 2nd trigger it sees, it will assume is from the finish sensor. The controller does not know the placement of the sensors and will always assume the 1st trigger is a start and the 2nd is a finish.
+
+**Drag Race Timing** - Unlike a circuit race, drag race timing begins immediately on race start, even if the start sensor is not triggered. A drag race heat is considered completed when both racers have triggered a start and finish sensor or, the `HEAT_TIMEOUT` exceeded.
+
+For the default, 2 trigger, configuration, the finish sensors should be wired to share the same Arduino lane input as the associated start sensor.
 
 <img src="Images/Drag_Trigger_Diagram_Isolated.png" alt="Drag Trigger Diagram" width="600px">
 
 **Single Sensor Drag Setup** - For users who only have 1 set of sensors, the system can be configured to support drag racing with finish line sensors only. If set for finish sensors only, false starts will not be detectable.
-- Set `SINGLE_DRAG_TRIGGER` to be `true` in `localSettings.h` to configure the controller for finish sensor only, drag racing.
+- Set `SINGLE_DRAG_TRIGGER` to be `true` in `localSettings.h` to configure the controller for single sensor drag racing.
 
 ## **Relationship Between Racers/Lanes and Interrupt Hardware**
 For the [ATMega328](https://www.microchip.com/en-us/product/ATmega328) based Nano we have chosen to use pins `A0-A3` as the physical wire inputs for the lap trigger signals representing racers/lanes 1-4. A `lanes[]` array constant will be used to map the association of physical hardware pins with the Racer/Lane they will represent.
@@ -919,8 +923,7 @@ The [Drag-It-Anywhere track sensor page](https://dragitanywhere.com/track-sensor
 > **Photoresistor** - a photoresistor component can be wired to trigger a lap on any measurable change in ambient light intensity. With interrupts, this might be tricky to calibrate such that changes in room lighitng are not mistaken for a passing car. Adding a lamp or spotlight flooding the sensor region can mitigate such issues.
 
 > **IR sensor** - An IR photodetection approach takes exactly the same principle, and parts, used by pre-assmbled IR sensor modules ([example1](https://circuitdigest.com/microcontroller-projects/interfacing-ir-sensor-module-with-arduino), [example2](https://components101.com/sensors/ir-sensor-module)), except instead of having the emitter and receiver next to each other, the emitter is a seperate flood light, and the sensor is placed into the track. Trackmate sells an assembled [IR Flood Light](https://trackmateracing.com/shop/en/lap-counter-parts/221-1241-infrared-flood-bar-diy.html#/153-flood_bar_length-6_inches_152mm) and [IR sensor components](https://trackmateracing.com/shop/en/lap-counter-parts/19-infrared-sensors.html), that use this technique.
-> 
-> >
+
 > | | |  
 > |---|---|
 > |Photoresistors on ([Adafruit](https://www.adafruit.com/product/161), [Amazon](https://www.amazon.com/Photoresistor/s?k=Photoresistor), [digikey](https://www.digikey.com/en/products/filter/optical-sensors-photo-detectors-cds-cells/540)) | [IR emitter and sensor kit](https://www.amazon.com/Emitter-Receiver-VS1838B-Infrared-Raspberry/dp/B07TLBJR5J/ref=sr_1_13?keywords=ir+sensor&sr=8-13)|
@@ -932,10 +935,20 @@ The [Drag-It-Anywhere track sensor page](https://dragitanywhere.com/track-sensor
 
 >**Hall Effect Sensor** - A Hall Effect sensor is an integrated circuit component that can detect a nearby magnetic field. This link is an example of [Arduino integration of a hall effect sensor](https://maker.pro/arduino/tutorial/how-to-use-a-hall-effect-sensor-with-arduino).
 
+> | | |  
+> |---|---|
+> | Reed Switch | Hall Effect Sensor |
+> | <img src="Images/ReedSwitch.png" alt="Reed Switch" width="300px"> | <img src="Images/HallEffect_Sensor.png" alt="Hall Effect Sensor" width="300px"> |
+
 ## Proximity Sensing
 >**IR proximity sensing** - Several types of infrared proximity sensing ICs and integrated boards exist that can be used to provide a single pin response. This link is an example of [Arduino integration of IR proximity sensor](https://www.factoryforward.com/ir-proximity-sensor-arduino/), and here is an example of a [Sharp GP2Y0D805Z0F implemented into a slot car track](https://blog.tldnr.org/2020/05/08/slot-car-lap-counter/).
 
 >**Ultrasonic Proximity** - These do not come with integrated driving electronics as often as many IR sensor modules, so usually require additional pins to be driven than a single Nano can provide. However, if using a Mega2560 or other additional circuitry to drive the sensor, an ultrasonic transceiver module's output can be used as a lane trigger.
+
+> | | |  
+> |---|---|
+> | IR Proximity Sensor Module | Ultrasonic Proximity Sensor Module HC-SR04 |
+> | <img src="Images/IR_Proximity_Module.png" alt="IR Proximity" width="300px"> | <img src="Images/Ultrasonic_Proximity_Sensor_HC-SR04.png" alt="Ultrasonic Module HC-SR04" width="300px"> |
 
 ## **Example Integration - Converting Mechanical Lap Counter**
 In my case I have a mechanical lap counter that I added two paper clips to act as contacts, creating a triggering connection every time the mechanical switch in the track is flipped. It's easy to bend the paperclips such that they have a nice, relatively long, solid contact period.
@@ -1535,19 +1548,14 @@ Pressing `C` from the Main Menu will bring up the **Race Start Menu**. From this
 **No Data** - Pressing `D` from the Main Menu will bring up the **Results Menu**. Initially, on bootup, before a race is run there are no results to display.
 
 <img src="Images/ScreenShots/NoResults_Menu.png"  alt="1" width="300px">
-<br>
 
-After a race has finished (or paused and stopped), and lap data for racers exists, entering the Results Menu will give access to the lap time data recorded from the last race.
+After a race has finished (or paused and quite), and lap data for racers exists, entering the Results Menu will give access to the lap time data recorded from the last race.
 
-Pressing `C` will cycle through the available results sub-menus. There is a results list page for the top overall laps, a page for each, individual, racer's top laps, and a page that displays the final leader board.
-
-<!-- <img src="Images/ScreenShots/TopResults_Menu.png"  alt="1" width="600px">
-<br>
-<br> -->
+Pressing `C` will cycle through the available results sub-menus. There is a results page for the top overall laps, a page for each, individual, racer's top laps, and a page that displays the final leader board.
 
 **Top Results** - Due to memory limits, depending how long a race is, we cannot store data for every lap, of every racer. Instead we keep a running record of just the top X fastest laps for each racer.
 
-- Implementers can adjust the number of stored laps by editing the `DEFAULT_MAX_STORED_LAPS` setting in `localSettings.h`. Setting this number too high can lead to instability and controller failure, due to memory overruns.
+- Implementers can adjust the number of stored laps by editing the `DEFAULT_MAX_STORED_LAPS` setting in `localSettings.h`. Setting this number too high can lead to instability and controller failure, due to memory overruns. As this is the stored laps, per lane, if `LANE_COUNT`, is increased, `DEFAULT_MAX_STORED_LAPS` should be decreased to maintain a similar total number of stored laps.
 
 - Pressing `A` or `B` on any of the fastest lap lists will scroll up or down the list respectively.
 
@@ -1586,7 +1594,6 @@ Pressing `C` will cycle through the available results sub-menus. There is a resu
 **Final Leaderboard** - The last results page displays the final finishing leaderboard and the fastest overall lap.
 
 <img src="Images/ScreenShots/FinishResults_Menu.png"  alt="1" width="600px">
-<br>
 <br>
 
 # **Racing**
@@ -1654,7 +1661,7 @@ When a race start has been triggered, the pre-start countdown begins. Lap sensor
 </table>
 
 
-**Circuit Race Pre-Start Countdown:** For a **Lap** or **Timed** race, the  pre-start countdown duration will equal the countdown time set in the 'Start a Race' menu. Throughout the countdown, the remaining time is updated live to the Main LCD.
+**Circuit Race Pre-Start Countdown** - For a **Lap** or **Timed** race, the  pre-start countdown duration will equal the countdown time set in the 'Start a Race' menu. Throughout the countdown, the remaining time is updated live to the Main LCD.
 
 <table>
   <tr>
@@ -1792,9 +1799,9 @@ In the final seconds of the pre-start countdown, 3 amber indicators will light u
 </table>
 
 ## **Start Faults**
-If a racer crosses the start line before the Pre-Start countdown has finished, a fault will be thrown. The first offending racer will identified on the main LCD, as well as by the red fault indicator LED, associated with that lane.
-- Pressing the `*` or `#` key, or pressing either the analog `Pause` or `Start` button will clear the fault, and return the system to the `Pre-Stage` of the race.
+If a racer crosses the start line before the Pre-Start countdown has finished, a fault will be thrown. The first offending racer will identified on the main LCD, as well as by the red fault indicator LED, associated with their lane.
 
+- Pressing the `*` or `#` keys, or the analog `Pause` or `Start` buttons will clear the fault, and return the system to the `Pre-Stage` phase of the race.
 
 <table>
   <tr>
@@ -1803,7 +1810,6 @@ If a racer crosses the start line before the Pre-Start countdown has finished, a
   </tr>
 </table>
 
----
 ## **During a Race**
 During a race, the controller will monitor lap triggers and update the race state accordingly. The race will continue until a finishing condition is detected or the race is `Paused`. From the `Paused` state, a race can either be restarted, or quit, exiting back to the Main Menu.
 
@@ -1883,9 +1889,10 @@ To make use of a `localSettings.h` file:
   
   #include "localSettings.h"
   ```
-- Finally, in the newly created `localSettings.h`, uncomment and make changes to the desired setting values.
+- Finally, in the newly created `localSettings.h`, uncomment and make changes to the desired parameters.
 
 Your new `localSettings.h` file is included in the .gitignore list and will not be overwritten when downloading subsequent `RaceTimerAndController.ino` updates in the future. In this way your local changes will be preserved while still getting the latest controller base code.
 
+>***NOTE** - After downloading new version of the base code, users will need to re-uncomment the `#include "localSettings.h"` line in `defalutSettings.h`.*
 
-However, one will still need to re-uncomment the localSettings.h include line in `defalutSettings.h` after any updates. If this line was uncommented by default, those who download the main repository for the first time will have compiling issues because the `localSettings.h` file will not exist yet. It is felt that it would be more confusing for a new user to download code that won't compile by default, than to force existing, more experienced users, to remember to uncomment again, after an update to get their local settings back.
+> *If this line was left uncommented by default, those who download the main repository for the first time will have compiling issues because the `localSettings.h` file will not exist yet. It is felt that it would be more confusing for a new user to download code that won't compile, than to force existing, more experienced users, to remember to uncomment their local overwritten `defaultSettings.h` after an update.*
