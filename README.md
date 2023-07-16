@@ -1,12 +1,39 @@
 # **Arduino Race Timer and Lap Gate Controller**
-Download this repository into a local folder with the same name as the contained `.ino` to use as an Arduino sketch.
+This project comes ready to use with the appropriate Arduino device, and peripheral hardaware specified herin. To upload this project to your Arduino, download all the files in this code repository into a folder you create in your Arduino sketch folder, called `RaceTimerAndController`. Then use the [Arduino IDE](https://www.arduino.cc/en/software) to install onto your hardware.
+
+> For a windows installation, the default location for Arduino sketches is in:
+> ```
+> C:\Users\userid\Documents\Arduino\
+> ```
+> Thus for Windows, create the following folder and download this project code to:
+> ```
+> C:\Users\userid\Documents\Arduino\RaceTimerAndController
+> ```
+> remember to replace ***'userid'*** in the path with your own windows user folder name.
+
+To download code, click the green 'Code' button above, select 'download zip', unzip downloaded folder, then copy unzipped contents to the 'RaceTimerAndController' sketch folder you created. Alternatively, one can use git from the created 'RaceTimerAndController' sketch folder, and clone the repository.
 
 ### [This video](https://youtu.be/n0GLdoQ6pg4) provides a live use demonstration of the example implementation hardware.
-NOTE: the video demo is of an earlier version of the system. With the release of V2.X, many new features have been added that are not demonstrated in the video, including start lights, drag racing mode, a race pre-stage step, and other user customizations of race parameters.
+> NOTE: the video demo is of an earlier version of the system. With the release of V2.X, many new features have been added that are not demonstrated in the video, including start lights, drag racing mode, and race start pre-stage step.
 
+<br>
 
----
-## Table of Contents
+# **<span style="color:lime"> Share Your Build </span>**
+If you have integrated this project into a build of your own, everyone would love to see it. Please share with us by visiting the [Discussions: Show and tell](https://github.com/micbay/RaceTimerAndController/discussions/categories/show-and-tell) section of this repository and create a new discussion describing what you've done.
+
+**<span style="color:lime"> Sensor Integration </span>** - Proper lap sensor setup can be the trickiest part of this project, other builders would surely appreciate seeing how you made it work in your application.
+
+**<span style="color:lime"> Menu Customization </span>** - Please share your menu translations or customized `localSettings.h` parameters, those less adept at code may find them useful.
+
+<br>
+
+# **<span style="color:red"> If You Have Problems <span>**
+
+If you find bugs in the code, or have trouble with getting this project to work as described please take a look at the [Issues](https://github.com/micbay/RaceTimerAndController/issues) section of this repo for help. If you cannot find the answer in past issues, please generate a new issue and describe your problem.
+
+<br>
+
+# Table of Contents
 1. [Introduction](#introduction)
     - [Prerequisites](#prerequisites) 
 2. [Hardware Configuration](#hardware-configuration)
@@ -38,7 +65,7 @@ NOTE: the video demo is of an earlier version of the system. With the release of
 <br>
 
 # **Introduction**
-This is an Arduino based project that implements an inexpensive, full featured, race game controller that can be used for timed racing games of 1-4 racers. Though the primary application is for slot car racing, the implementation is generally suited for any lane/gate based application. A [local configuration file](#config-file) can be maintained, to customize menus, sounds, default setup, and many other system parameteres.
+This is an Arduino based project, that implements an inexpensive, full featured, race game controller that can be used for timed racing games of 1-4 racers. Though the primary application is for slot car racing, the implementation is generally suited for any lane/gate based application. A [local configuration file](#config-file) can be maintained, to customize menus, sounds, default setup, and many other system parameteres.
 
 **Key Features** - The primary features of the system include:
 - 1-4 racer lanes/gates
@@ -68,9 +95,11 @@ However, I have endeavored to explain in enough detail that someone with almost 
 
 It is expected the reader understands how to use the Arduino IDE, connect wires, and program boards. To get up to speed on those basics, please check out, [Getting Started With Arduino Projects](https://www.arduino.cc/en/Guide), or many other great resources around the web.
 
-> ***Code Snippets in Readme** - the code snippets shown in this readme file are not meant to be cut and paste working examples. They are used only to illustrate the syntax for general setup and usage. For working code, reference the releated sections of the actual project code in `RaceTimerAndController.ino`*  
+> ***Code Snippets in Readme** - the code snippets shown in this readme file are not meant to be cut and paste working examples, and understanding them is not required to implement this project. The purpose of the code presented herin, is to illustrate the syntax and general concept of implementing the various project hardware for those interested, or looking to make their own project customizations.*
+> 
+> *For working code, reference the releated sections of the actual project code in `RaceTimerAndController.ino`*  
 
-> ***Note on Reference Sources** - All links are for reference only and are not to be taken as an endorsement of any particular component supplier. I attempt to reference official Arduino resources whenever possible, but this is also not an endorsement for or against using the Arduino store.*
+> ***Note on Reference Sources** - All links are for reference only and are not to be taken as an endorsement of any particular component supplier. Official Arduino resources are referenced whenever possible, but this is also not an endorsement for or against using the Arduino store.*
 
 
 <br>
@@ -86,19 +115,19 @@ The parts required for the base system are listed below. The 7-segment, racer la
 - [4 x 4 membrane keypad](https://duckduckgo.com/?q=4+x+4+membrane+keypad)
 - [LCD2004 4 row x 20 character display](https://duckduckgo.com/?q=LCD2004A+4+x+20+I2C+backpack), with [I2C backpack](https://www.mantech.co.za/datasheets/products/LCD2004-i2c.pdf)
 - 2-4 Chainable, [8-digit, 7-segment LED bar with integrated MAX7219](https://duckduckgo.com/?q=8-digit%2C+7-segment+LED+display)
-- Passive Buzzer or speaker
-  - The 7-seg LEDs induced a hum on my buzzer, I used a diode on one lead to eliminate it.
-- 2-4 Analog or digital lap sensors/switches/buttons, 1 for each lane.
-    - (optional) +2 drag race finish sensors - Drag racing can be setup to use just a finish sensor, however, to support the default start & finish drag sensing, add 2 finish sensors that will share the same pins as the start sensors for lanes 1 & 2.
-- 2 momentary switches for a 'Pause' and optional 'Start' button.
-  - 10k Ohm Pull-Up resistor for each analog input (button) on `A6` and/or `A7`.
-- Jumper leads to wire connections between peripherals & Arduino
+- [Passive Buzzer](https://www.circuitbasics.com/what-is-a-buzzer/) or speaker
+  - The 7-seg LEDs induced a hum on my buzzer, I added a diode on one lead to eliminate it.
+- 2-4 [Analog or digital Sensors](#sensor-options), 1 for each lane.
+    - (optional) +2 drag race finish sensors - Drag racing can be setup to use just a finish sensor, however, to support the default start & finish drag sensing, add 2 finish sensors that will share the same pins as the lane 1 & 2 start sensors.
+- 2 [momentary switches](https://learn.sparkfun.com/tutorials/button-and-switch-basics/all) for a 'Pause' and optional 'Start' button.
+  - A 10k Ohm Pull-Up resistor will also be needed for each button, as they use analog input pins `A6` and/or `A7`.
+- Appropriately sized, conductive leads/wires. Unless you've integrated custom hardware with high voltage, or current demands, typical small diameter (22-28AWG), low voltage, hook up wire should be suitable.
 
 ## Supported Start Light Configurations
-Starting with Ver2.0, this controller will support using an Adafruit Bi-color Bargraph-24, and/or, a custom built LED light tree that can be assembled using standard LED components and a MAX7219 serial dirver.
+Starting with Ver2.0, this controller will support using an Adafruit Bi-color Bargraph-24, and/or, a custom built LED light tree driven by a MAX7219 serial dirver, that shares the same SPI bus used by the racer LED displays. Out of the box, the project code supports both options without modification.
 
 ### DIY MAX7219 Light Tree Parts
-These are all the parts required to build a custom start light tree. For further details, see section: [DIY MAX7219 Based Start Light Tree](#diy-max7219-based-start-light-tree).
+A MAX7219 chip, and a few standard electrical components, are all that's needed to build your own start light tree. For details on implementation, review the [wiring diagram](#wiring-diagram), and see section: [DIY MAX7219 Start Light Tree](#diy-max7219-start-light-tree).
 - [MAX7219 Serial LED driver chip](https://www.amazon.com/Bridgold-MAX7219CNG-MAX7219-Serially-Interfaced/dp/B0BK6XC4P8/ref=sr_1_3?keywords=max7219&sr=8-3) - ([datasheet](https://www.analog.com/media/en/technical-documentation/data-sheets/MAX7219-MAX7221.pdf)) same chip used by the pre-packaged LED bars.
 - 4 White LEDs
 - 6 Yellow LEDs
@@ -113,7 +142,7 @@ These are all the parts required to build a custom start light tree. For further
 
 
 ## **PinOut for Wiring Arduino Nano**
-(these are the pins used by this code, but can be re-arranged, if desired)  
+The following is the default pin out for use with an Arduino Nano or other ATMega328 based module.
 <div style="color:orange;font-size:12px">  
 
 |Attached        |Pin  |Nano|Pin  |Attached        |
@@ -167,7 +196,7 @@ All devices in this build are powered from a +5V source. The displays should dra
 # **Software Configuration**  
 In order to interact with our different peripherals, this project uses several existing [Arduino libraries](https://www.arduino.cc/reference/en/libraries/). Unless otherwise specified, these libraries can be downloaded the usual manner using the [Arduino Library Manager](https://docs.arduino.cc/software/ide-v1/tutorials/installing-libraries). Each library will be introduced with the hardware it's related to.
 
-Reference for add-on libraries used in the core project. The versions listed are the latest, verified compatible versions. If newer versions are causing a compiling issue, try the version listed below:
+The links below are to reference documentation for the add-on libraries used in this project. The versions listed are the latest, verified compatible versions. If newer versions are causing a compiling issue, try using the version listed below:
 - [hd44780](https://www.arduino.cc/reference/en/libraries/hd44780/) v1.3.2
 - [LedControl](https://www.arduino.cc/reference/en/libraries/ledcontrol/) v1.0.6
 - [Keypad](https://www.arduino.cc/reference/en/libraries/keypad/) v3.1.1
@@ -175,11 +204,11 @@ Reference for add-on libraries used in the core project. The versions listed are
 - ^ [Adafruit GFX](https://www.arduino.cc/reference/en/libraries/adafruit-gfx-library/) 1.11.5
 - ^ [Adafruit LED Backpack](https://www.arduino.cc/reference/en/libraries/adafruit-led-backpack-library/) 1.3.2
 
-^ These libraries are only necessary to support the Adafruit Bargraph. However they must still be installed, even if not using them, to avoid any compiling errors.
+^ *These libraries are only necessary to support the Adafruit Bargraph. However, by default the installed code actively supports both start light configurations, so even if not using them, they must be installed to avoid compiling errors. Alternatively, the code for the bargraph, that uses these libraries can be commented out, then they can be removed.*
 
 All custom project logic is in the main Arduino `.ino` sketch file. The additional supporting `.h` files are used to store different data constants defining custom characters, songs, and default system settings.
 - `RaceTimerAndController.ino` - main sketch file containing all custom logic
-- `enum_list.h` - all defined enums are put in a seperate file to force the compiler to handle them before they are used as a global function parameter. Not doing so can cause a compiler error, even though the code is ok.
+- `enum_list.h` - all defined enums are put in a seperate file to force the compiler to handle them before they are used as a global function parameter. Not doing so can cause a compiler error, even though the code is syntactically proper.
 - `RTTL_songs.h` - file to hold RTTL song string constants
 - `melodies_prog.h` - file to hold Notes[] Lengths[] array based song data
 - `pitches.h` - file holding `#define` macros setting the frequency values used for Notes array based songs.
@@ -189,7 +218,7 @@ All custom project logic is in the main Arduino `.ino` sketch file. The addition
 - `README.md` - Project documentation text, written in markdown format.
 - `CHANGE_LOG.md` - Project change record, written in markdown format.
 
-The game controller code uses non-blocking techniques with port register interrupts on the lap detection sensor pins.
+> *NOTE: The Arduino compiler will attempt to exclude code that is never used during execution. So for example, by default the program does not use the `Notes[]` & `Lengths[]` array technique for playing songs, so will not take up memory with data from the `pitches.h` or `melodies_prog.h` files. Nor will it upload unused song strings found in the `RTTL_songs.h` file that are not included in the `...Settings.h` song list. So deleting or commenting out unused data strings or files, will likely not reduce memory required when uploaded to the Arduino.*
 
 <br>
 
@@ -211,7 +240,7 @@ This display can be controlled directly using 13 Arduino pins. Though, it is com
 ## **LCD Libraries and Initialization in Code:**  
 In order to interact with the LCD screen, and update what is written, we are using the `hd44780` lcd library. This is a drop in replacement for the very common `LiquidCrystal` library. Since we are using an I2C backpack we must also include the built-in Arduino `Wire` library to manage the I2C communication.
 
-  - [Wire](https://www.arduino.cc/en/Reference/Wire) - Built-in Arduino library used to setup and control I2C communication.
+  - [Wire](https://www.arduino.cc/en/Reference/Wire) - Built-in Arduino library used to setup and control I2C communication. This library is installed as part of the Arduino IDE and does not need to be added seperately.
   - [hd44780](https://www.arduino.cc/reference/en/libraries/hd44780/) - Of the many available, we have chosen `hd44780` as our LCD display driver and API.  
     - `hd44780_I2Cexp.h` - Because we are using an LCD with an I2C backpack we need to also include the *hd44780_I2Cexp.h* io class which is installed with the *hd44780* library.
 
@@ -314,7 +343,7 @@ void loop(){
   // NOTE: normally this code would go into a function, that
   //     would only be called as necessary from the main loop.
   
-  // To write custom character to lcd, call asigned number
+  // To write custom character to lcd, set location, then call assigned number
   lcd.setCuror(0,0);
   lcd.write(3);
 
@@ -328,9 +357,9 @@ void loop(){
 
 This race controller is intended to support up to 4 racers. For each racer we have a dedicated lap sensor for tracking laps. Associated with that lap sensor is a dedicated display showing the racer's active lap number and running lap time.
 
-The display must be able to fit a 3 digit lap count and a lap time with up to 4 significant digits. With this lap time digit width, we can support a display precision of at least 1 sec up to a 1 hour lap time, and as small as 1ms for lap times under 10 seconds.
+The display is intended to fit a 3 digit lap count, and a lap time with up to 4 significant digits. With this lap time digit width, we can support a display precision of at least 1 sec up to a 1 hour, and as small as 1ms for lap times under 10 seconds.
 
-***NOTE: Display precision has no impact on the precision of the recorded lap time. Laps of all durations will be captured with millisecond precision (0.000 sec).***
+***NOTE:** Display precision has no impact on the precision of the recorded lap time. Laps of all durations will be captured with millisecond precision (0.000 sec).*
 
 > 4 significant digits, sliding lap time display precision
 > | Lap Time Range | Most Precise Display Format |
@@ -348,7 +377,7 @@ As with the LCD, we could drive each LED directly from the Arduino, however, thi
 
 ## **The MAX7219 Serial LED Driver:**
 ### **Use Serial LED Driver to Minimize Pin Count**  
-Luckily, our pin problem can be overcome by using a chip like the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), which can drive up to 64 LEDs while requiring only 3 signal pins from the Arduino. As such, it's common to find pre-assembled 7-segment LED bars having 4, or 8 digits, with an integrated MAX7219, like the one shown here.
+Luckily, our pin problem can be overcome by using a chip like the [MAX7219](https://www.14core.com/wp-content/uploads/2016/03/MAX7219-MAX7221.pdf), which can drive up to 64 LEDs while requiring only 3 signal pins from the Arduino using an SPI (serial peripheral interface) bus. As such, it's common to find pre-assembled 7-segment LED bars having 4, or 8 digits, with an integrated MAX7219, like the one shown here.
 
 We'll use one of these 8 digit MAX7219 LED packages, as a lap timer, for each racer.
 
@@ -444,7 +473,7 @@ However, a side effect of using 7-seg displays is that they cannot display all c
 > W's, M's, X's, K's, or V's
 
 ### **Customization of the `LedControl` Library's Character Table**  
-The `LedControl` library, as it is downloaded, is missing some writable letters. To add them or to change how existing writable characters are written, we can edit the library's character table that contains the code value, representing the segments, to be displayed.
+The `LedControl` library, as it is downloaded, is missing some writable letters. To add them or to change how existing characters are written, we can edit the library's character table that contains the code value, representing the segments, to be displayed.
 
 Normally it is not best practice to directly edit library files because next time they are updated these changes will get overwritten. However, in this case it is not a difficult change to re-implement vs the hassle of making our own version of the library.
 
@@ -467,13 +496,15 @@ Normally it is not best practice to directly edit library files because next tim
 > **Replace 'userid' with appropriate windows user profile name
 > ```
 
-To edit the displayed character shape, we can edit the code value of the corresponding index of the `charTable[]` array found in `LedControl.h`. We could also use any of the unwritable characters as an alias for our own character, such as changing 'M' (i.e. ASCII 77) to be `B01001001`, which will draw a triple bar symbol when an 'M' character is commanded.
+To change the displayed character shape, we can edit the coded value at the corresponding index of the `charTable[]` array found in `LedControl.h`. We could use any of the unwritable characters as an alias for our own custom character, such as changing the coded value for 'M' (i.e. ASCII 77) to be `B01001001`, which would draw a triple bar symbol when a capital 'M' character is commanded.
 
-| Code Value: `B0abcdefg` | Edit `charTable[]` to update `LedControl.h` with more characters. |
+### Example Defining What is Drawn When a Capital 'E' is Commanded
+| Code Format: `B0abcdefg` | Coded values of `charTable[]` in `LedControl.h` set what is drawn |
 |---|--|
-| <img style="width:400px" src="Images/7-seg-digit-mapping-Edemo.png" /> | The requested character's [ASCII Value](https://www.ascii-code.com/) determines the index of the array, `charTable[]`, that has the code value, indicating which segments to light up, to draw the character. <br> For example, to set what is drawn when instructing the LED to draw a capital 'E', we look up its ASCII value, which is `69`. Then go to the value at `charTable[69]`, and set the code value to **`B01001111`**.  <br> Following the format, `B0abcdefg`, this will instruct segments a, d, e, f, and g to turn on. |
+| <img style="width:400px" src="Images/7-seg-digit-mapping-Edemo.png" /> | The commanded character's [ASCII Value](https://www.ascii-code.com/) determines the index of the array, `charTable[]`, that specifies the code value, indicating which segments to light up, to draw the commanded character. <br> To set what is drawn when commanding the LED to draw a capital 'E', we look up the ASCII value for 'E', which is `69`. Then go to that index at `charTable[69]`, and set the code value to **`B01001111`**.  <br> Following the format, `B0abcdefg`, this will instruct segments a, d, e, f, and g to turn on. |
 
 ### **Updated `charTable[]` to Replace the One Found in `LedControl.h`**
+In this table the commented row above the coded values, indicate the 1st index of the row, and then labels the typical ASCII character that each index represents. Comments such as `D->d` or `a->A` indicate that the actual coded value represents a different case than the proper ASCII character at that index, because the standard character cannot be displayed properly.
 ```cpp
 const static byte charTable [] PROGMEM  = {
   //00  0         1         2          3        4         5         6         7
@@ -514,10 +545,13 @@ const static byte charTable [] PROGMEM  = {
 # **DIY MAX7219 Start Light Tree**
 This project supports using a custom MAX7219 based, LED tree as a start light for circuit style, and drag style racing. By using a MAX7219 we keep this tree compatible with the SPI bus used by the 7-segment display chain, and thus will require no extra pins to integrate into the system.
 
-The project [Wiring Diagram](#wiring-diagram) includes the wiring layout for this start tree, and its integration into a 2 racer/lane track. If setting up a system with a different number of lanes, make sure this, MAX7219 start tree, is the last device in the Racer timer LED display chain. The controller will assume that there is a timer display for each racer defined by the `LANE_COUNT` setting. If the system lane count is 3 or 4, but there are only 2 timer displays, and then the start tree, the start tree will light according to an expected 3rd racer timer display, instead of the intended pre-start countdown light.
+The project [Wiring Diagram](#wiring-diagram) includes the wiring layout for this start tree, and its integration into a 2 racer/lane track. If setting up a system with a different number of lanes, make sure this, MAX7219 start tree, is the last device in the racer timer LED display chain. The controller will assume that there is a timer display for each racer defined by the `LANE_COUNT` parameter. If the system lane count is 3 or 4, but there are only 2 timer displays in the chain, and then the start tree, the start tree will light according to an expected 3rd racer timer display, instead of the intended pre-start countdown light.
+
+The start tree consists of 8 LEDs for each lane. The traditional assembly orients them into two vertical columns of 7 lights, arranged, from top to bottom, in order of the pinout diagram below. Two additional blue (or other desired color) LEDs can be wired as drag race 'winner' indicators. These could be added to the start light tree, or placed at the finish line.
 
 ## **MAX7219 Start Light Pinout**
-The start tree consists of 8 LEDs for each lane. The traditional assembly orients them into two columns of 7 lights, arranged in order of the pinout diagram below. Two additional blue (or any other desired color) LEDs can be wired as drag race 'winner' indicators. These could be added to the start light tree, or placed at the finish line.
+
+The table below indicates the MAX7219 pin-out for each LED. Through hole, LED componentes have a short and a long leg which indicates the negative and positive connections, respectively.
 
 Order | Indicator | color |Lane 1+(long) |Lane 1-(short) |Lane 2+(long) |Lane 2-(short)  
 ---|-------------|-------|-----------|-----------|-----------|---
@@ -530,9 +564,9 @@ Order | Indicator | color |Lane 1+(long) |Lane 1-(short) |Lane 2+(long) |Lane 2-
 7  | Fault       | Red   | 17 (segG) | 2 (dig0)  | 17 (segG) | 11 (dig1) 
 NA | Winner      | Blue  | 22 (DP)   | 2 (dig0)  | 22 (DP)   | 11 (dig1) 
 
-A **100nF** capacitor should be added across the V+ and GND to help mitigate electromagnetic noise effects. If lights are flickering, consider also adding a 10uF, polarized capacitor as well.
+A **100nF** capacitor should be added across the `V+` and `GND` pins of the MAX7219, to help mitigate electromagnetic noise effects. If lights are flickering, consider also adding a 10uF, polarized capacitor, in parallel, across the same pins.
 
-A **10kOhm** resistor is added between the Iset pin and V+ to limit the peak current through the LED segments. In effect this will also control brightness.
+Finally, add a **10kOhm** resistor between the `Iset` and `V+` pins of the MAX7219 to limit the peak current through the LED segments. In effect this will also control brightness.
 
 On bootup, and while in the `Menu` state, the 3 yellow pre-start, interval lights will be lit, indicating an idle system. See the [Racing](#racing) section for more details of light tree indicator states.
 
@@ -967,11 +1001,11 @@ The [Drag-It-Anywhere track sensor page](https://dragitanywhere.com/track-sensor
 > | <img src="Images/IR_Proximity_Module.png" alt="IR Proximity" width="300px"> | <img src="Images/Ultrasonic_Proximity_Sensor_HC-SR04.png" alt="Ultrasonic Module HC-SR04" width="300px"> |
 
 ## **Example Integration - Converting Mechanical Lap Counter**
-In my case I have a mechanical lap counter that I added two paper clips to act as contacts, creating a triggering connection every time the mechanical switch in the track is flipped. It's easy to bend the paperclips such that they have a nice, relatively long, solid contact period.
+A mechanical lap counter, can be converted to an electronic lap sensor by using two paper clips as electrical contacts, and orienting them such that they create a triggering connection when the mechanical switch in the track is flipped. The paperclips can be bent such that they have a nice, relatively long, solid contact period.
 
-This fits nicely with the port register interrupts to give a reliable, repeatable, trigger. Because our contact time is much longer than our interrupt function, and we can read simultaneous contacts of all racers, we'll never miss a lap. Even if there is a tie, or if the controller is in the interrupt when another initiates a 2nd triggering contact.
+This fits nicely with the port register interrupts by providing a contact time which is much longer than our interrupt function. This, coupled with the ability to read triggers of all racers simultaneously, means we should never miss a lap, even if there is a tie, or the controller is in the interrupt when another initiates a 2nd triggering contact.
 
-In the image below, two base paper clips, are wired with black leads to ground. Then, Lane 1, seen wired with a yellow wire, is connected to PIN_A0 of the Arduino off screen. For lane 2 we see an orange lead connecting the signal contact, which is wired to PIN_A1 off screen. When a car passes, it moves the in-track trigger, swinging the contacts closed, completing the signal circuit and triggering an interrupt.
+In the image below, two base paper clips, are wired with black leads to ground. The Lane 1 contact, seen wired with a yellow wire, is connected to PIN_A0 of the Arduino off screen. The lane 2 contact is wired with an orange lead connected to PIN_A1 off screen. When a car passes, it moves the in-track trigger, swinging the contacts closed, completing the signal circuit and triggering an interrupt.
 
 [Paperclip Sensor In Action](https://youtu.be/n0GLdoQ6pg4?t=135)
 
@@ -985,10 +1019,10 @@ In the image below, two base paper clips, are wired with black leads to ground. 
 # **Analog Pause & Start Buttons**  
 This project includes two analog buttons that can be used to manage an active race. One button is designated as a `Pause` button, and the other as a `Start` button. These behave as simple switches, and provide a seperation of race control from the main keypad, facilitating a more flexible system setup.
 ### **The Pause Button**
-The `Pause` button is used to pause and restart an active race, and as an exit button alternative, to using the `*` key, to exit the `PreStage` or `Finished` states. `Pause` can also be pressed to clear a `Fault`. 
+The `Pause` button is primarily used to pause and restart an active race, but can also be used as an alternative to pressing the `*` key, to exit the `PreStage` or `Finished` states, or to clear a `Fault`. 
 - During a live race, pressing the `Pause` button will put the race into the `Paused` state, suspending race activity.
-- While in a `Paused` state, pressing the `Pause` button will return to the active `Race` state, or `PreStart` countdown depending on the system configuration.
-- Pressing `Pause` while in the `Staging` state (ie Pre-Stage race phase), will exit the race and return the system to the `Menu` state.
+- While in a `Paused` state, pressing the `Pause` button will return to the active `Race` state, or `PreStart` countdown, depending on the system configuration.
+- Pressing `Pause` while in the `Staging` state (ie Pre-Stage race phase), will exit the race, and return the system to the `Menu` state.
 - Pressing `Pause` while in a `Fault` state will clear the fault and return the system to the `Staging` state.
 - After a drag race heat is finished, pressing `Pause` from the drag heat result screen, will exit the race and return the system to the `Menu` state.
 
@@ -1001,7 +1035,7 @@ The `Start` button's primary function is to provide a means to initiate a race s
 ## **Using Pins A6 & A7 as Buttons**
 For wiring a `Pause` and `Start` button, the pins we have available are, A6 and A7. Unlike the other pins we have been using, these pins don't have an internal pull-up resistor, and they can only be used as analog inputs.
 
-In order to use them as button triggers we must add our own external pull-up resistors, as illustrated in the project wiring diagram, and explained in [this article](https://roboticsbackend.com/arduino-input_pullup-pinmode/). Like the keypad, to detect a press we must pole the buttons to know if they've been pressed. In this case, since we are using analog, our input will not be just HIGH or LOW, but some value between the maximum switch voltage and zero. If the value is lower than a set threshold then we consider it pressed.
+In order to use them as button inputs, we must add our own external pull-up resistors, as illustrated in the project [wiring diagram](#wiring-diagram), and explained in [this article](https://roboticsbackend.com/arduino-input_pullup-pinmode/). Like the keypad, to detect a press we must pole the buttons to know if they've been pressed. In this case, since we are using analog, our input will not be just HIGH or LOW, but some value between the maximum switch voltage and zero. If the value is lower than a set threshold then we consider it pressed.
 
 ```cpp
 // button pin assignments
@@ -1055,6 +1089,7 @@ Playing simple beeps and boops on the Arduino can be done with a single call to 
 ```cpp
 // A3 is a built in Arduino pin identifier
 const byte buzzPin1 = A3;
+bool gameAudioOn = true;
 
 // tone(pin with buzzer, freq in Hz, duration in ms)
 void Beep() {
@@ -1124,7 +1159,7 @@ Using the notes defined in `pitches.h`, we can build an array of the notes that 
 ![C Major Scale](Images/C_Major_Scale.png)
 
 and record it in a `Notes[]` array, as such:
-- *Storing in `PROGMEM` is optional*
+- *Storing song data using `PROGMEM` is optional*
 ```cpp
 const int cMajorScaleNotes[] PROGMEM = {
   NOTE_C4, NOTE_D4, NOTE_E4, NOTE_F4, NOTE_G4, NOTE_A4, NOTE_B4
@@ -1212,8 +1247,8 @@ const int cMajorScaleLengths[] PROGMEM = {
 };
 // tempo in beats per minute
 const int cMajorScaleTempo = 120;
-// getting note count for easy reference later
-const int cMajorScaleCount = sizeof(cScaleNotes)/sizeof(int); 
+// calculate & store note count for easy reference later
+const int cMajorScaleCount = sizeof(cMajorScaleNotes)/sizeof(int); 
 ```
 
 ## **Playing the Melody Arrays**
@@ -1376,7 +1411,6 @@ Otherwise, most available melodies in this format are one-off, single song proje
 
 <br>
 <a id="songs-method-two"></a>
----  
 
 ## **Method 2: Ringtone RTTTL Format**  
 RTTTL stands for Ring Tone Text Transfer Language which is a string based format developed by Nokia that can be interpreted and played as a ringtone. This format is no longer used by phones, but the internet has libraries of thousands of songs encoded with it. Making it the preferred method for this project.
@@ -1439,7 +1473,7 @@ To play RTTTL strings we can use the [PlayRtttl](https://github.com/ArminJo/Play
 
 const char takeOnMe[] PROGMEM = "takeOnMe1:d=8,o=5,b=160:f#,f#,d,b4,p,b4,p,e,p,e,p,e,g#,g#,a,b";
 const byte buzzPin1 = 13;
-
+bool stopCondition = false;
 
 void setup(){
   --- other code ---
@@ -1456,8 +1490,9 @@ void loop(){
 
   // Must call this function every loop to keep song playing
   updatePlayRtttl();
-  // to stop a song in process use the stop function
-  stopPlayRtttl();
+
+  // to stop a song once the end song condition is met, use the stop function
+  if (stopCondition) stopPlayRtttl();
   
   --- other code ---
 }
@@ -1467,6 +1502,8 @@ void loop(){
 - [Picaxe Ringtone Download](https://picaxe.com/rtttl-ringtones-for-tune-command/) - RTTTL zip downloads 10,000+ songs
 - [dglaude/xmas.py](https://gist.github.com/dglaude/71525a07f5e24888a3f098fba3abf29b) - RTTTL Christmas songs
 
+
+<br>
 
 # **Audio Modes**
 This controller has 3 Audio Modes, providing users the ability to turn on and off the game feedback audio and victory songs.
@@ -1486,7 +1523,6 @@ At this time, this will not stop a victory song playing, while the system is in 
 
 <br>
 
----
 # **Race Controller Operation**
 ## **Main Menu Navigation**
 When the controller boots up it will display the **Main Menu** screen. Use the keypad to enter selections and navigate the menus.
