@@ -1533,7 +1533,7 @@ When the controller boots up it will display the **Main Menu** screen. Use the k
 
 In the **Menu State**, the lane's lap time displays, will indicate the assigned racer name, and any attached start lights will illuminate amber lights.
 
-![Idle Racer displays](Images/RacerLED-Idle_800x100.png)
+![Idle Racer displays](Images/RacerLED-Idle_800x100_2.png)
 
 <table>
   <tr>
@@ -1675,11 +1675,11 @@ After choosing a race from the [Start a Race](#main-menu---c-start-a-race) scree
 
 - **Circuit Race Pre-Stage:** For Lap or Timed races, the racer displays will continue to display the assigned racer names.
 
-    <img src="Images/RacerLED-Idle_800x100.png" alt="2" width="500px">
+    <img src="Images/RacerLED-Idle_800x100_2.png" alt="2" width="500px">
 
 - **Drag Race Pre-Stage:**  For drag racing, the racer displays will switch to using labels **Lane 1** & **Lane 2**.
 
-    <img src="Images/RacerLED-DragPreStage_800x100.png" alt="2" width="500px">
+    <img src="Images/RacerLED-DragPreStage_800x100_2.png" alt="2" width="500px">
 
 <br>
 
