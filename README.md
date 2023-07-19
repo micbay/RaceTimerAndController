@@ -591,6 +591,10 @@ On bootup, and while in the `Menu` state, the 3 yellow pre-start, interval light
 // Note that the device index is device order-1
 // LANE_COUNT is set in the '...Settings.h' files
 const byte LED_BAR_COUNT = LANE_COUNT + 1;
+// Declaring variable to hold base lane count (not strictly necessary).
+// We could just use 'LANE_COUNT', but it's used so often in project
+// code I preferred converting it into a byte constant.
+const byte laneCount = LANE_COUNT;
 
 // Declare object representing attached LED devices
 // LedControl parameters (DataIn, CLK, CS/LOAD, Number of devices))
@@ -618,6 +622,9 @@ void loop(){
 // Examples of setting MAX7219 startlight LEDs
 // NOTE that these would normally be called inside isolated code
 //     blocks that avoid overwriting each other as they are presented here
+
+  // Because laneCount = LED_BAR_COUNT - 1,
+  // then laneCount = the device index of the MAX7219 start light
 
   // To clear the MAX7219 start light
   lc.clearDisplay(laneCount);
