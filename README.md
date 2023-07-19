@@ -31,6 +31,8 @@ If you have integrated this project into a build of your own, everyone would lov
 
 If you find bugs in the code, or have trouble with getting this project to work as described please take a look at the [Issues](https://github.com/micbay/RaceTimerAndController/issues) section of this repo for help. If you cannot find the answer in past issues, please generate a new issue and describe your problem.
 
+> *NOTE: With different power inputs to devices and the Arduino, sometimes not all components are initiallized properly after uploading code. Often, power cycling the Arduino and attached devices will correct the problem.*
+
 <br>
 
 # Table of Contents
@@ -327,6 +329,9 @@ To create a custom character, define a byte array that establishes the pixels of
 </table>
 
 ```cpp
+// Custom character layout Byte's for LCD
+#include "CustomChars.h"
+
   // With lcd object and byte array created, create character by assigning
   // the byte array to one of the 8 spots, using int 0-7
 void setup(){
@@ -415,17 +420,21 @@ Declaration and Setup of LED displays in `RaceTimerAndController.ino`
 // library for 7-seg LED Bars
 #include <LedControl.h>
 
-// ***** 7-Seg 8-digit LED Bars *****
-const byte PIN_TO_LED_DIN = 2;
-const byte PIN_TO_LED_CS = 3;
-const byte PIN_TO_LED_CLK = 4;
-// When more than 2 MAX7219s are chained, additional chips
-// may need direct power supply to avoid intermittent error.
-// # of attached max7219 controlled LED bars
-const byte LED_BAR_COUNT = 4;
+// When more than 2 MAX7219s are chained, additional devices
+// may need direct power to avoid intermittent error.
+
+// Set the # of devices to include # of lanes + MAX7219 startlight
+// Note that the device index is device order-1
+// LANE_COUNT is set in the '...Settings.h' files
+const byte LED_BAR_COUNT = LANE_COUNT + 1;
+
 // # of digits on each LED bar
+// This parameter is not used in this example, but is used in project code
 const byte LED_DIGITS = 8;
-// LedControl parameters (DataIn, CLK, CS/LOAD, Number of Max chips (ie 8-digit bars))
+
+// Declare object representing attached LED devices
+// LedControl parameters (DataIn, CLK, CS/LOAD, Number of devices))
+// Parameter values are established in '...Settings.h' files 
 LedControl lc = LedControl(PIN_TO_LED_DIN, PIN_TO_LED_CLK, PIN_TO_LED_CS, LED_BAR_COUNT);
 
 
@@ -555,6 +564,7 @@ The table below indicates the MAX7219 pin-out for each LED. Through hole, LED co
 
 Order | Indicator | color |Lane 1+(long) |Lane 1-(short) |Lane 2+(long) |Lane 2-(short)  
 ---|-------------|-------|-----------|-----------|-----------|---
+0  | Winner      | Blue  | 22 (DP)   | 2 (dig0)  | 22 (DP)   | 11 (dig1) 
 1  | Pre-Stage   | White | 14 (segA) | 2 (dig0)  | 14 (segA) | 11 (dig1)
 2  | Staged      | White | 16 (segB) | 2 (dig0)  | 16 (segB) | 11 (dig1) 
 3  | Interval 1  | Amber | 20 (segC) | 2 (dig0)  | 20 (segC) | 11 (dig1) 
@@ -562,7 +572,6 @@ Order | Indicator | color |Lane 1+(long) |Lane 1-(short) |Lane 2+(long) |Lane 2-
 5  | Interval 3  | Amber | 21 (segE) | 2 (dig0)  | 21 (segE) | 11 (dig1) 
 6  | Start       | Green | 15 (segF) | 2 (dig0)  | 15 (segF) | 11 (dig1) 
 7  | Fault       | Red   | 17 (segG) | 2 (dig0)  | 17 (segG) | 11 (dig1) 
-NA | Winner      | Blue  | 22 (DP)   | 2 (dig0)  | 22 (DP)   | 11 (dig1) 
 
 A **100nF** capacitor should be added across the `V+` and `GND` pins of the MAX7219, to help mitigate electromagnetic noise effects. If lights are flickering, consider also adding a 10uF, polarized capacitor, in parallel, across the same pins.
 
@@ -571,6 +580,68 @@ Finally, add a **10kOhm** resistor between the `Iset` and `V+` pins of the MAX72
 On bootup, and while in the `Menu` state, the 3 yellow pre-start, interval lights will be lit, indicating an idle system. See the [Racing](#racing) section for more details of light tree indicator states.
 
 ![MAX Start Light](Images/MAX_LED_Start_Tree-full-w600px.png))
+
+
+## Working With MAX7219 Start Light in Code
+```cpp
+// library for controlling MAX7219 based LED devices
+#include <LedControl.h>
+
+// Set the # of devices to include # of lanes + MAX7219 startlight
+// Note that the device index is device order-1
+// LANE_COUNT is set in the '...Settings.h' files
+const byte LED_BAR_COUNT = LANE_COUNT + 1;
+
+// Declare object representing attached LED devices
+// LedControl parameters (DataIn, CLK, CS/LOAD, Number of devices))
+// Parameter values are established in '...Settings.h' files 
+LedControl lc = LedControl(PIN_TO_LED_DIN, PIN_TO_LED_CLK, PIN_TO_LED_CS, LED_BAR_COUNT);
+
+
+void setup(){
+
+  // initializtion of the MAX7219 startlight is done with the rest
+  // of the racer LED displays on the bus
+  for(int deviceID = 0; deviceID < LED_BAR_COUNT; deviceID++) {
+    // The MAX72XX is in power-saving mode on startup
+    lc.shutdown(deviceID, false);
+    // intensity range from 0-15, higher = brighter
+    lc.setIntensity(deviceID, 8);
+    // Blank the LED digits
+    lc.clearDisplay(deviceID);
+  }
+
+}
+
+void loop(){
+
+// Examples of setting MAX7219 startlight LEDs
+// NOTE that these would normally be called inside isolated code
+//     blocks that avoid overwriting each other as they are presented here
+
+  // To clear the MAX7219 start light
+  lc.clearDisplay(laneCount);
+
+  // To set an individual LEDs on startlight
+  // we call 'setLed', a function included with 'LedControl' library
+  // void LedControl::setLed(int addr, int row, int col, boolean state)
+  // the 'row' parameter is equivalent to the lane index in our usage
+  // the 'col' parameter is equivalent to the LED order in our usage
+
+  // To turn on single white pre-stage LEDs, 1st white LEDs in order
+  lc.setLed(laneCount, 0, 1, true);
+  lc.setLed(laneCount, 1, 1, true);
+
+  // To turn on the 'Start' green LEDs
+  lc.setLed(laneCount, 0, 6, true);
+  lc.setLed(laneCount, 1, 6, true);
+
+  // To turn on 'Winner' light for lane 1
+  lc.setLed(laneCount, 0, 0, true);
+
+}
+
+```
 
 <br>
 
@@ -602,6 +673,65 @@ Set the address by shorting the jumper pads, shown above.
 - The final address is `0x70` + `A2` + `A1` + `A0`.
 - Example 1: if `A2` is shorted and `A0` is shorted, the address is `0x70` + 4 + 1 = `0x75`.
 - Example 2: If only `A1` is shorted, the address is `0x70` + 2 = `0x72`
+
+## Working With Adafruit Bargraph in Code:
+```cpp
+// Adafruit Bar LED libraries
+#include <Adafruit_GFX.h>
+#include "Adafruit_LEDBackpack.h"
+
+// declare object representing Adafruit LED bargraph, called 'bar'.
+Adafruit_24bargraph bar = Adafruit_24bargraph();
+
+// Create function to help set specified ranges of LEDs.
+// 'color' can be 'LED_RED', 'LED_YELLOW', 'LED_GREEN', or 'LED_OFF'
+// 'start' is the index reference of 1st LED to change, index 0 is LED 1
+// 'end' is index of last LED to change, index 23 is LED 24
+// default values for 'end' & 'start' will set entire bar to input color
+// if no values are included in fucntion call.
+void setBargraph(byte color, byte end = 23, byte start = 0) {
+  // cyle through each LED to change, set new color, and update display
+  for (uint8_t i=start; i<=end; i++) {
+    bar.setBar(i, color);
+    bar.writeDisplay();
+  }
+}
+
+
+void setup() {
+
+  // Initialize Adafruit Bargraph
+  // Default address is '0x70'
+  // Address is stored in '...Settings.h' as BARGRAPH_I2C_ADDRESS
+  bar.begin(BARGRAPH_I2C_ADDRESS);
+
+}
+
+
+void loop(){
+
+// Examples of setting bargraph to different colors & patterns
+// NOTE that these would normally be called inside isolated code
+//     blocks that avoid overriting each other as they are presented here
+
+  // Clear bargraph
+  setBargraph(LED_OFF);
+
+  // set entire LED Bargraph to red
+  setBargraph(LED_RED);
+  
+  //  set entire LED Bargraph to green
+  setBargraph(LED_GREEN);
+
+  // set initial staged phase pattern to LED bargraph
+  // clear any existing pattern
+  setBargraph(LED_OFF);
+  // update new pattern
+  setBargraph(LED_YELLOW, 14, 9);
+
+}
+
+```
 
 <br>
 
@@ -1060,7 +1190,6 @@ bool buttonPressed(uint8_t analogPin) {
   return false;
 
 }
-
 
 
 void setup(){
@@ -1601,7 +1730,7 @@ Pressing `C` from the Main Menu will bring up the **Race Start Menu**. From this
 
 <img src="Images/ScreenShots/NoResults_Menu.png"  alt="1" width="300px">
 
-After a race has finished (or paused and quite), and lap data for racers exists, entering the Results Menu will give access to the lap time data recorded from the last race.
+After a race has finished (or paused and quit), and lap data for racers exists, entering the Results Menu will give access to the lap time data recorded from the last race.
 
 Pressing `C` will cycle through the available results sub-menus. There is a results page for the top overall laps, a page for each, individual, racer's top laps, and a page that displays the final leader board.
 
